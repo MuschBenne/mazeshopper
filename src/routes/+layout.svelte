@@ -9,8 +9,10 @@
 
     let { data, children } = $props();
 
-    // Initialize user from server-side session on every navigation
-    authContext.user = data.user;
+    $effect(() => {
+        // Sync user from server on every navigation
+        authContext.user = data.user;
+    });
 
     $effect(() => {
         if (authContext.user) {
