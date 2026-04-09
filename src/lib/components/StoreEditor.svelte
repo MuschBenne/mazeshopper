@@ -183,6 +183,7 @@
         {/if}
     </p>
 
+    <div class="canvas-scroll">
     <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
     <svg
         bind:this={svgEl}
@@ -290,6 +291,7 @@
             {/if}
         {/each}
     </svg>
+    </div>
 </div>
 
 <style>
@@ -346,11 +348,15 @@
         margin: 0 0 0.5rem;
     }
 
-    .canvas {
-        display: block;
+    .canvas-scroll {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
         border-radius: 6px;
         border: 1px solid #e5e7eb;
-        max-width: 100%;
+    }
+
+    .canvas {
+        display: block;
         user-select: none;
     }
 

@@ -1,36 +1,30 @@
 import { browser } from '$app/environment';
 
 class StoreContext {
-    /**@type {{name: string, categoryOrder: {[category: string]: number}, positions: {[category: string]: {x: number, y: number}}}[]}*/
+    /** @type {{id: string, name: string, categoryOrder: {[category: string]: number}, positions: {[category: string]: {x: number, y: number}}}[]} */
     stores = $state([]);
 
-    /**@type {number | null}*/
+    /** @type {number | null} */
     selectedStoreIndex = $state(null);
 
     constructor() {
         if (browser) {
-            const saved = localStorage.getItem('stores');
-            const parsed = saved ? JSON.parse(saved) : [];
-            this.stores = parsed.map(/** @param {any} s */ s => ({
-                categoryOrder: {},
-                positions: {},
-                ...s
-            }));
             const savedIndex = localStorage.getItem('selectedStoreIndex');
             this.selectedStoreIndex = savedIndex !== null ? JSON.parse(savedIndex) : null;
         }
     }
 
-    #save() {
-        if (browser) {
-            localStorage.setItem('stores', JSON.stringify(this.stores));
-        }
+    async load() {
+        const res = await fetch('/api/stores');
+        if (!res.ok) return;
+        const { stores } = await res.json();
+        this.stores = stores;
     }
 
-    #saveSelection() {
-        if (browser) {
-            localStorage.setItem('selectedStoreIndex', JSON.stringify(this.selectedStoreIndex));
-        }
+    reset() {
+        this.stores = [];
+        this.selectedStoreIndex = null;
+        if (browser) localStorage.removeItem('selectedStoreIndex');
     }
 
     get selectedStore() {
@@ -38,15 +32,22 @@ class StoreContext {
         return this.stores[this.selectedStoreIndex] ?? null;
     }
 
-    /**@param {string} name */
-    addStore(name) {
+    /** @param {string} name */
+    async addStore(name) {
         if (name.trim().length === 0) return;
-        this.stores = [...this.stores, { name, categoryOrder: {}, positions: {} }];
-        this.#save();
+        const res = await fetch('/api/stores', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name })
+        });
+        const { store } = await res.json();
+        this.stores = [...this.stores, store];
     }
 
-    /**@param {number} index */
-    removeStore(index) {
+    /** @param {number} index */
+    async removeStore(index) {
+        const store = this.stores[index];
+        await fetch(`/api/stores/${store.id}`, { method: 'DELETE' });
         this.stores = this.stores.filter((_, i) => i !== index);
         if (this.selectedStoreIndex === index) {
             this.selectedStoreIndex = null;
@@ -55,31 +56,36 @@ class StoreContext {
             this.selectedStoreIndex--;
             this.#saveSelection();
         }
-        this.#save();
     }
 
     /**
-     * Save the visual layout and derive categoryOrder from the route array.
      * @param {number} storeIndex
      * @param {{[category: string]: {x: number, y: number}}} positions
-     * @param {string[]} route  ordered list of category names
+     * @param {string[]} route
      */
-    setStoreLayout(storeIndex, positions, route) {
+    async setStoreLayout(storeIndex, positions, route) {
+        const store = this.stores[storeIndex];
         /** @type {{[category: string]: number}} */
         const categoryOrder = {};
         route.forEach((name, i) => { categoryOrder[name] = i + 1; });
-        this.stores[storeIndex] = {
-            ...this.stores[storeIndex],
-            positions,
-            categoryOrder
-        };
-        this.#save();
+        await fetch(`/api/stores/${store.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ positions, categoryOrder })
+        });
+        this.stores[storeIndex] = { ...store, positions, categoryOrder };
     }
 
-    /**@param {number | null} index */
+    /** @param {number | null} index */
     selectStore(index) {
         this.selectedStoreIndex = index;
         this.#saveSelection();
+    }
+
+    #saveSelection() {
+        if (browser) {
+            localStorage.setItem('selectedStoreIndex', JSON.stringify(this.selectedStoreIndex));
+        }
     }
 }
 

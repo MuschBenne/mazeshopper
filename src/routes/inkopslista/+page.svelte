@@ -1,224 +1,223 @@
 <script>
     import { shoppingContext } from "$lib/context/shopping-context.svelte";
-    import { settingContext } from "$lib/context/setting-context.svelte";
-    import { storeContext } from "$lib/context/store-context.svelte";
+    import { authContext } from "$lib/context/auth-context.svelte";
+    import { goto } from '$app/navigation';
 
-    let newItem = $state('');
-    let spec = $state('');
-    let selectedCategory = $state('');
+    const username = $derived(authContext.user?.username ?? '');
+    const myLists = $derived(shoppingContext.listsForUser(username));
+    const pendingInvitations = $derived(shoppingContext.invitations);
 
-    function addItem() {
-        if (selectedCategory === '') {
-            alert('Välj en kategori innan du lägger till en vara.');
-            return;
-        }
-        if (newItem.trim().length === 0) return;
-        shoppingContext.addItem(newItem, spec, selectedCategory);
-        newItem = '';
-        spec = '';
-    }
+    let newListName = $state('');
 
-    /**
-     * Returns categories sorted by the selected store's priority order.
-     * Categories without a priority keep their original relative order, placed after prioritized ones.
-     */
-    const sortedCategories = $derived.by(() => {
-        const store = storeContext.selectedStore;
-        if (!store || Object.keys(store.categoryOrder).length === 0) {
-            return settingContext.categories;
-        }
-        const order = store.categoryOrder;
-        return [...settingContext.categories].sort((a, b) => {
-            const pa = order[a.name] ?? Infinity;
-            const pb = order[b.name] ?? Infinity;
-            return pa - pb;
-        });
-    });
-
-    /** @type {Set<string>} */
-    let collapsedCategories = $state(new Set());
-
-    /** @param {string} name */
-    function toggleCategory(name) {
-        const next = new Set(collapsedCategories);
-        if (next.has(name)) {
-            next.delete(name);
-        } else {
-            next.add(name);
-        }
-        collapsedCategories = next;
+    async function createList() {
+        if (newListName.trim().length === 0) return;
+        const id = await shoppingContext.createList(newListName, username);
+        newListName = '';
+        goto(`/inkopslista/${id}`);
     }
 </script>
 
-<h1>Inköpslista</h1>
+<div class="page">
+<h1>Inköpslistor</h1>
 
-<div class="shopping-list">
-    <div class="store-selector">
-        <label for="store-select">Varuhus:</label>
-        <select
-            id="store-select"
-            value={storeContext.selectedStoreIndex ?? ''}
-            onchange={(e) => {
-                const val = /** @type {HTMLSelectElement} */ (e.target).value;
-                storeContext.selectStore(val === '' ? null : parseInt(val));
-            }}
-        >
-            <option value="">Inget varuhus valt</option>
-            {#each storeContext.stores as store, i}
-                <option value={i}>{store.name}</option>
-            {/each}
-        </select>
-    </div>
-
-    <input
-        bind:value={newItem}
-        placeholder="Vara"
-        onkeydown={(e) => e.key === 'Enter' && addItem()}
-    />
-    <input
-        bind:value={spec}
-        placeholder="Specifikation (valfritt)"
-        onkeydown={(e) => e.key === 'Enter' && addItem()}
-    />
-    <select bind:value={selectedCategory} onkeydown={(e) => e.key === 'Enter' && addItem()}>
-        <option value="">Välj kategori</option>
-        {#each settingContext.categories as category}
-            <option value={category.name}>{category.name}</option>
+{#if pendingInvitations.length > 0}
+    <div class="invitations-section">
+        <h2 class="inv-title">Inbjudningar</h2>
+        {#each pendingInvitations as inv}
+            <div class="inv-card">
+                <div class="inv-info">
+                    <span class="inv-list-name">{inv.listName}</span>
+                    <span class="inv-from">Inbjuden av <strong>{inv.fromUser}</strong></span>
+                </div>
+                <div class="inv-actions">
+                    <button class="btn-accept" onclick={() => shoppingContext.acceptInvitation(inv.id)}>Acceptera</button>
+                    <button class="btn-decline" onclick={() => shoppingContext.declineInvitation(inv.id)}>Neka</button>
+                </div>
+            </div>
         {/each}
-    </select>
-    <button onclick={addItem}>Lägg till vara</button>
-
-    <div class="list-actions">
-        <button
-            class="btn-clear-bought"
-            onclick={() => shoppingContext.clearBought()}
-            disabled={!shoppingContext.items.some(i => i.bought)}
-        >
-            Rensa köpta varor
-        </button>
-        <button
-            class="btn-clear-all"
-            onclick={() => {
-                if (confirm('Är du säker? Hela listan raderas.')) {
-                    shoppingContext.clearAll();
-                }
-            }}
-            disabled={shoppingContext.items.length === 0}
-        >
-            Töm hela listan
-        </button>
     </div>
+{/if}
 
-    {#each sortedCategories as category}
-        {@const categoryItems = shoppingContext.items.filter(item => item.category === category.name)}
-
-        {#if categoryItems.length > 0}
-            {@const collapsed = collapsedCategories.has(category.name)}
-            <button class="category-header" onclick={() => toggleCategory(category.name)}>
-                <span class="category-arrow" class:collapsed>{collapsed ? '▶' : '▼'}</span>
-                {category.name}
-                <span class="category-count">({categoryItems.length})</span>
-            </button>
-            {#if !collapsed}
-                <ul>
-                    {#each categoryItems as item}
-                        {@const index = shoppingContext.items.findIndex(i => i === item)}
-                        <li>
-                            <span class="item-name" style:text-decoration={item.bought ? 'line-through' : 'none'}>
-                                {item.name}{item.spec ? ` – ${item.spec}` : ''}
-                            </span>
-                            <div class="quantity-controls">
-                                <button onclick={() => shoppingContext.decreaseQuantity(index)}>-</button>
-                                <span class="quantity">{item.quantity}</span>
-                                <button onclick={() => shoppingContext.increaseQuantity(index)}>+</button>
-                                <button onclick={() => shoppingContext.toggleBought(index)}>{item.bought ? '⭕' : '🛒'}</button>
-                                <button onclick={() => shoppingContext.removeItem(index)}>🗑️</button>
-                            </div>
-                        </li>
-                    {/each}
-                </ul>
+<div class="lists-grid">
+    {#each myLists as list}
+        <a class="list-card" href="/inkopslista/{list.id}">
+            <span class="list-name">{list.name}</span>
+            <span class="list-count">{list.items.length} varor</span>
+            {#if list.owner !== username}
+                <span class="shared-badge">Delad av {list.owner}</span>
+            {:else if list.sharedWith.length > 0}
+                <span class="shared-badge">Delad med {list.sharedWith.length} st</span>
             {/if}
-        {/if}
+        </a>
     {/each}
+
+    <div class="list-card new-card">
+        <input
+            bind:value={newListName}
+            placeholder="Namn på ny lista"
+            onkeydown={(e) => e.key === 'Enter' && createList()}
+        />
+        <button onclick={createList}>Skapa</button>
+    </div>
+</div>
 </div>
 
 <style>
-    .store-selector {
-        margin-bottom: 1rem;
+    .page {
+        max-width: 680px;
+        margin: 0 auto;
+        padding: 1.5rem 1rem;
+    }
+
+    .lists-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 1rem;
+        margin-top: 1.5rem;
+    }
+
+    .list-card {
         display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .list-actions {
-        display: flex;
-        gap: 0.5rem;
-        margin: 1rem 0;
-    }
-
-    .btn-clear-bought, .btn-clear-all {
-        padding: 0.3rem 0.75rem;
-        border-radius: 5px;
-        cursor: pointer;
-        font-size: 0.9em;
-        border: 1px solid;
-    }
-
-    .btn-clear-bought {
-        background: #fff;
-        color: #d97706;
-        border-color: #fcd34d;
-    }
-
-    .btn-clear-bought:hover:not(:disabled) {
-        background: #fffbeb;
-    }
-
-    .btn-clear-all {
-        background: #fff;
-        color: #dc2626;
-        border-color: #fca5a5;
-    }
-
-    .btn-clear-all:hover:not(:disabled) {
-        background: #fef2f2;
-    }
-
-    .btn-clear-bought:disabled, .btn-clear-all:disabled {
-        opacity: 0.4;
-        cursor: not-allowed;
-    }
-
-    .category-header {
-        display: flex;
+        flex-direction: column;
+        justify-content: center;
         align-items: center;
         gap: 0.4rem;
+        min-height: 120px;
+        border-radius: 12px;
+        border: 2px solid #e5e7eb;
+        background: #fff;
+        text-decoration: none;
+        color: inherit;
+        padding: 1rem;
+        cursor: pointer;
+        transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .list-card:hover {
+        border-color: #9ca3af;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .list-name {
+        font-size: 1.05em;
+        font-weight: 600;
+        text-align: center;
+    }
+
+    .list-count {
+        font-size: 0.8em;
+        color: #9ca3af;
+    }
+
+    .shared-badge {
+        font-size: 0.72em;
+        color: #7c3aed;
+        background: #f5f3ff;
+        border-radius: 999px;
+        padding: 0.15rem 0.55rem;
+        text-align: center;
+    }
+
+    .new-card {
+        border-style: dashed;
+        gap: 0.6rem;
+    }
+
+    .new-card input {
         width: 100%;
-        background: none;
+        text-align: center;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        padding: 0.3rem 0.5rem;
+        font-size: 0.95em;
+    }
+
+    .new-card button {
+        padding: 0.3rem 1rem;
+        border-radius: 6px;
+        border: 1px solid #d1d5db;
+        background: #f9fafb;
+        cursor: pointer;
+        font-size: 0.9em;
+    }
+
+    .new-card button:hover {
+        background: #f3f4f6;
+    }
+
+    .invitations-section {
+        margin-bottom: 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .inv-title {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #6b7280;
+        margin: 0 0 0.25rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .inv-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        background: #fff;
+        border: 1px solid #c4b5fd;
+        border-radius: 10px;
+        padding: 0.75rem 1rem;
+        flex-wrap: wrap;
+    }
+
+    .inv-info {
+        display: flex;
+        flex-direction: column;
+        gap: 0.15rem;
+    }
+
+    .inv-list-name {
+        font-weight: 600;
+        font-size: 0.95em;
+    }
+
+    .inv-from {
+        font-size: 0.8em;
+        color: #7c3aed;
+    }
+
+    .inv-actions {
+        display: flex;
+        gap: 0.4rem;
+        flex-shrink: 0;
+    }
+
+    .btn-accept {
+        padding: 0.35rem 0.85rem;
+        background: #16a34a;
+        color: #fff;
         border: none;
-        border-bottom: 1px solid #e5e7eb;
-        padding: 0.5rem 0;
-        margin-top: 1rem;
-        font-size: 1.1em;
+        border-radius: 6px;
+        font-size: 0.85em;
         font-weight: 600;
         cursor: pointer;
-        text-align: left;
-        color: inherit;
     }
 
-    .category-header:hover {
-        color: #555;
-    }
+    .btn-accept:hover { background: #15803d; }
 
-    .category-arrow {
-        font-size: 0.75em;
-        transition: transform 0.15s;
-    }
-
-    .category-count {
-        font-weight: 400;
+    .btn-decline {
+        padding: 0.35rem 0.85rem;
+        background: #fff;
+        color: #dc2626;
+        border: 1px solid #fca5a5;
+        border-radius: 6px;
         font-size: 0.85em;
-        color: #888;
-        margin-left: auto;
+        font-weight: 600;
+        cursor: pointer;
     }
+
+    .btn-decline:hover { background: #fef2f2; }
 </style>

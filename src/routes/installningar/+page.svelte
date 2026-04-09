@@ -4,66 +4,86 @@
     let newCategory = $state('');
     let editMode = $state(false);
 
-    function addCategory() {
-        settingContext.addCategory(newCategory);
+    async function addCategory() {
+        await settingContext.addCategory(newCategory);
         newCategory = '';
     }
 </script>
 
-<h1>Inställningar</h1>
+<div class="page">
+    <h1>Inställningar</h1>
 
-<div class="category-list">
-    <div class="section-header">
-        <h2>Kategorier</h2>
-        <button class="btn-edit" class:active={editMode} onclick={() => editMode = !editMode}>
-            {editMode ? 'Klar' : 'Ändra kategorier'}
-        </button>
-    </div>
-
-    <ul>
-        {#each settingContext.categories as category, index}
-            <li>
-                {#if editMode}
-                    <button class="btn-remove" onclick={() => settingContext.removeCategory(index)} aria-label="Ta bort {category.name}">−</button>
-                {/if}
-                <span>{category.name}</span>
-            </li>
-        {/each}
-    </ul>
-
-    {#if editMode}
-        <div class="add-row">
-            <input
-                type="text"
-                placeholder="Ny kategori"
-                bind:value={newCategory}
-                onkeydown={(e) => e.key === 'Enter' && addCategory()}
-            />
-            <button onclick={addCategory}>Lägg till</button>
+    <div class="card">
+        <div class="section-header">
+            <h2>Kategorier</h2>
+            <button class="btn-edit" class:active={editMode} onclick={() => editMode = !editMode}>
+                {editMode ? 'Klar' : 'Ändra kategorier'}
+            </button>
         </div>
-        <button class="btn-reset" onclick={() => settingContext.resetCategories()}>Återställ till standard</button>
-    {/if}
+
+        <ul>
+            {#each settingContext.categories as category, index}
+                <li>
+                    {#if editMode}
+                        <button class="btn-remove" onclick={() => settingContext.removeCategory(index)} aria-label="Ta bort {category.name}">−</button>
+                    {/if}
+                    <span class="dot" style:background={category.color}></span>
+                    <span>{category.name}</span>
+                </li>
+            {/each}
+        </ul>
+
+        {#if editMode}
+            <div class="add-row">
+                <input
+                    type="text"
+                    placeholder="Ny kategori"
+                    bind:value={newCategory}
+                    onkeydown={(e) => e.key === 'Enter' && addCategory()}
+                />
+                <button onclick={addCategory}>Lägg till</button>
+            </div>
+            <button class="btn-reset" onclick={() => settingContext.resetCategories()}>Återställ till standard</button>
+        {/if}
+    </div>
 </div>
 
 <style>
+    .page {
+        max-width: 680px;
+        margin: 0 auto;
+        padding: 1.5rem 1rem;
+    }
+
+    .card {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+        padding: 1.25rem;
+    }
+
     .section-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.75rem;
+        gap: 1rem;
     }
 
     .section-header h2 {
         margin: 0;
+        font-size: 1.1rem;
     }
 
     .btn-edit {
-        padding: 0.3rem 0.8rem;
-        border-radius: 5px;
+        padding: 0.35rem 0.9rem;
+        border-radius: 6px;
         border: 1px solid #d1d5db;
         background: #fff;
         cursor: pointer;
         font-size: 0.9em;
+        white-space: nowrap;
     }
 
     .btn-edit.active {
@@ -80,14 +100,25 @@
     li {
         display: flex;
         align-items: center;
-        gap: 0.5rem;
-        padding: 0.4rem 0;
+        gap: 0.6rem;
+        padding: 0.55rem 0;
         border-bottom: 1px solid #f3f4f6;
+        font-size: 0.95em;
+    }
+
+    li:last-child { border-bottom: none; }
+
+    .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        border: 1px solid rgba(0,0,0,0.1);
     }
 
     .btn-remove {
-        width: 1.4rem;
-        height: 1.4rem;
+        width: 1.6rem;
+        height: 1.6rem;
         border-radius: 50%;
         border: none;
         background: #dc2626;
@@ -99,11 +130,10 @@
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
+        min-height: unset;
     }
 
-    .btn-remove:hover {
-        background: #b91c1c;
-    }
+    .btn-remove:hover { background: #b91c1c; }
 
     .add-row {
         display: flex;
@@ -111,8 +141,15 @@
         margin-bottom: 0.75rem;
     }
 
-    .add-row input {
-        flex: 1;
+    .add-row input { flex: 1; }
+
+    .add-row button {
+        padding: 0.4rem 0.9rem;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        background: #f9fafb;
+        cursor: pointer;
+        white-space: nowrap;
     }
 
     .btn-reset {
@@ -123,9 +160,8 @@
         cursor: pointer;
         padding: 0;
         text-decoration: underline;
+        min-height: unset;
     }
 
-    .btn-reset:hover {
-        color: #374151;
-    }
+    .btn-reset:hover { color: #374151; }
 </style>

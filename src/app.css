@@ -1,3 +1,35 @@
 :root {
-    --primary-color: rgb(193, 105, 193); 
+    --primary-color: rgb(193, 105, 193);
+}
+
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+html {
+    -webkit-text-size-adjust: 100%;
+}
+
+body {
+    margin: 0;
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 16px;
+    color: #111827;
+    background: #f9fafb;
+    min-height: 100dvh;
+}
+
+/* Prevent iOS from zooming on input focus */
+input, select, textarea, button {
+    font-size: 16px;
+    font-family: inherit;
+}
+
+/* Touch targets — minimum 44px */
+button {
+    min-height: 36px;
+}
+
+img, svg {
+    max-width: 100%;
 }
