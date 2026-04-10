@@ -15,6 +15,8 @@
     let spec = $state('');
     let selectedCategory = $state('');
 
+    let shoppingMode = $state(false);
+
     // Share panel state
     let showSharePanel = $state(false);
     let shareInput = $state('');
@@ -94,27 +96,37 @@
         <p>Listan hittades inte. <a href="/inkopslista">Tillbaka</a></p>
     </div>
 {:else}
-    <div class="page">
+    <div class="page" class:shopping-mode={shoppingMode}>
     <div class="list-header">
-        <a class="back" href="/inkopslista">← Listor</a>
+        {#if !shoppingMode}
+            <a class="back" href="/inkopslista">← Listor</a>
+        {/if}
         <h1>{list.name}</h1>
         <div class="header-actions">
-            {#if isOwner}
+            {#if !shoppingMode && isOwner}
                 <button class="btn-share" onclick={() => { showSharePanel = !showSharePanel; shareError = ''; shareSuccess = ''; }}>
                     Dela
                 </button>
             {/if}
-            {#if isOwner}
+            {#if !shoppingMode && isOwner}
                 <button class="btn-delete-list" onclick={deleteList}>Ta bort</button>
             {/if}
+            <button
+                class="btn-shopping-mode"
+                class:active={shoppingMode}
+                onclick={() => { shoppingMode = !shoppingMode; showSharePanel = false; }}
+                title={shoppingMode ? 'Avsluta handelsläge' : 'Handelsläge'}
+            >
+                {shoppingMode ? '✕' : '🛒'}
+            </button>
         </div>
     </div>
 
-    {#if !isOwner}
+    {#if !isOwner && !shoppingMode}
         <p class="shared-notice">Delad lista av <strong>{list.owner}</strong></p>
     {/if}
 
-    {#if showSharePanel && isOwner}
+    {#if showSharePanel && isOwner && !shoppingMode}
         <div class="card share-panel">
             <h2>Dela lista</h2>
 
@@ -167,24 +179,27 @@
         </div>
     {/if}
 
-    <div class="card add-card">
-        <div class="store-selector">
-            <label for="store-select">Varuhus:</label>
-            <select
-                id="store-select"
-                value={storeContext.selectedStoreIndex ?? ''}
-                onchange={(e) => {
-                    const val = /** @type {HTMLSelectElement} */ (e.target).value;
-                    storeContext.selectStore(val === '' ? null : parseInt(val));
-                }}
-            >
-                <option value="">Inget varuhus valt</option>
-                {#each storeContext.stores as store, i}
-                    <option value={i}>{store.name}</option>
-                {/each}
-            </select>
-        </div>
+    {#if shoppingMode}
+    <div class="store-selector">
+        <label for="store-select">Varuhus:</label>
+        <select
+            id="store-select"
+            value={storeContext.selectedStoreIndex ?? ''}
+            onchange={(e) => {
+                const val = /** @type {HTMLSelectElement} */ (e.target).value;
+                storeContext.selectStore(val === '' ? null : parseInt(val));
+            }}
+        >
+            <option value="">Inget varuhus valt</option>
+            {#each storeContext.stores as store, i}
+                <option value={i}>{store.name}</option>
+            {/each}
+        </select>
+    </div>
+    {/if}
 
+    {#if !shoppingMode}
+    <div class="card add-card">
         <input
             bind:value={newItem}
             placeholder="Vara"
@@ -212,7 +227,9 @@
 
         <button class="btn-add" onclick={addItem}>Lägg till vara</button>
     </div>
+    {/if}
 
+    {#if !shoppingMode}
     <div class="list-actions">
             <button
                 class="btn-clear-bought"
@@ -233,6 +250,7 @@
                 Töm hela listan
             </button>
         </div>
+    {/if}
 
     <div class="card items-card">
         {#each sortedCategories as category}
@@ -250,16 +268,26 @@
                     <ul>
                         {#each categoryItems as item}
                             {@const index = list.items.findIndex(i => i === item)}
-                            <li>
+                            <li class:bought={item.bought}>
                                 <span class="item-name" style:text-decoration={item.bought ? 'line-through' : 'none'}>
                                     {item.name}{item.spec ? ` – ${item.spec}` : ''}
                                 </span>
                                 <div class="quantity-controls">
-                                    <button onclick={() => shoppingContext.decreaseQuantity(id, index)}>-</button>
+                                    {#if !shoppingMode}
+                                        <button onclick={() => shoppingContext.decreaseQuantity(id, index)}>-</button>
+                                    {/if}
                                     <span class="quantity">{item.quantity}</span>
-                                    <button onclick={() => shoppingContext.increaseQuantity(id, index)}>+</button>
-                                    <button onclick={() => shoppingContext.toggleBought(id, index)}>{item.bought ? '⭕' : '🛒'}</button>
-                                    <button onclick={() => shoppingContext.removeItem(id, index)}>🗑️</button>
+                                    {#if !shoppingMode}
+                                        <button onclick={() => shoppingContext.increaseQuantity(id, index)}>+</button>
+                                    {/if}
+                                    <button
+                                        class="btn-bought"
+                                        class:bought={item.bought}
+                                        onclick={() => shoppingContext.toggleBought(id, index)}
+                                    >{item.bought ? '✓' : ''}</button>
+                                    {#if !shoppingMode}
+                                        <button onclick={() => shoppingContext.removeItem(id, index)}>🗑️</button>
+                                    {/if}
                                 </div>
                             </li>
                         {/each}
@@ -501,6 +529,16 @@
         font-size: 0.9em;
     }
 
+    .page.shopping-mode .store-selector {
+        font-size: 1em;
+        color: #374151;
+    }
+
+    .page.shopping-mode .store-selector select {
+        font-size: 1em;
+        padding: 0.45rem 0.75rem;
+    }
+
     .list-actions {
         display: flex;
         gap: 0.5rem;
@@ -651,5 +689,89 @@
 
     @media (max-width: 400px) {
         li { padding: 0.65rem 0.75rem; }
+    }
+
+    /* Shopping mode button */
+    .btn-shopping-mode {
+        font-size: 1rem;
+        background: none;
+        border: 1.5px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 0.25rem 0.55rem;
+        cursor: pointer;
+        line-height: 1.4;
+        transition: background 0.15s, border-color 0.15s;
+    }
+
+    .btn-shopping-mode:hover { background: #f3f4f6; }
+
+    .btn-shopping-mode.active {
+        background: #111827;
+        border-color: #111827;
+        color: #fff;
+        font-weight: 700;
+        font-size: 0.85rem;
+    }
+
+    /* Shopping mode overrides */
+    .page.shopping-mode {
+        padding: 0.75rem 0.5rem;
+    }
+
+    .page.shopping-mode .list-header h1 {
+        font-size: 1.25rem;
+    }
+
+    .page.shopping-mode .items-card {
+        border-radius: 16px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+
+    .page.shopping-mode .category-header {
+        padding: 0.85rem 1.25rem;
+        font-size: 1em;
+        background: #fafafa;
+    }
+
+    .page.shopping-mode li {
+        padding: 1rem 1.25rem;
+        font-size: 1.05em;
+        min-height: 56px;
+    }
+
+    .page.shopping-mode li.bought .item-name {
+        color: #9ca3af;
+    }
+
+    /* Bought-button */
+    .btn-bought {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        border: 2px solid #d1d5db;
+        background: #fff;
+        cursor: pointer;
+        font-size: 1.1em;
+        color: #16a34a;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.15s, border-color 0.15s;
+        flex-shrink: 0;
+    }
+
+    .btn-bought:hover { border-color: #16a34a; background: #f0fdf4; }
+
+    .btn-bought.bought {
+        background: #16a34a;
+        border-color: #16a34a;
+        color: #fff;
+    }
+
+    .shopping-mode .btn-bought {
+        width: 44px;
+        height: 44px;
+        font-size: 1.3em;
     }
 </style>

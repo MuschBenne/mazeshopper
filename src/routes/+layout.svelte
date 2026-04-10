@@ -43,6 +43,8 @@
             <span class="username">{authContext.user.username}</span>
             <button class="btn-logout" onclick={logout}>Logga ut</button>
         </div>
+    {:else}
+        <a class="btn-about" href="/om">Om appen</a>
     {/if}
 </header>
 
@@ -105,6 +107,19 @@
     }
 
     .btn-logout:hover { background: #f9fafb; }
+
+    .btn-about {
+        padding: 0.3rem 0.75rem;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        background: #fff;
+        font-size: 0.85em;
+        color: #374151;
+        text-decoration: none;
+        transition: background 0.15s;
+    }
+
+    .btn-about:hover { background: #f9fafb; }
 
     nav {
         display: flex;

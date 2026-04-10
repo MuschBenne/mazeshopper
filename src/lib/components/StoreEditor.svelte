@@ -58,7 +58,10 @@
             .map(c => c.name);
     });
 
-    /** @param {MouseEvent} e @returns {Point} */
+    /**
+     * @param {{ clientX: number, clientY: number }} e
+     * @returns {Point}
+     */
     function svgPoint(e) {
         const rect = /** @type {SVGSVGElement} */ (svgEl).getBoundingClientRect();
         return { x: e.clientX - rect.left, y: e.clientY - rect.top };
@@ -91,7 +94,7 @@
         if (added.length > 0) pendingRoute = [...pendingRoute, ...added];
     }
 
-    /** @param {MouseEvent} e */
+    /** @param {{ clientX: number, clientY: number } & { preventDefault?: () => void }} e */
     function onMouseDown(e) {
         if (!svgEl) return;
         const pt = svgPoint(e);
@@ -115,7 +118,7 @@
         }
     }
 
-    /** @param {MouseEvent} e */
+    /** @param {{ clientX: number, clientY: number }} e */
     function onMouseMove(e) {
         if (!svgEl) return;
         const pt = svgPoint(e);
@@ -162,8 +165,36 @@
     const routePoly = $derived(routeCenters.map(p => `${p.x},${p.y}`).join(' '));
     const drawPoly  = $derived(drawPts.map(p => `${p.x},${p.y}`).join(' '));
 
+    let saved = $state(false);
+    /** @type {ReturnType<typeof setTimeout> | null} */
+    let savedTimer = null;
+
     function save() {
         onSave({ positions: { ...positions }, route: [...route] });
+        saved = true;
+        if (savedTimer) clearTimeout(savedTimer);
+        savedTimer = setTimeout(() => { saved = false; }, 2000);
+    }
+
+    /** @param {TouchEvent} e */
+    function onTouchStart(e) {
+        const t = e.touches[0];
+        if (!t || !svgEl) return;
+        const pt = svgPoint(t);
+        const hitsCat = !!catNameAt(pt.x, pt.y);
+        if (mode === 'route' || hitsCat) e.preventDefault();
+        onMouseDown(t);
+    }
+
+    /** @param {TouchEvent} e */
+    function onTouchMove(e) {
+        e.preventDefault();
+        const t = e.touches[0];
+        if (t) onMouseMove(t);
+    }
+
+    function onTouchEnd() {
+        onMouseUp();
     }
 </script>
 
@@ -172,7 +203,9 @@
         <button class:active={mode === 'move'} onclick={() => mode = 'move'}>Flytta rutor</button>
         <button class:active={mode === 'route'} onclick={() => mode = 'route'}>Rita rutt</button>
         <button onclick={() => { route = []; }} disabled={route.length === 0}>Rensa rutt</button>
-        <button class="btn-save" onclick={save}>Spara layout</button>
+        <button class="btn-save" class:saved onclick={save}>
+            {saved ? '✓ Sparat!' : 'Spara layout'}
+        </button>
     </div>
 
     <p class="hint">
@@ -197,6 +230,9 @@
         onmousemove={onMouseMove}
         onmouseup={onMouseUp}
         onmouseleave={onMouseUp}
+        ontouchstart={onTouchStart}
+        ontouchmove={onTouchMove}
+        ontouchend={onTouchEnd}
     >
         <!-- Canvas background -->
         <rect width={W} height={H} fill="#f8fafc" rx="4" />
@@ -340,6 +376,13 @@
         background: #16a34a !important;
         color: #fff !important;
         border-color: #16a34a !important;
+        transition: background 0.2s, border-color 0.2s;
+        min-width: 7rem;
+    }
+
+    .btn-save.saved {
+        background: #15803d !important;
+        border-color: #15803d !important;
     }
 
     .hint {

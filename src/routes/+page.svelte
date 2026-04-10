@@ -33,6 +33,30 @@
         <p class="app-tagline">Din smarta inköpslista</p>
     </div>
 
+    <div class="features">
+        <div class="feature">
+            <span class="feature-icon">🛒</span>
+            <div>
+                <strong>Handla smidigt</strong>
+                <p>Aktivera handelsläget för en ren vy utan störande knappar — markera varor med ett tryck.</p>
+            </div>
+        </div>
+        <div class="feature">
+            <span class="feature-icon">🗺️</span>
+            <div>
+                <strong>Butiksanpassad ordning</strong>
+                <p>Rita din rutt i varuhuset så sorteras listan automatiskt i den ordning du handlar.</p>
+            </div>
+        </div>
+        <div class="feature">
+            <span class="feature-icon">👥</span>
+            <div>
+                <strong>Dela med familjen</strong>
+                <p>Bjud in andra användare till din lista — alla ser uppdateringar i realtid.</p>
+            </div>
+        </div>
+    </div>
+
     <div class="auth-card">
         <div class="tabs">
             <button class:active={mode === 'login'} onclick={() => { mode = 'login'; error = ''; }}>Logga in</button>
@@ -93,6 +117,46 @@
         margin: 0.4rem 0 0;
         color: #6b7280;
         font-size: 1.1rem;
+    }
+
+    .features {
+        display: flex;
+        flex-direction: column;
+        gap: 0.85rem;
+        width: 100%;
+        max-width: 360px;
+    }
+
+    .feature {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.85rem;
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 0.9rem 1rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+
+    .feature-icon {
+        font-size: 1.4rem;
+        line-height: 1;
+        flex-shrink: 0;
+        margin-top: 0.1rem;
+    }
+
+    .feature strong {
+        display: block;
+        font-size: 0.92em;
+        color: #111827;
+        margin-bottom: 0.15rem;
+    }
+
+    .feature p {
+        margin: 0;
+        font-size: 0.82em;
+        color: #6b7280;
+        line-height: 1.4;
     }
 
     .auth-card {
