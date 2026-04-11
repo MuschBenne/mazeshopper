@@ -3,8 +3,11 @@
     import { authContext } from "$lib/context/auth-context.svelte";
     import { settingContext } from "$lib/context/setting-context.svelte";
     import { storeContext } from "$lib/context/store-context.svelte";
+    import SharePanel from "$lib/components/SharePanel.svelte";
+    import CategorySection from "$lib/components/CategorySection.svelte";
     import { page } from '$app/state';
     import { goto } from '$app/navigation';
+    import { browser } from '$app/environment';
 
     const id = $derived(page.params.id);
     const list = $derived(shoppingContext.getList(id));
@@ -14,25 +17,32 @@
     let newItem = $state('');
     let spec = $state('');
     let selectedCategory = $state('');
-
+    let adding = $state(false);
     let shoppingMode = $state(false);
-
-    // Share panel state
     let showSharePanel = $state(false);
-    let shareInput = $state('');
-    let shareError = $state('');
-    let shareSuccess = $state('');
+    let search = $state('');
+    let showHistory = $state(false);
 
-    async function addItem() {
-        if (selectedCategory === '') {
-            alert('Välj en kategori innan du lägger till en vara.');
-            return;
+    // Remember last selected category per list (session)
+    $effect(() => {
+        if (!browser) return;
+        const saved = sessionStorage.getItem(`lastCategory_${id}`);
+        if (saved) selectedCategory = saved;
+        else selectedCategory = '';
+    });
+
+    $effect(() => {
+        if (browser && selectedCategory) {
+            sessionStorage.setItem(`lastCategory_${id}`, selectedCategory);
         }
-        if (newItem.trim().length === 0) return;
-        await shoppingContext.addItem(id, newItem, spec, selectedCategory);
-        newItem = '';
-        spec = '';
-    }
+    });
+
+    // Poll for updates every 15 seconds in shopping mode
+    $effect(() => {
+        if (!shoppingMode) return;
+        const interval = setInterval(() => shoppingContext.refreshList(id), 15000);
+        return () => clearInterval(interval);
+    });
 
     const sortedCategories = $derived.by(() => {
         const store = storeContext.selectedStore;
@@ -47,18 +57,31 @@
         });
     });
 
-    /** @type {Set<string>} */
-    let collapsedCategories = $state(new Set());
+    const filteredItems = $derived.by(() => {
+        if (!list) return [];
+        const q = search.trim().toLowerCase();
+        if (!q) return list.items;
+        return list.items.filter(i =>
+            i.name.toLowerCase().includes(q) ||
+            i.spec.toLowerCase().includes(q)
+        );
+    });
 
-    /** @param {string} name */
-    function toggleCategory(name) {
-        const next = new Set(collapsedCategories);
-        if (next.has(name)) {
-            next.delete(name);
-        } else {
-            next.add(name);
+    const listHistory = $derived(shoppingContext.recentlyBought[id] ?? []);
+
+    async function addItem() {
+        if (selectedCategory === '') {
+            alert('Välj en kategori innan du lägger till en vara.');
+            return;
         }
-        collapsedCategories = next;
+        if (newItem.trim().length === 0) return;
+        adding = true;
+        const ok = await shoppingContext.addItem(id, newItem, spec, selectedCategory);
+        adding = false;
+        if (ok) {
+            newItem = '';
+            spec = '';
+        }
     }
 
     async function deleteList() {
@@ -68,26 +91,10 @@
         }
     }
 
-    async function shareList() {
-        shareError = '';
-        shareSuccess = '';
-        const target = shareInput.trim();
-        if (!target) return;
-        if (target.toLowerCase() === username.toLowerCase()) {
-            shareError = 'Du kan inte dela med dig själv.';
-            return;
-        }
-        const result = await shoppingContext.shareList(id, target);
-        if (result === 'already_shared') {
-            shareError = `Listan delas redan med ${target}.`;
-        } else if (result === 'already_invited') {
-            shareError = `${target} har redan fått en inbjudan.`;
-        } else if (result === 'user_not_found') {
-            shareError = `Användaren "${target}" finns inte.`;
-        } else {
-            shareSuccess = `Inbjudan skickad till ${target}.`;
-            shareInput = '';
-        }
+    /** @param {string} dateStr */
+    function formatDate(dateStr) {
+        const d = new Date(dateStr);
+        return d.toLocaleDateString('sv-SE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
     }
 </script>
 
@@ -97,205 +104,165 @@
     </div>
 {:else}
     <div class="page" class:shopping-mode={shoppingMode}>
-    <div class="list-header">
-        {#if !shoppingMode}
-            <a class="back" href="/inkopslista">← Listor</a>
-        {/if}
-        <h1>{list.name}</h1>
-        <div class="header-actions">
-            {#if !shoppingMode && isOwner}
-                <button class="btn-share" onclick={() => { showSharePanel = !showSharePanel; shareError = ''; shareSuccess = ''; }}>
-                    Dela
-                </button>
+
+        <!-- Header -->
+        <div class="list-header">
+            {#if !shoppingMode}
+                <a class="back" href="/inkopslista">← Listor</a>
             {/if}
-            {#if !shoppingMode && isOwner}
-                <button class="btn-delete-list" onclick={deleteList}>Ta bort</button>
-            {/if}
-            <button
-                class="btn-shopping-mode"
-                class:active={shoppingMode}
-                onclick={() => { shoppingMode = !shoppingMode; showSharePanel = false; }}
-                title={shoppingMode ? 'Avsluta handelsläge' : 'Handelsläge'}
-            >
-                {shoppingMode ? '✕' : '🛒'}
-            </button>
-        </div>
-    </div>
-
-    {#if !isOwner && !shoppingMode}
-        <p class="shared-notice">Delad lista av <strong>{list.owner}</strong></p>
-    {/if}
-
-    {#if showSharePanel && isOwner && !shoppingMode}
-        <div class="card share-panel">
-            <h2>Dela lista</h2>
-
-            {#if list.sharedWith.length > 0}
-                <div class="collaborators">
-                    <span class="collab-label">Har åtkomst:</span>
-                    {#each list.sharedWith as collaborator}
-                        <span class="collab-chip">
-                            {collaborator}
-                            <button
-                                class="collab-remove"
-                                onclick={() => shoppingContext.unshareList(id, collaborator)}
-                                title="Ta bort åtkomst"
-                            >×</button>
-                        </span>
-                    {/each}
-                </div>
-            {/if}
-
-            {#if (list.pendingInvites ?? []).length > 0}
-                <div class="collaborators">
-                    <span class="collab-label pending-label">Väntar på svar:</span>
-                    {#each (list.pendingInvites ?? []) as pending}
-                        <span class="collab-chip pending-chip">
-                            {pending}
-                            <button
-                                class="collab-remove"
-                                onclick={() => shoppingContext.unshareList(id, pending)}
-                                title="Återkalla inbjudan"
-                            >×</button>
-                        </span>
-                    {/each}
-                </div>
-            {/if}
-
-            {#if list.sharedWith.length === 0 && (list.pendingInvites ?? []).length === 0}
-                <p class="no-collabs">Listan delas inte med någon ännu.</p>
-            {/if}
-
-            <div class="share-input-row">
-                <input
-                    bind:value={shareInput}
-                    placeholder="Användarnamn"
-                    onkeydown={(e) => e.key === 'Enter' && shareList()}
-                />
-                <button class="btn-add-share" onclick={shareList}>Bjud in</button>
-            </div>
-            {#if shareError}<p class="share-msg error">{shareError}</p>{/if}
-            {#if shareSuccess}<p class="share-msg success">{shareSuccess}</p>{/if}
-        </div>
-    {/if}
-
-    {#if shoppingMode}
-    <div class="store-selector">
-        <label for="store-select">Varuhus:</label>
-        <select
-            id="store-select"
-            value={storeContext.selectedStoreIndex ?? ''}
-            onchange={(e) => {
-                const val = /** @type {HTMLSelectElement} */ (e.target).value;
-                storeContext.selectStore(val === '' ? null : parseInt(val));
-            }}
-        >
-            <option value="">Inget varuhus valt</option>
-            {#each storeContext.stores as store, i}
-                <option value={i}>{store.name}</option>
-            {/each}
-        </select>
-    </div>
-    {/if}
-
-    {#if !shoppingMode}
-    <div class="card add-card">
-        <input
-            bind:value={newItem}
-            placeholder="Vara"
-            onkeydown={(e) => e.key === 'Enter' && addItem()}
-        />
-        <input
-            bind:value={spec}
-            placeholder="Specifikation (valfritt)"
-            onkeydown={(e) => e.key === 'Enter' && addItem()}
-        />
-
-        <div class="category-picker">
-            {#each settingContext.categories as category}
-                <button
-                    class="category-chip"
-                    class:selected={selectedCategory === category.name}
-                    style="--chip-color: {category.color}"
-                    onclick={() => selectedCategory = category.name}
-                    onkeydown={(e) => e.key === 'Enter' && addItem()}
-                >
-                    {category.name}
-                </button>
-            {/each}
-        </div>
-
-        <button class="btn-add" onclick={addItem}>Lägg till vara</button>
-    </div>
-    {/if}
-
-    {#if !shoppingMode}
-    <div class="list-actions">
-            <button
-                class="btn-clear-bought"
-                onclick={() => shoppingContext.clearBought(id)}
-                disabled={!list.items.some(i => i.bought)}
-            >
-                Rensa köpta varor
-            </button>
-            <button
-                class="btn-clear-all"
-                onclick={() => {
-                    if (confirm('Är du säker? Hela listan raderas.')) {
-                        shoppingContext.clearAll(id);
-                    }
-                }}
-                disabled={list.items.length === 0}
-            >
-                Töm hela listan
-            </button>
-        </div>
-    {/if}
-
-    <div class="card items-card">
-        {#each sortedCategories as category}
-            {@const categoryItems = list.items.filter(item => item.category === category.name)}
-
-            {#if categoryItems.length > 0}
-                {@const collapsed = collapsedCategories.has(category.name)}
-                <button class="category-header" onclick={() => toggleCategory(category.name)}>
-                    <span class="category-dot" style:background={category.color}></span>
-                    <span class="category-arrow">{collapsed ? '▶' : '▼'}</span>
-                    {category.name}
-                    <span class="category-count">({categoryItems.length})</span>
-                </button>
-                {#if !collapsed}
-                    <ul>
-                        {#each categoryItems as item}
-                            {@const index = list.items.findIndex(i => i === item)}
-                            <li class:bought={item.bought}>
-                                <span class="item-name" style:text-decoration={item.bought ? 'line-through' : 'none'}>
-                                    {item.name}{item.spec ? ` – ${item.spec}` : ''}
-                                </span>
-                                <div class="quantity-controls">
-                                    {#if !shoppingMode}
-                                        <button onclick={() => shoppingContext.decreaseQuantity(id, index)}>-</button>
-                                    {/if}
-                                    <span class="quantity">{item.quantity}</span>
-                                    {#if !shoppingMode}
-                                        <button onclick={() => shoppingContext.increaseQuantity(id, index)}>+</button>
-                                    {/if}
-                                    <button
-                                        class="btn-bought"
-                                        class:bought={item.bought}
-                                        onclick={() => shoppingContext.toggleBought(id, index)}
-                                    >{item.bought ? '✓' : ''}</button>
-                                    {#if !shoppingMode}
-                                        <button onclick={() => shoppingContext.removeItem(id, index)}>🗑️</button>
-                                    {/if}
-                                </div>
-                            </li>
-                        {/each}
-                    </ul>
+            <h1>{list.name}</h1>
+            <div class="header-actions">
+                {#if !shoppingMode && isOwner}
+                    <button class="btn-share" onclick={() => { showSharePanel = !showSharePanel; }}>
+                        Dela
+                    </button>
                 {/if}
+                {#if !shoppingMode && isOwner}
+                    <button class="btn-delete-list" onclick={deleteList}>Ta bort</button>
+                {/if}
+                <button
+                    class="btn-shopping-mode"
+                    class:active={shoppingMode}
+                    onclick={() => { shoppingMode = !shoppingMode; showSharePanel = false; }}
+                    title={shoppingMode ? 'Avsluta handelsläge' : 'Handelsläge'}
+                >
+                    {shoppingMode ? '✕' : '🛒'}
+                </button>
+            </div>
+        </div>
+
+        {#if !isOwner && !shoppingMode}
+            <p class="shared-notice">Delad lista av <strong>{list.owner}</strong></p>
+        {/if}
+
+        <!-- Share panel -->
+        {#if showSharePanel && isOwner && !shoppingMode}
+            <SharePanel {list} listId={id} {username} onClose={() => (showSharePanel = false)} />
+        {/if}
+
+        <!-- Shopping mode: store selector + actions -->
+        {#if shoppingMode}
+            <div class="store-selector">
+                <label for="store-select">Varuhus:</label>
+                <select
+                    id="store-select"
+                    value={storeContext.selectedStoreIndex ?? ''}
+                    onchange={(e) => {
+                        const val = /** @type {HTMLSelectElement} */ (e.target).value;
+                        storeContext.selectStore(val === '' ? null : parseInt(val));
+                    }}
+                >
+                    <option value="">Inget varuhus valt</option>
+                    {#each storeContext.stores as store, i}
+                        <option value={i}>{store.name}</option>
+                    {/each}
+                </select>
+            </div>
+            <div class="list-actions">
+                <button
+                    class="btn-clear-bought"
+                    onclick={() => shoppingContext.clearBought(id)}
+                    disabled={!list.items.some(i => i.bought)}
+                >
+                    Rensa köpta varor
+                </button>
+                <button
+                    class="btn-clear-all"
+                    onclick={() => {
+                        if (confirm('Är du säker? Hela listan raderas.')) {
+                            shoppingContext.clearAll(id);
+                        }
+                    }}
+                    disabled={list.items.length === 0}
+                >
+                    Töm hela listan
+                </button>
+            </div>
+        {/if}
+
+        <!-- Edit mode: add item form -->
+        {#if !shoppingMode}
+            <div class="card add-card">
+                <input
+                    bind:value={newItem}
+                    placeholder="Vara"
+                    onkeydown={(e) => e.key === 'Enter' && addItem()}
+                />
+                <input
+                    bind:value={spec}
+                    placeholder="Specifikation (valfritt)"
+                    onkeydown={(e) => e.key === 'Enter' && addItem()}
+                />
+                <div class="category-picker">
+                    {#each settingContext.categories as category}
+                        <button
+                            class="category-chip"
+                            class:selected={selectedCategory === category.name}
+                            style="--chip-color: {category.color}"
+                            onclick={() => (selectedCategory = category.name)}
+                        >
+                            {category.name}
+                        </button>
+                    {/each}
+                </div>
+                <button class="btn-add" onclick={addItem} disabled={adding}>
+                    {adding ? 'Lägger till…' : 'Lägg till vara'}
+                </button>
+            </div>
+        {/if}
+
+        <!-- Search -->
+        {#if list.items.length > 4}
+            <div class="search-row">
+                <input
+                    bind:value={search}
+                    placeholder="Sök vara…"
+                    class="search-input"
+                />
+                {#if search}
+                    <button class="btn-clear-search" onclick={() => (search = '')}>×</button>
+                {/if}
+            </div>
+        {/if}
+
+        <!-- Items list -->
+        <div class="card items-card">
+            {#if filteredItems.length === 0 && list.items.length > 0}
+                <p class="empty-search">Inga varor matchar "{search}"</p>
+            {:else if list.items.length === 0}
+                <p class="empty-list">Listan är tom. Lägg till varor ovan.</p>
+            {:else}
+                {#each sortedCategories as category}
+                    {@const categoryItems = filteredItems.filter(i => i.category === category.name)}
+                    {#if categoryItems.length > 0}
+                        <CategorySection {category} items={categoryItems} {shoppingMode} listId={id} />
+                    {/if}
+                {/each}
             {/if}
-        {/each}
-    </div>
+        </div>
+
+        <!-- Recently bought history (edit mode only) -->
+        {#if !shoppingMode && listHistory.length > 0}
+            <div class="card history-card">
+                <button class="history-toggle" onclick={() => (showHistory = !showHistory)}>
+                    <span>Senast inhandlat</span>
+                    <span class="history-arrow">{showHistory ? '▼' : '▶'}</span>
+                </button>
+                {#if showHistory}
+                    <div class="history-entries">
+                        {#each listHistory as entry}
+                            <div class="history-entry">
+                                <span class="history-date">{formatDate(entry.clearedAt)}</span>
+                                <span class="history-items">
+                                    {entry.items.map(i => i.name + (i.quantity > 1 ? ` ×${i.quantity}` : '')).join(', ')}
+                                </span>
+                            </div>
+                        {/each}
+                    </div>
+                {/if}
+            </div>
+        {/if}
+
     </div>
 {/if}
 
@@ -317,37 +284,7 @@
         padding: 1.25rem;
     }
 
-    .add-card {
-        display: flex;
-        flex-direction: column;
-        gap: 0.6rem;
-    }
-
-    .add-card input {
-        padding: 0.6rem 0.8rem;
-        border: 1px solid #d1d5db;
-        border-radius: 8px;
-        font-size: 0.95em;
-        outline: none;
-        transition: border-color 0.15s;
-    }
-
-    .add-card input:focus { border-color: #f97316; }
-
-    .btn-add {
-        padding: 0.6rem;
-        background: linear-gradient(135deg, #f97316, #c026d3);
-        color: #fff;
-        border: none;
-        border-radius: 8px;
-        font-size: 0.95em;
-        font-weight: 600;
-        cursor: pointer;
-        transition: opacity 0.15s;
-    }
-
-    .btn-add:hover { opacity: 0.9; }
-
+    /* Header */
     .list-header {
         display: flex;
         align-items: center;
@@ -401,6 +338,27 @@
 
     .btn-delete-list:hover { background: #fef2f2; }
 
+    .btn-shopping-mode {
+        font-size: 1rem;
+        background: none;
+        border: 1.5px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 0.25rem 0.55rem;
+        cursor: pointer;
+        line-height: 1.4;
+        transition: background 0.15s, border-color 0.15s;
+    }
+
+    .btn-shopping-mode:hover { background: #f3f4f6; }
+
+    .btn-shopping-mode.active {
+        background: #111827;
+        border-color: #111827;
+        color: #fff;
+        font-weight: 700;
+        font-size: 0.85rem;
+    }
+
     .shared-notice {
         font-size: 0.85em;
         color: #7c3aed;
@@ -410,110 +368,7 @@
         margin: 0;
     }
 
-    /* Share panel */
-    .share-panel {
-        display: flex;
-        flex-direction: column;
-        gap: 0.75rem;
-    }
-
-    .share-panel h2 {
-        margin: 0 0 0.25rem;
-        font-size: 1rem;
-        font-weight: 600;
-    }
-
-    .collaborators {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 0.4rem;
-    }
-
-    .collab-label {
-        font-size: 0.85em;
-        color: #6b7280;
-    }
-
-    .collab-chip {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.25rem;
-        background: #ede9fe;
-        color: #5b21b6;
-        border-radius: 999px;
-        padding: 0.2rem 0.6rem;
-        font-size: 0.82em;
-        font-weight: 500;
-    }
-
-    .collab-remove {
-        background: none;
-        border: none;
-        cursor: pointer;
-        color: #7c3aed;
-        font-size: 1em;
-        line-height: 1;
-        padding: 0 0.1rem;
-    }
-
-    .collab-remove:hover { color: #dc2626; }
-
-    .no-collabs {
-        font-size: 0.85em;
-        color: #9ca3af;
-        margin: 0;
-    }
-
-    .pending-label {
-        color: #d97706;
-    }
-
-    .pending-chip {
-        background: #fef3c7;
-        color: #92400e;
-        font-style: italic;
-    }
-
-    .share-input-row {
-        display: flex;
-        gap: 0.5rem;
-    }
-
-    .share-input-row input {
-        flex: 1;
-        padding: 0.5rem 0.75rem;
-        border: 1px solid #d1d5db;
-        border-radius: 8px;
-        font-size: 0.9em;
-        outline: none;
-    }
-
-    .share-input-row input:focus { border-color: #a78bfa; }
-
-    .btn-add-share {
-        padding: 0.5rem 1rem;
-        background: #7c3aed;
-        color: #fff;
-        border: none;
-        border-radius: 8px;
-        font-size: 0.9em;
-        font-weight: 600;
-        cursor: pointer;
-    }
-
-    .btn-add-share:hover { background: #6d28d9; }
-
-    .share-msg {
-        font-size: 0.85em;
-        margin: 0;
-        padding: 0.4rem 0.7rem;
-        border-radius: 6px;
-    }
-
-    .share-msg.error { color: #dc2626; background: #fef2f2; }
-    .share-msg.success { color: #16a34a; background: #f0fdf4; }
-
+    /* Store selector */
     .store-selector {
         display: flex;
         align-items: center;
@@ -529,16 +384,7 @@
         font-size: 0.9em;
     }
 
-    .page.shopping-mode .store-selector {
-        font-size: 1em;
-        color: #374151;
-    }
-
-    .page.shopping-mode .store-selector select {
-        font-size: 1em;
-        padding: 0.45rem 0.75rem;
-    }
-
+    /* List actions */
     .list-actions {
         display: flex;
         gap: 0.5rem;
@@ -563,6 +409,24 @@
         opacity: 0.4;
         cursor: not-allowed;
     }
+
+    /* Add item form */
+    .add-card {
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+    }
+
+    .add-card input {
+        padding: 0.6rem 0.8rem;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-size: 0.95em;
+        outline: none;
+        transition: border-color 0.15s;
+    }
+
+    .add-card input:focus { border-color: #f97316; }
 
     .category-picker {
         display: flex;
@@ -591,126 +455,125 @@
         font-weight: 700;
     }
 
+    .btn-add {
+        padding: 0.6rem;
+        background: linear-gradient(135deg, #f97316, #c026d3);
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        font-size: 0.95em;
+        font-weight: 600;
+        cursor: pointer;
+        transition: opacity 0.15s;
+    }
+
+    .btn-add:hover:not(:disabled) { opacity: 0.9; }
+    .btn-add:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    /* Search */
+    .search-row {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 0.55rem 2.2rem 0.55rem 0.9rem;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-size: 0.9em;
+        outline: none;
+        background: #fff;
+        transition: border-color 0.15s;
+    }
+
+    .search-input:focus { border-color: #f97316; }
+
+    .btn-clear-search {
+        position: absolute;
+        right: 0.5rem;
+        background: none;
+        border: none;
+        font-size: 1.1em;
+        color: #9ca3af;
+        cursor: pointer;
+        min-height: unset;
+        padding: 0 0.25rem;
+        line-height: 1;
+    }
+
+    .btn-clear-search:hover { color: #374151; }
+
+    /* Items card */
     .items-card {
         padding: 0;
         overflow: hidden;
     }
 
-    .category-header {
+    .empty-list, .empty-search {
+        text-align: center;
+        color: #9ca3af;
+        font-size: 0.9em;
+        padding: 2rem 1rem;
+        margin: 0;
+    }
+
+    /* History */
+    .history-card {
+        padding: 0;
+        overflow: hidden;
+    }
+
+    .history-toggle {
         display: flex;
         align-items: center;
-        gap: 0.5rem;
+        justify-content: space-between;
         width: 100%;
         background: none;
         border: none;
-        border-bottom: 1px solid #f3f4f6;
-        padding: 0.7rem 1.25rem;
-        font-size: 0.95em;
+        padding: 0.85rem 1.25rem;
+        font-size: 0.9em;
         font-weight: 600;
+        color: #6b7280;
         cursor: pointer;
         text-align: left;
-        color: #374151;
+        min-height: unset;
     }
 
-    .category-header:hover { background: #fafafa; }
+    .history-toggle:hover { background: #fafafa; color: #374151; }
 
-    .category-dot {
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-        flex-shrink: 0;
-        border: 1px solid rgba(0,0,0,0.1);
-    }
-
-    .category-arrow {
+    .history-arrow {
         font-size: 0.65em;
         color: #9ca3af;
     }
 
-    .category-count {
-        font-weight: 400;
-        font-size: 0.85em;
-        color: #9ca3af;
-        margin-left: auto;
-    }
-
-    ul {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-    }
-
-    li {
+    .history-entries {
         display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.5rem;
-        padding: 0.65rem 1.25rem;
+        flex-direction: column;
+        gap: 0;
+        border-top: 1px solid #f3f4f6;
+    }
+
+    .history-entry {
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+        padding: 0.75rem 1.25rem;
         border-bottom: 1px solid #f9fafb;
-        font-size: 0.95em;
-        flex-wrap: wrap;
+        font-size: 0.85em;
     }
 
-    li:last-child { border-bottom: none; }
+    .history-entry:last-child { border-bottom: none; }
 
-    .item-name {
-        color: #111827;
-        flex: 1;
-        min-width: 0;
-        word-break: break-word;
+    .history-date {
+        color: #9ca3af;
+        font-size: 0.8em;
     }
 
-    .quantity-controls {
-        display: flex;
-        align-items: center;
-        gap: 0.25rem;
-        flex-shrink: 0;
-    }
-
-    .quantity {
-        min-width: 1.4rem;
-        text-align: center;
-        font-size: 0.9em;
-    }
-
-    .quantity-controls button {
-        border: 1px solid #e5e7eb;
-        background: #fff;
-        border-radius: 6px;
-        padding: 0.2rem 0.5rem;
-        cursor: pointer;
-        font-size: 0.9em;
+    .history-items {
         color: #374151;
-        min-height: 36px;
-        min-width: 36px;
-    }
-
-    .quantity-controls button:hover { background: #f9fafb; }
-
-    @media (max-width: 400px) {
-        li { padding: 0.65rem 0.75rem; }
-    }
-
-    /* Shopping mode button */
-    .btn-shopping-mode {
-        font-size: 1rem;
-        background: none;
-        border: 1.5px solid #e5e7eb;
-        border-radius: 8px;
-        padding: 0.25rem 0.55rem;
-        cursor: pointer;
-        line-height: 1.4;
-        transition: background 0.15s, border-color 0.15s;
-    }
-
-    .btn-shopping-mode:hover { background: #f3f4f6; }
-
-    .btn-shopping-mode.active {
-        background: #111827;
-        border-color: #111827;
-        color: #fff;
-        font-weight: 700;
-        font-size: 0.85rem;
+        line-height: 1.5;
     }
 
     /* Shopping mode overrides */
@@ -727,51 +590,13 @@
         box-shadow: 0 2px 12px rgba(0,0,0,0.08);
     }
 
-    .page.shopping-mode .category-header {
-        padding: 0.85rem 1.25rem;
+    .page.shopping-mode .store-selector {
         font-size: 1em;
-        background: #fafafa;
+        color: #374151;
     }
 
-    .page.shopping-mode li {
-        padding: 1rem 1.25rem;
-        font-size: 1.05em;
-        min-height: 56px;
-    }
-
-    .page.shopping-mode li.bought .item-name {
-        color: #9ca3af;
-    }
-
-    /* Bought-button */
-    .btn-bought {
-        width: 36px;
-        height: 36px;
-        border-radius: 50%;
-        border: 2px solid #d1d5db;
-        background: #fff;
-        cursor: pointer;
-        font-size: 1.1em;
-        color: #16a34a;
-        font-weight: 700;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: background 0.15s, border-color 0.15s;
-        flex-shrink: 0;
-    }
-
-    .btn-bought:hover { border-color: #16a34a; background: #f0fdf4; }
-
-    .btn-bought.bought {
-        background: #16a34a;
-        border-color: #16a34a;
-        color: #fff;
-    }
-
-    .shopping-mode .btn-bought {
-        width: 44px;
-        height: 44px;
-        font-size: 1.3em;
+    .page.shopping-mode .store-selector select {
+        font-size: 1em;
+        padding: 0.45rem 0.75rem;
     }
 </style>

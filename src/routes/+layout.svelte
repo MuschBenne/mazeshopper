@@ -4,13 +4,14 @@
     import { shoppingContext } from '$lib/context/shopping-context.svelte';
     import { storeContext } from '$lib/context/store-context.svelte';
     import { settingContext } from '$lib/context/setting-context.svelte';
+    import Toast from '$lib/components/Toast.svelte';
     import { goto } from '$app/navigation';
+    import { page } from '$app/state';
     import "../app.css";
 
     let { data, children } = $props();
 
     $effect(() => {
-        // Sync user from server on every navigation
         authContext.user = data.user;
     });
 
@@ -30,6 +31,8 @@
         await authContext.logout();
         goto('/');
     }
+
+    const path = $derived(page.url.pathname);
 </script>
 
 <svelte:head>
@@ -50,13 +53,15 @@
 
 {#if authContext.user}
     <nav>
-        <a href="/inkopslista">Inköpslista</a>
-        <a href="/varuhus">Varuhus</a>
-        <a href="/installningar">Inställningar</a>
+        <a href="/inkopslista" class:active={path.startsWith('/inkopslista')}>Inköpslista</a>
+        <a href="/varuhus" class:active={path.startsWith('/varuhus')}>Varuhus</a>
+        <a href="/installningar" class:active={path.startsWith('/installningar')}>Inställningar</a>
     </nav>
 {/if}
 
 {@render children()}
+
+<Toast />
 
 <style>
     header {
@@ -149,5 +154,11 @@
     nav a:hover {
         color: #111827;
         border-bottom-color: #e5e7eb;
+    }
+
+    nav a.active {
+        color: #f97316;
+        border-bottom-color: #f97316;
+        font-weight: 600;
     }
 </style>

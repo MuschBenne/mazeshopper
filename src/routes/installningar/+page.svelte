@@ -2,10 +2,11 @@
     import { settingContext } from "$lib/context/setting-context.svelte";
 
     let newCategory = $state('');
+    let newColor = $state('#e2e8f0');
     let editMode = $state(false);
 
     async function addCategory() {
-        await settingContext.addCategory(newCategory);
+        await settingContext.addCategory(newCategory, newColor);
         newCategory = '';
     }
 </script>
@@ -27,7 +28,17 @@
                     {#if editMode}
                         <button class="btn-remove" onclick={() => settingContext.removeCategory(index)} aria-label="Ta bort {category.name}">−</button>
                     {/if}
-                    <span class="dot" style:background={category.color}></span>
+                    {#if editMode}
+                        <input
+                            type="color"
+                            class="color-input"
+                            value={category.color}
+                            oninput={(e) => settingContext.updateCategoryColor(index, /** @type {HTMLInputElement} */ (e.target).value)}
+                            title="Välj färg"
+                        />
+                    {:else}
+                        <span class="dot" style:background={category.color}></span>
+                    {/if}
                     <span>{category.name}</span>
                 </li>
             {/each}
@@ -35,6 +46,12 @@
 
         {#if editMode}
             <div class="add-row">
+                <input
+                    type="color"
+                    class="color-input"
+                    bind:value={newColor}
+                    title="Välj färg för ny kategori"
+                />
                 <input
                     type="text"
                     placeholder="Ny kategori"
@@ -116,6 +133,19 @@
         border: 1px solid rgba(0,0,0,0.1);
     }
 
+    .color-input {
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        border: 1px solid #d1d5db;
+        padding: 1px;
+        cursor: pointer;
+        flex-shrink: 0;
+        background: none;
+    }
+
+    .color-input:hover { border-color: #9ca3af; }
+
     .btn-remove {
         width: 1.6rem;
         height: 1.6rem;
@@ -139,9 +169,10 @@
         display: flex;
         gap: 0.5rem;
         margin-bottom: 0.75rem;
+        align-items: center;
     }
 
-    .add-row input { flex: 1; }
+    .add-row input[type="text"] { flex: 1; }
 
     .add-row button {
         padding: 0.4rem 0.9rem;

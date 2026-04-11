@@ -37,11 +37,24 @@ class SettingContext {
         });
     }
 
-    /** @param {string} category */
-    async addCategory(category) {
+    /**
+     * @param {string} category
+     * @param {string} [color]
+     */
+    async addCategory(category, color) {
         if (category.trim().length === 0) return;
-        const color = fallbackColors[this.categories.length % fallbackColors.length];
-        this.categories.push({ name: category.trim(), color });
+        const finalColor = color || fallbackColors[this.categories.length % fallbackColors.length];
+        this.categories.push({ name: category.trim(), color: finalColor });
+        await this.#save();
+    }
+
+    /**
+     * @param {number} index
+     * @param {string} color
+     */
+    async updateCategoryColor(index, color) {
+        if (index < 0 || index >= this.categories.length) return;
+        this.categories[index].color = color;
         await this.#save();
     }
 

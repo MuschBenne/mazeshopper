@@ -1,7 +1,11 @@
+import { browser } from '$app/environment';
+import { notificationContext } from './notification-context.svelte';
+
 /**
  * @typedef {{ itemId: string, name: string, spec: string, quantity: number, bought: boolean, category: string }} ShoppingItem
  * @typedef {{ id: string, name: string, owner: string, sharedWith: string[], pendingInvites: string[], items: ShoppingItem[] }} ShoppingList
  * @typedef {{ id: string, listId: string, listName: string, fromUser: string, createdAt: string }} Invitation
+ * @typedef {{ clearedAt: string, items: ShoppingItem[] }} BoughtEntry
  */
 
 class ShoppingContext {
@@ -10,6 +14,18 @@ class ShoppingContext {
 
     /** @type {Invitation[]} */
     invitations = $state([]);
+
+    /** @type {{ [listId: string]: BoughtEntry[] }} */
+    recentlyBought = $state({});
+
+    constructor() {
+        if (browser) {
+            try {
+                const saved = localStorage.getItem('mazeshopper_recentlyBought');
+                if (saved) this.recentlyBought = JSON.parse(saved);
+            } catch { /* ignore */ }
+        }
+    }
 
     async load() {
         const [listsRes, invRes] = await Promise.all([
@@ -24,6 +40,18 @@ class ShoppingContext {
             const { invitations } = await invRes.json();
             this.invitations = invitations;
         }
+    }
+
+    /** Refresh a single list from the server (used for polling in shopping mode). */
+    /** @param {string} listId */
+    async refreshList(listId) {
+        try {
+            const res = await fetch(`/api/lists/${listId}`);
+            if (!res.ok) return;
+            const { list } = await res.json();
+            const idx = this.lists.findIndex(l => l.id === listId);
+            if (idx !== -1) this.lists[idx] = list;
+        } catch { /* silent poll failure */ }
     }
 
     reset() {
@@ -101,9 +129,7 @@ class ShoppingContext {
         }
     }
 
-    /**
-     * @param {string} invId
-     */
+    /** @param {string} invId */
     async acceptInvitation(invId) {
         await fetch(`/api/invitations/${invId}`, {
             method: 'POST',
@@ -111,7 +137,6 @@ class ShoppingContext {
             body: JSON.stringify({ action: 'accept' })
         });
         this.invitations = this.invitations.filter(i => i.id !== invId);
-        // Reload lists so the newly accepted list appears
         const res = await fetch('/api/lists');
         if (res.ok) {
             const { lists } = await res.json();
@@ -119,9 +144,7 @@ class ShoppingContext {
         }
     }
 
-    /**
-     * @param {string} invId
-     */
+    /** @param {string} invId */
     async declineInvitation(invId) {
         await fetch(`/api/invitations/${invId}`, {
             method: 'POST',
@@ -136,96 +159,186 @@ class ShoppingContext {
      * @param {string} name
      * @param {string} spec
      * @param {string} category
+     * @returns {Promise<boolean>}
      */
     async addItem(listId, name, spec, category) {
         const list = this.getList(listId);
-        if (!list) return;
+        if (!list) return false;
         const itemId = crypto.randomUUID();
         const item = { itemId, name, spec, quantity: 1, bought: false, category };
-        await fetch(`/api/lists/${listId}/items`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(item)
-        });
+        // Optimistic update
         list.items = [...list.items, item];
+        try {
+            const res = await fetch(`/api/lists/${listId}/items`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(item)
+            });
+            if (!res.ok) throw new Error();
+            return true;
+        } catch {
+            list.items = list.items.filter(i => i.itemId !== itemId);
+            notificationContext.show('Kunde inte lägga till vara. Försök igen.');
+            return false;
+        }
     }
 
     /**
      * @param {string} listId
-     * @param {number} index
+     * @param {string} itemId
      */
-    async removeItem(listId, index) {
+    async removeItem(listId, itemId) {
         const list = this.getList(listId);
         if (!list) return;
-        const item = list.items[index];
-        await fetch(`/api/lists/${listId}/items/${item.itemId}`, { method: 'DELETE' });
-        list.items.splice(index, 1);
+        const item = list.items.find(i => i.itemId === itemId);
+        if (!item) return;
+        // Optimistic update
+        list.items = list.items.filter(i => i.itemId !== itemId);
+        try {
+            const res = await fetch(`/api/lists/${listId}/items/${itemId}`, { method: 'DELETE' });
+            if (!res.ok) throw new Error();
+        } catch {
+            list.items = [...list.items, item];
+            notificationContext.show('Kunde inte ta bort vara. Försök igen.');
+        }
     }
 
     /**
      * @param {string} listId
-     * @param {number} index
+     * @param {string} itemId
      */
-    async toggleBought(listId, index) {
+    async toggleBought(listId, itemId) {
         const list = this.getList(listId);
         if (!list) return;
-        const item = list.items[index];
-        const newBought = !item.bought;
-        await fetch(`/api/lists/${listId}/items/${item.itemId}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ bought: newBought })
-        });
-        list.items[index].bought = newBought;
+        const item = list.items.find(i => i.itemId === itemId);
+        if (!item) return;
+        const prevBought = item.bought;
+        // Optimistic update
+        item.bought = !prevBought;
+        try {
+            const res = await fetch(`/api/lists/${listId}/items/${itemId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ bought: item.bought })
+            });
+            if (!res.ok) throw new Error();
+        } catch {
+            item.bought = prevBought;
+            notificationContext.show('Kunde inte uppdatera vara. Försök igen.');
+        }
     }
 
     /**
      * @param {string} listId
-     * @param {number} index
+     * @param {string} itemId
      */
-    async increaseQuantity(listId, index) {
+    async increaseQuantity(listId, itemId) {
         const list = this.getList(listId);
         if (!list) return;
-        const item = list.items[index];
-        const newQty = item.quantity + 1;
-        await fetch(`/api/lists/${listId}/items/${item.itemId}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ quantity: newQty })
-        });
-        list.items[index].quantity = newQty;
+        const item = list.items.find(i => i.itemId === itemId);
+        if (!item) return;
+        const prevQty = item.quantity;
+        const newQty = prevQty + 1;
+        item.quantity = newQty;
+        try {
+            const res = await fetch(`/api/lists/${listId}/items/${itemId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ quantity: newQty })
+            });
+            if (!res.ok) throw new Error();
+        } catch {
+            item.quantity = prevQty;
+            notificationContext.show('Kunde inte uppdatera antal. Försök igen.');
+        }
     }
 
     /**
      * @param {string} listId
-     * @param {number} index
+     * @param {string} itemId
      */
-    async decreaseQuantity(listId, index) {
+    async decreaseQuantity(listId, itemId) {
         const list = this.getList(listId);
         if (!list) return;
-        const item = list.items[index];
+        const item = list.items.find(i => i.itemId === itemId);
+        if (!item) return;
         if (item.quantity <= 1) return;
-        const newQty = item.quantity - 1;
-        await fetch(`/api/lists/${listId}/items/${item.itemId}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ quantity: newQty })
-        });
-        list.items[index].quantity = newQty;
+        const prevQty = item.quantity;
+        const newQty = prevQty - 1;
+        item.quantity = newQty;
+        try {
+            const res = await fetch(`/api/lists/${listId}/items/${itemId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ quantity: newQty })
+            });
+            if (!res.ok) throw new Error();
+        } catch {
+            item.quantity = prevQty;
+            notificationContext.show('Kunde inte uppdatera antal. Försök igen.');
+        }
     }
 
     /** @param {string} listId */
     async clearBought(listId) {
-        await fetch(`/api/lists/${listId}/items?bought=true`, { method: 'DELETE' });
         const list = this.getList(listId);
-        if (list) list.items = list.items.filter(i => !i.bought);
+        if (!list) return;
+        const boughtItems = list.items.filter(i => i.bought);
+        if (boughtItems.length === 0) return;
+        // Save to history before clearing
+        this.#addToHistory(listId, boughtItems);
+        // Optimistic update
+        list.items = list.items.filter(i => !i.bought);
+        try {
+            const res = await fetch(`/api/lists/${listId}/items?bought=true`, { method: 'DELETE' });
+            if (!res.ok) throw new Error();
+        } catch {
+            list.items = [...list.items, ...boughtItems];
+            this.#removeLastHistory(listId);
+            notificationContext.show('Kunde inte rensa köpta varor. Försök igen.');
+        }
     }
 
     /** @param {string} listId */
     async clearAll(listId) {
-        await fetch(`/api/lists/${listId}/items`, { method: 'DELETE' });
         const list = this.getList(listId);
-        if (list) list.items = [];
+        if (!list) return;
+        const prevItems = [...list.items];
+        // Optimistic update
+        list.items = [];
+        try {
+            const res = await fetch(`/api/lists/${listId}/items`, { method: 'DELETE' });
+            if (!res.ok) throw new Error();
+        } catch {
+            list.items = prevItems;
+            notificationContext.show('Kunde inte tömma listan. Försök igen.');
+        }
+    }
+
+    /**
+     * @param {string} listId
+     * @param {ShoppingItem[]} items
+     */
+    #addToHistory(listId, items) {
+        const entry = { clearedAt: new Date().toISOString(), items: [...items] };
+        const existing = this.recentlyBought[listId] ?? [];
+        this.recentlyBought = { ...this.recentlyBought, [listId]: [entry, ...existing].slice(0, 3) };
+        this.#saveHistory();
+    }
+
+    /** @param {string} listId */
+    #removeLastHistory(listId) {
+        const existing = this.recentlyBought[listId] ?? [];
+        this.recentlyBought = { ...this.recentlyBought, [listId]: existing.slice(1) };
+        this.#saveHistory();
+    }
+
+    #saveHistory() {
+        if (browser) {
+            try {
+                localStorage.setItem('mazeshopper_recentlyBought', JSON.stringify(this.recentlyBought));
+            } catch { /* ignore quota errors */ }
+        }
     }
 }
 
