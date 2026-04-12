@@ -7,6 +7,7 @@
     let mode = $state(/** @type {'login' | 'register'} */ ('login'));
     let username = $state('');
     let password = $state('');
+    let email = $state('');
     let error = $state('');
 
     async function submit() {
@@ -18,9 +19,12 @@
             if (result === 'not_found') { error = 'Användaren finns inte.'; return; }
             if (result === 'wrong_password') { error = 'Fel lösenord.'; return; }
         } else {
-            if (password.length < 4) { error = 'Lösenordet måste vara minst 4 tecken.'; return; }
-            const result = await authContext.register(username, password);
+            if (!email.trim()) { error = 'Fyll i din e-postadress.'; return; }
+            if (password.length < 8) { error = 'Lösenordet måste vara minst 8 tecken.'; return; }
+            const result = await authContext.register(username, password, email);
             if (result === 'taken') { error = 'Användarnamnet är redan taget.'; return; }
+            if (result === 'email_taken') { error = 'E-postadressen används redan.'; return; }
+            if (result === 'invalid_email') { error = 'Ogiltig e-postadress.'; return; }
         }
 
         goto('/inkopslista');
@@ -70,6 +74,15 @@
                 autocomplete="username"
                 onkeydown={(e) => e.key === 'Enter' && submit()}
             />
+            {#if mode === 'register'}
+                <input
+                    bind:value={email}
+                    type="email"
+                    placeholder="E-postadress"
+                    autocomplete="email"
+                    onkeydown={(e) => e.key === 'Enter' && submit()}
+                />
+            {/if}
             <input
                 bind:value={password}
                 type="password"
@@ -83,6 +96,9 @@
             <button class="btn-submit" onclick={submit}>
                 {mode === 'login' ? 'Logga in' : 'Skapa konto'}
             </button>
+            {#if mode === 'login'}
+                <a class="forgot-link" href="/glomt-losenord">Glömt lösenordet?</a>
+            {/if}
         </div>
     </div>
 </div>
@@ -233,5 +249,17 @@
 
     .btn-submit:hover {
         opacity: 0.9;
+    }
+
+    .forgot-link {
+        text-align: center;
+        font-size: 0.82em;
+        color: #6b7280;
+        text-decoration: none;
+    }
+
+    .forgot-link:hover {
+        color: #f97316;
+        text-decoration: underline;
     }
 </style>

@@ -25,6 +25,7 @@
 	"dependencies": {
 		"@sveltejs/adapter-vercel": "^6.3.3",
 		"bcryptjs": "^3.0.3",
-		"mongodb": "^7.1.1"
+		"mongodb": "^7.1.1",
+		"nodemailer": "^8.0.5"
 	}
 }
