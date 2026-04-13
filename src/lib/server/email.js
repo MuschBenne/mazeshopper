@@ -1,13 +1,12 @@
 import { Resend } from 'resend';
-import { RESEND_API_KEY, EMAIL_FROM } from '$env/static/private';
-
-const resend = new Resend(RESEND_API_KEY);
+import { RESEND_API_KEY, EMAIL_FROM } from '$env/dynamic/private';
 
 /**
  * @param {string} to
  * @param {string} resetUrl
  */
 export async function sendPasswordReset(to, resetUrl) {
+    const resend = new Resend(RESEND_API_KEY);
     await resend.emails.send({
         from: EMAIL_FROM,
         to,
