@@ -1,23 +1,15 @@
-import nodemailer from 'nodemailer';
-import { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM } from '$env/static/private';
+import { Resend } from 'resend';
+import { RESEND_API_KEY, EMAIL_FROM } from '$env/static/private';
 
-const transporter = nodemailer.createTransport({
-    host: SMTP_HOST,
-    port: Number(SMTP_PORT),
-    secure: Number(SMTP_PORT) === 465,
-    auth: {
-        user: SMTP_USER,
-        pass: SMTP_PASS
-    }
-});
+const resend = new Resend(RESEND_API_KEY);
 
 /**
  * @param {string} to
  * @param {string} resetUrl
  */
 export async function sendPasswordReset(to, resetUrl) {
-    await transporter.sendMail({
-        from: SMTP_FROM,
+    await resend.emails.send({
+        from: EMAIL_FROM,
         to,
         subject: 'Återställ ditt lösenord – MazeShopper',
         text: [
