@@ -75,7 +75,7 @@ export async function POST({ request, cookies }) {
         const name = username.trim();
         await users.insertOne({ username: name, password: hash, email: emailNorm });
         await createSession(cookies, name);
-        return json({ ok: true, user: { username: name } });
+        return json({ ok: true, user: { username: name, email: emailNorm } });
     }
 
     if (action === 'login') {
@@ -85,7 +85,7 @@ export async function POST({ request, cookies }) {
         const match = await bcrypt.compare(password, user.password);
         if (!match) return json({ error: 'wrong_password' }, { status: 401 });
         await createSession(cookies, user.username);
-        return json({ ok: true, user: { username: user.username } });
+        return json({ ok: true, user: { username: user.username, email: user.email ?? null } });
     }
 
     if (action === 'update_email') {
