@@ -142,7 +142,11 @@ export async function POST({ request, cookies }) {
 
         const origin = new URL(request.url).origin;
         const resetUrl = `${origin}/aterstall-losenord?token=${token}`;
-        await sendPasswordReset(emailNorm, resetUrl);
+        try {
+            await sendPasswordReset(emailNorm, resetUrl);
+        } catch (err) {
+            console.error('Failed to send password reset email:', err);
+        }
 
         return json({ ok: true });
     }
