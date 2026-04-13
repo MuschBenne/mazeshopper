@@ -1,14 +1,13 @@
 import { Resend } from 'resend';
-import { RESEND_API_KEY, EMAIL_FROM } from '$env/dynamic/private';
 
 /**
  * @param {string} to
  * @param {string} resetUrl
  */
 export async function sendPasswordReset(to, resetUrl) {
-    const resend = new Resend(RESEND_API_KEY);
+    const resend = new Resend(process.env.RESEND_API_KEY);
     await resend.emails.send({
-        from: EMAIL_FROM,
+        from: process.env.EMAIL_FROM,
         to,
         subject: 'Återställ ditt lösenord – MazeShopper',
         text: [
