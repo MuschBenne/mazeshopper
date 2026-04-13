@@ -1,13 +1,31 @@
 <script>
     import { settingContext } from "$lib/context/setting-context.svelte";
+    import { authContext } from "$lib/context/auth-context.svelte";
 
     let newCategory = $state('');
     let newColor = $state('#e2e8f0');
     let editMode = $state(false);
 
+    let emailInput = $state('');
+    let emailStatus = $state(/** @type {'idle'|'saving'|'ok'|'error'} */ ('idle'));
+    let emailError = $state('');
+
     async function addCategory() {
         await settingContext.addCategory(newCategory, newColor);
         newCategory = '';
+    }
+
+    async function saveEmail() {
+        emailStatus = 'saving';
+        emailError = '';
+        const result = await authContext.updateEmail(emailInput.trim());
+        if (result === 'ok') {
+            emailStatus = 'ok';
+            emailInput = '';
+        } else {
+            emailStatus = 'error';
+            emailError = result === 'email_taken' ? 'E-postadressen används redan av ett annat konto.' : 'Ogiltig e-postadress.';
+        }
     }
 </script>
 
@@ -61,6 +79,32 @@
                 <button onclick={addCategory}>Lägg till</button>
             </div>
             <button class="btn-reset" onclick={() => settingContext.resetCategories()}>Återställ till standard</button>
+        {/if}
+    </div>
+
+    <div class="card">
+        <h2>E-postadress</h2>
+        {#if authContext.user?.email}
+            <p class="email-current">Nuvarande: <strong>{authContext.user.email}</strong></p>
+        {:else}
+            <p class="email-missing">Ditt konto saknar e-postadress. Utan en kan du inte återställa ditt lösenord om du glömmer det.</p>
+        {/if}
+        <div class="email-row">
+            <input
+                type="email"
+                placeholder={authContext.user?.email ? 'Ny e-postadress' : 'Lägg till e-postadress'}
+                bind:value={emailInput}
+                onkeydown={(e) => e.key === 'Enter' && emailInput.trim() && saveEmail()}
+                disabled={emailStatus === 'saving'}
+            />
+            <button onclick={saveEmail} disabled={emailStatus === 'saving' || !emailInput.trim()}>
+                {emailStatus === 'saving' ? 'Sparar...' : 'Spara'}
+            </button>
+        </div>
+        {#if emailStatus === 'ok'}
+            <p class="email-ok">E-postadressen sparades!</p>
+        {:else if emailStatus === 'error'}
+            <p class="email-err">{emailError}</p>
         {/if}
     </div>
 </div>
@@ -195,4 +239,42 @@
     }
 
     .btn-reset:hover { color: #374151; }
+
+    .card h2 { margin: 0 0 0.75rem; font-size: 1.1rem; }
+
+    .email-current, .email-missing {
+        margin: 0 0 0.75rem;
+        font-size: 0.9em;
+    }
+    .email-missing { color: #b45309; }
+
+    .email-row {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .email-row input {
+        flex: 1;
+        padding: 0.6rem 0.9rem;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-size: 0.95em;
+        outline: none;
+    }
+    .email-row input:focus { border-color: #f97316; }
+
+    .email-row button {
+        padding: 0.6rem 1rem;
+        background: linear-gradient(135deg, #f97316, #c026d3);
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+    .email-row button:disabled { opacity: 0.5; cursor: default; }
+
+    .email-ok { margin: 0.5rem 0 0; font-size: 0.9em; color: #16a34a; }
+    .email-err { margin: 0.5rem 0 0; font-size: 0.9em; color: #dc2626; }
 </style>

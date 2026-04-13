@@ -34,7 +34,10 @@ function isValidEmail(email) {
 
 export async function GET({ cookies }) {
     const username = await getSessionUser(cookies);
-    return json({ user: username ? { username } : null });
+    if (!username) return json({ user: null });
+    const db = await getDb();
+    const dbUser = await db.collection('users').findOne({ username });
+    return json({ user: { username, email: dbUser?.email ?? null } });
 }
 
 export async function POST({ request, cookies }) {
@@ -83,6 +86,21 @@ export async function POST({ request, cookies }) {
         if (!match) return json({ error: 'wrong_password' }, { status: 401 });
         await createSession(cookies, user.username);
         return json({ ok: true, user: { username: user.username } });
+    }
+
+    if (action === 'update_email') {
+        const username = await getSessionUser(cookies);
+        if (!username) return json({ error: 'unauthorized' }, { status: 401 });
+
+        const { email } = body;
+        if (!email || !isValidEmail(email)) return json({ error: 'invalid_email' }, { status: 400 });
+
+        const emailNorm = email.trim().toLowerCase();
+        const existing = await users.findOne({ email: emailNorm });
+        if (existing && existing.username !== username) return json({ error: 'email_taken' }, { status: 400 });
+
+        await users.updateOne({ username }, { $set: { email: emailNorm } });
+        return json({ ok: true });
     }
 
     // ── Password reset ────────────────────────────────────────────────────────

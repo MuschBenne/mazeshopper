@@ -1,5 +1,5 @@
 class AuthContext {
-    /** @type {{ username: string } | null} */
+    /** @type {{ username: string, email: string | null } | null} */
     user = $state(null);
 
     /**
@@ -73,6 +73,22 @@ class AuthContext {
             body: JSON.stringify({ action: 'logout' })
         });
         this.user = null;
+    }
+
+    /**
+     * @param {string} email
+     * @returns {Promise<'ok' | 'invalid_email' | 'email_taken' | 'unauthorized'>}
+     */
+    async updateEmail(email) {
+        const res = await fetch('/api/auth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'update_email', email })
+        });
+        const data = await res.json();
+        if (!res.ok) return data.error;
+        if (this.user) this.user = { ...this.user, email: email.trim().toLowerCase() };
+        return 'ok';
     }
 
     /** @param {string} username */
