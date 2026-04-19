@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import { getDb } from '$lib/server/db';
 import { getSessionUser } from '$lib/server/session';
 
+// Fallback used when the user has no saved settings document yet.
 const defaultCategories = [
     { name: 'Frukt & Grönt',  color: '#bbf7d0' },
     { name: 'Mejeri',         color: '#fef9c3' },
@@ -13,6 +14,7 @@ const defaultCategories = [
     { name: 'Frys',           color: '#cffafe' }
 ];
 
+// Returns the user's saved categories, or the defaults if none have been saved.
 export async function GET({ cookies }) {
     const username = await getSessionUser(cookies);
     if (!username) return json({ error: 'unauthorized' }, { status: 401 });
@@ -22,6 +24,7 @@ export async function GET({ cookies }) {
     return json({ categories: doc ? doc.categories : defaultCategories });
 }
 
+// Replaces the user's entire category list. Uses upsert so new users get a settings doc created automatically.
 export async function PUT({ request, cookies }) {
     const username = await getSessionUser(cookies);
     if (!username) return json({ error: 'unauthorized' }, { status: 401 });
@@ -29,7 +32,7 @@ export async function PUT({ request, cookies }) {
     const { categories } = await request.json();
     if (!Array.isArray(categories)) return json({ error: 'invalid' }, { status: 400 });
 
-    // Only allow known fields per category
+    // Strip unknown fields and filter out any entries with an empty name.
     const clean = categories.map(/** @param {any} c */ c => ({
         name: String(c.name ?? '').trim(),
         color: String(c.color ?? '#e2e8f0').trim()

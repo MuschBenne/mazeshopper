@@ -3,6 +3,9 @@ import { getDb } from '$lib/server/db';
 import { getSessionUser } from '$lib/server/session';
 import { ObjectId } from 'mongodb';
 
+// Accepts or declines a pending invitation.
+// On accept: adds the user to sharedWith and removes them from pendingInvites.
+// On decline: only removes them from pendingInvites.
 export async function POST({ params, request, cookies }) {
     const username = await getSessionUser(cookies);
     if (!username) return json({ error: 'unauthorized' }, { status: 401 });
@@ -11,7 +14,7 @@ export async function POST({ params, request, cookies }) {
     const { action } = await request.json();
     const db = await getDb();
 
-    // Verify the invitation belongs to this user
+    // Verify the invitation belongs to this user and is still pending.
     const inv = await db.collection('invitations').findOne({
         _id: new ObjectId(params.invId),
         toUser: username,
@@ -21,6 +24,7 @@ export async function POST({ params, request, cookies }) {
 
     if (action === 'accept') {
         if (ObjectId.isValid(inv.listId)) {
+            // Add to sharedWith and remove from pendingInvites atomically.
             await db.collection('lists').updateOne(
                 { _id: new ObjectId(inv.listId) },
                 {

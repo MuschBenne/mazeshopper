@@ -1,4 +1,6 @@
 <script>
+    // Detail page for a single shopping list.
+    // Supports two modes: edit mode (add/remove/edit items) and shopping mode (check off items).
     import { shoppingContext } from "$lib/context/shopping-context.svelte";
     import { authContext } from "$lib/context/auth-context.svelte";
     import { settingContext } from "$lib/context/setting-context.svelte";
@@ -12,6 +14,7 @@
     const id = $derived(page.params.id);
     const list = $derived(shoppingContext.getList(id));
     const username = $derived(authContext.user?.username ?? '');
+    // Only the owner can delete the list or share it with others.
     const isOwner = $derived(list?.owner === username);
 
     let newItem = $state('');
@@ -23,7 +26,8 @@
     let search = $state('');
     let showHistory = $state(false);
 
-    // Remember last selected category per list (session)
+    // Persist the last-used category per list in sessionStorage so it's
+    // pre-selected when the user navigates back to the same list.
     $effect(() => {
         if (!browser) return;
         const saved = sessionStorage.getItem(`lastCategory_${id}`);
@@ -37,7 +41,8 @@
         }
     });
 
-    // Poll for updates every 15 seconds in shopping mode
+    // Poll the server every 15 seconds in shopping mode so all collaborators
+    // see each other's check-offs without needing to refresh the page.
     $effect(() => {
         if (!shoppingMode) return;
         const interval = setInterval(() => shoppingContext.refreshList(id), 15000);
@@ -46,6 +51,7 @@
 
     const sortedCategories = $derived.by(() => {
         const store = storeContext.selectedStore;
+        // If a store with a saved layout is selected, sort categories by aisle order.
         const base = (!store || Object.keys(store.categoryOrder).length === 0)
             ? settingContext.categories
             : [...settingContext.categories].sort((a, b) => {
@@ -55,6 +61,8 @@
             });
 
         if (!list) return base;
+        // A shared list may contain items with categories the current user hasn't defined.
+        // Append any unknown categories so those items are still visible.
         const knownNames = new Set(base.map(c => c.name));
         const extraNames = [...new Set(list.items.map(i => i.category))].filter(n => n && !knownNames.has(n));
         if (extraNames.length === 0) return base;
@@ -62,6 +70,7 @@
         return [...base, ...extras];
     });
 
+    // Filters the item list by the search query, matching on both name and spec.
     const filteredItems = $derived.by(() => {
         if (!list) return [];
         const q = search.trim().toLowerCase();

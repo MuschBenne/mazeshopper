@@ -8,6 +8,8 @@ import { notificationContext } from './notification-context.svelte';
  * @typedef {{ clearedAt: string, items: ShoppingItem[] }} BoughtEntry
  */
 
+// Manages all shopping lists, invitations, and recently bought history.
+// Uses optimistic updates throughout: the UI updates immediately and rolls back on server error.
 class ShoppingContext {
     /** @type {ShoppingList[]} */
     lists = $state([]);
@@ -15,18 +17,21 @@ class ShoppingContext {
     /** @type {Invitation[]} */
     invitations = $state([]);
 
+    // Keyed by listId — stores up to 3 recent "cleared bought" sessions per list.
     /** @type {{ [listId: string]: BoughtEntry[] }} */
     recentlyBought = $state({});
 
     constructor() {
+        // Restore purchase history from localStorage so it survives page reloads.
         if (browser) {
             try {
                 const saved = localStorage.getItem('mazeshopper_recentlyBought');
                 if (saved) this.recentlyBought = JSON.parse(saved);
-            } catch { /* ignore */ }
+            } catch { /* ignore parse errors from corrupt storage */ }
         }
     }
 
+    // Loads all lists the current user owns or has been shared with, plus pending invitations.
     async load() {
         const [listsRes, invRes] = await Promise.all([
             fetch('/api/lists'),
@@ -42,7 +47,8 @@ class ShoppingContext {
         }
     }
 
-    /** Refresh a single list from the server (used for polling in shopping mode). */
+    // Fetches a single list from the server and replaces it in the local array.
+    // Used for polling during shopping mode so all collaborators see live changes.
     /** @param {string} listId */
     async refreshList(listId) {
         try {
@@ -51,9 +57,10 @@ class ShoppingContext {
             const { list } = await res.json();
             const idx = this.lists.findIndex(l => l.id === listId);
             if (idx !== -1) this.lists[idx] = list;
-        } catch { /* silent poll failure */ }
+        } catch { /* silent poll failure — network hiccup, will retry on next tick */ }
     }
 
+    // Clears all data on logout so the next user starts with a clean state.
     reset() {
         this.lists = [];
         this.invitations = [];
@@ -86,6 +93,7 @@ class ShoppingContext {
         return this.lists.find(l => l.id === id) ?? null;
     }
 
+    // Returns lists where the user is either the owner or in the sharedWith array.
     /** @param {string} username */
     listsForUser(username) {
         return this.lists.filter(l =>
@@ -107,6 +115,7 @@ class ShoppingContext {
         });
         const data = await res.json();
         if (!res.ok) return data.error;
+        // Reflect the pending invite in the UI before the target accepts.
         const list = this.getList(listId);
         if (list) list.pendingInvites = [...(list.pendingInvites ?? []), username];
         return 'ok';
@@ -124,6 +133,7 @@ class ShoppingContext {
         });
         const list = this.getList(listId);
         if (list) {
+            // Remove from both arrays since the user may still be in pendingInvites.
             list.sharedWith = list.sharedWith.filter(u => u.toLowerCase() !== username.toLowerCase());
             list.pendingInvites = (list.pendingInvites ?? []).filter(u => u.toLowerCase() !== username.toLowerCase());
         }
@@ -137,6 +147,7 @@ class ShoppingContext {
             body: JSON.stringify({ action: 'accept' })
         });
         this.invitations = this.invitations.filter(i => i.id !== invId);
+        // Re-fetch the full list of lists so the newly shared list appears immediately.
         const res = await fetch('/api/lists');
         if (res.ok) {
             const { lists } = await res.json();
@@ -166,7 +177,7 @@ class ShoppingContext {
         if (!list) return false;
         const itemId = crypto.randomUUID();
         const item = { itemId, name, spec, quantity: 1, bought: false, category };
-        // Optimistic update
+        // Optimistic update — show the item immediately before the server confirms.
         list.items = [...list.items, item];
         try {
             const res = await fetch(`/api/lists/${listId}/items`, {
@@ -177,6 +188,7 @@ class ShoppingContext {
             if (!res.ok) throw new Error();
             return true;
         } catch {
+            // Roll back the optimistic update on failure.
             list.items = list.items.filter(i => i.itemId !== itemId);
             notificationContext.show('Kunde inte lägga till vara. Försök igen.');
             return false;
@@ -192,43 +204,20 @@ class ShoppingContext {
         if (!list) return;
         const item = list.items.find(i => i.itemId === itemId);
         if (!item) return;
-        // Optimistic update
+        // Optimistic update.
         list.items = list.items.filter(i => i.itemId !== itemId);
         try {
             const res = await fetch(`/api/lists/${listId}/items/${itemId}`, { method: 'DELETE' });
             if (!res.ok) throw new Error();
         } catch {
+            // Restore the item if the delete failed.
             list.items = [...list.items, item];
             notificationContext.show('Kunde inte ta bort vara. Försök igen.');
         }
     }
 
     /**
-     * @param {string} listId
-     * @param {string} itemId
-     */
-    async toggleBought(listId, itemId) {
-        const list = this.getList(listId);
-        if (!list) return;
-        const item = list.items.find(i => i.itemId === itemId);
-        if (!item) return;
-        const prevBought = item.bought;
-        // Optimistic update
-        item.bought = !prevBought;
-        try {
-            const res = await fetch(`/api/lists/${listId}/items/${itemId}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ bought: item.bought })
-            });
-            if (!res.ok) throw new Error();
-        } catch {
-            item.bought = prevBought;
-            notificationContext.show('Kunde inte uppdatera vara. Försök igen.');
-        }
-    }
-
-    /**
+     * Updates the item's name and spec both locally and on the server.
      * @param {string} listId
      * @param {string} itemId
      * @param {string} name
@@ -241,6 +230,7 @@ class ShoppingContext {
         if (!item) return false;
         const prevName = item.name;
         const prevSpec = item.spec;
+        // Optimistic update.
         item.name = name.trim();
         item.spec = spec.trim();
         try {
@@ -252,6 +242,7 @@ class ShoppingContext {
             if (!res.ok) throw new Error();
             return true;
         } catch {
+            // Roll back to the previous values on failure.
             item.name = prevName;
             item.spec = prevSpec;
             notificationContext.show('Kunde inte uppdatera vara. Försök igen.');
@@ -293,6 +284,7 @@ class ShoppingContext {
         if (!list) return;
         const item = list.items.find(i => i.itemId === itemId);
         if (!item) return;
+        // Prevent quantity from going below 1.
         if (item.quantity <= 1) return;
         const prevQty = item.quantity;
         const newQty = prevQty - 1;
@@ -316,14 +308,15 @@ class ShoppingContext {
         if (!list) return;
         const boughtItems = list.items.filter(i => i.bought);
         if (boughtItems.length === 0) return;
-        // Save to history before clearing
+        // Save to history before clearing so the user can review what was bought.
         this.#addToHistory(listId, boughtItems);
-        // Optimistic update
+        // Optimistic update.
         list.items = list.items.filter(i => !i.bought);
         try {
             const res = await fetch(`/api/lists/${listId}/items?bought=true`, { method: 'DELETE' });
             if (!res.ok) throw new Error();
         } catch {
+            // Restore both the items and the history entry on failure.
             list.items = [...list.items, ...boughtItems];
             this.#removeLastHistory(listId);
             notificationContext.show('Kunde inte rensa köpta varor. Försök igen.');
@@ -335,7 +328,7 @@ class ShoppingContext {
         const list = this.getList(listId);
         if (!list) return;
         const prevItems = [...list.items];
-        // Optimistic update
+        // Optimistic update.
         list.items = [];
         try {
             const res = await fetch(`/api/lists/${listId}/items`, { method: 'DELETE' });
@@ -346,6 +339,7 @@ class ShoppingContext {
         }
     }
 
+    // Prepends a new history entry and keeps at most 3 entries per list.
     /**
      * @param {string} listId
      * @param {ShoppingItem[]} items
@@ -357,6 +351,7 @@ class ShoppingContext {
         this.#saveHistory();
     }
 
+    // Removes the most recent history entry — used when a clearBought rollback occurs.
     /** @param {string} listId */
     #removeLastHistory(listId) {
         const existing = this.recentlyBought[listId] ?? [];
@@ -364,11 +359,12 @@ class ShoppingContext {
         this.#saveHistory();
     }
 
+    // Persists purchase history to localStorage so it survives page reloads.
     #saveHistory() {
         if (browser) {
             try {
                 localStorage.setItem('mazeshopper_recentlyBought', JSON.stringify(this.recentlyBought));
-            } catch { /* ignore quota errors */ }
+            } catch { /* ignore storage quota errors */ }
         }
     }
 }

@@ -3,7 +3,7 @@ import { getDb } from '$lib/server/db';
 import { getSessionUser } from '$lib/server/session';
 import { ObjectId } from 'mongodb';
 
-/** Verify user has access (owner or sharedWith) */
+// Returns true only if the user is the owner or in the sharedWith array.
 async function getAccessibleList(db, listId, username) {
     if (!ObjectId.isValid(listId)) return null;
     return db.collection('lists').findOne({
@@ -12,6 +12,7 @@ async function getAccessibleList(db, listId, username) {
     });
 }
 
+// Adds a new item to the list. Both owner and shared users can add items.
 export async function POST({ params, request, cookies }) {
     const username = await getSessionUser(cookies);
     if (!username) return json({ error: 'unauthorized' }, { status: 401 });
@@ -22,7 +23,7 @@ export async function POST({ params, request, cookies }) {
 
     const body = await request.json();
 
-    // Only allow known fields – never trust the client blindly
+    // Only allow known fields — never trust the client blindly.
     const item = {
         itemId: typeof body.itemId === 'string' ? body.itemId : crypto.randomUUID(),
         name: String(body.name ?? '').trim(),
@@ -40,6 +41,8 @@ export async function POST({ params, request, cookies }) {
     return json({ ok: true });
 }
 
+// Deletes items from the list.
+// ?bought=true removes only checked-off items; omitting it clears the entire list.
 export async function DELETE({ params, request, cookies }) {
     const username = await getSessionUser(cookies);
     if (!username) return json({ error: 'unauthorized' }, { status: 401 });
@@ -52,11 +55,13 @@ export async function DELETE({ params, request, cookies }) {
     const bought = url.searchParams.get('bought') === 'true';
 
     if (bought) {
+        // Remove only items that have been marked as bought.
         await db.collection('lists').updateOne(
             { _id: new ObjectId(params.id) },
             { $pull: { items: { bought: true } } }
         );
     } else {
+        // Replace the entire items array with an empty one.
         await db.collection('lists').updateOne(
             { _id: new ObjectId(params.id) },
             { $set: { items: [] } }

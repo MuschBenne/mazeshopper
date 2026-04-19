@@ -1,4 +1,5 @@
 <script>
+    // Renders all items belonging to a single category, with collapse, edit, and shopping-mode support.
     import { shoppingContext } from '$lib/context/shopping-context.svelte';
 
     /**
@@ -13,13 +14,16 @@
 
     let collapsed = $state(false);
 
+    // Tracks which item (if any) is currently being edited inline.
     /** @type {string | null} */
     let editingItemId = $state(null);
     let editName = $state('');
     let editSpec = $state('');
 
+    // Items are displayed in their original insertion order — no re-sorting on check-off.
     const displayItems = $derived(items);
 
+    // Populates the inline edit form with the item's current values.
     /** @param {import('$lib/context/shopping-context.svelte').ShoppingItem} item */
     function startEdit(item) {
         editingItemId = item.itemId;

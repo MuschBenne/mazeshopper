@@ -3,17 +3,21 @@ import { getDb } from '$lib/server/db';
 import { getSessionUser } from '$lib/server/session';
 import { ObjectId } from 'mongodb';
 
+// Permanently deletes a store. Only the owner can delete their own stores.
 export async function DELETE({ params, cookies }) {
     const username = await getSessionUser(cookies);
     if (!username) return json({ error: 'unauthorized' }, { status: 401 });
     if (!ObjectId.isValid(params.storeId)) return json({ error: 'not_found' }, { status: 404 });
 
     const db = await getDb();
+    // The owner filter prevents one user from deleting another user's store.
     const result = await db.collection('stores').deleteOne({ _id: new ObjectId(params.storeId), owner: username });
     if (result.deletedCount === 0) return json({ error: 'forbidden' }, { status: 403 });
     return json({ ok: true });
 }
 
+// Saves the drag-and-drop layout for a store: category positions on the map
+// and the derived categoryOrder used to sort shopping list items.
 export async function PATCH({ params, request, cookies }) {
     const username = await getSessionUser(cookies);
     if (!username) return json({ error: 'unauthorized' }, { status: 401 });

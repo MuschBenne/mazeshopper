@@ -1,9 +1,11 @@
 <script>
+    // Settings page — lets the user manage their personal categories and email address.
     import { settingContext } from "$lib/context/setting-context.svelte";
     import { authContext } from "$lib/context/auth-context.svelte";
 
     let newCategory = $state('');
     let newColor = $state('#e2e8f0');
+    // Edit mode toggles the category list between view-only and edit (remove + recolor).
     let editMode = $state(false);
 
     let emailInput = $state('');
@@ -24,6 +26,7 @@
             emailInput = '';
         } else {
             emailStatus = 'error';
+            // Map server error codes to user-friendly Swedish messages.
             emailError = result === 'email_taken' ? 'E-postadressen används redan av ett annat konto.' : 'Ogiltig e-postadress.';
         }
     }

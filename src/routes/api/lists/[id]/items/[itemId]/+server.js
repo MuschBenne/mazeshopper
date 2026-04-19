@@ -3,7 +3,7 @@ import { getDb } from '$lib/server/db';
 import { getSessionUser } from '$lib/server/session';
 import { ObjectId } from 'mongodb';
 
-/** Verify user has access (owner or sharedWith) */
+// Returns the list only if the current user is the owner or in the sharedWith array.
 async function getAccessibleList(db, listId, username) {
     if (!ObjectId.isValid(listId)) return null;
     return db.collection('lists').findOne({
@@ -12,6 +12,7 @@ async function getAccessibleList(db, listId, username) {
     });
 }
 
+// Removes a single item from the list by its itemId.
 export async function DELETE({ params, cookies }) {
     const username = await getSessionUser(cookies);
     if (!username) return json({ error: 'unauthorized' }, { status: 401 });
@@ -27,6 +28,8 @@ export async function DELETE({ params, cookies }) {
     return json({ ok: true });
 }
 
+// Partially updates a single item. Accepts: bought, quantity, name, spec.
+// Uses MongoDB arrayFilters to target the specific item inside the embedded array.
 export async function PATCH({ params, request, cookies }) {
     const username = await getSessionUser(cookies);
     if (!username) return json({ error: 'unauthorized' }, { status: 401 });
@@ -37,7 +40,7 @@ export async function PATCH({ params, request, cookies }) {
 
     const body = await request.json();
 
-    // Only allow updating bought, quantity, name, and spec
+    // Only allow updating bought, quantity, name, and spec.
     /** @type {Record<string, any>} */
     const setFields = {};
     if (typeof body.bought === 'boolean') setFields['items.$[el].bought'] = body.bought;

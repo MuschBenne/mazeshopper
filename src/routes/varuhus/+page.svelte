@@ -1,8 +1,12 @@
 <script>
+    // Page for managing grocery stores and their category layouts.
+    // Each store can have a drag-and-drop map that determines the aisle order
+    // used to sort items on the shopping list.
     import { storeContext } from "$lib/context/store-context.svelte";
     import StoreEditor from "$lib/components/StoreEditor.svelte";
 
     let newStore = $state('');
+    // Only one store's editor is open at a time — tracks which one by index.
     /** @type {number | null} */
     let expandedStore = $state(null);
 

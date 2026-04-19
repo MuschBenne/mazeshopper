@@ -1,3 +1,5 @@
+// Manages authentication state and all user-related API calls.
+// A single singleton instance is shared across the entire app via the module export.
 class AuthContext {
     /** @type {{ username: string, email: string | null } | null} */
     user = $state(null);
@@ -38,6 +40,8 @@ class AuthContext {
     }
 
     /**
+     * Always returns 'ok' regardless of outcome — we never reveal whether
+     * an email exists to prevent user enumeration attacks.
      * @param {string} email
      * @returns {Promise<'ok'>}
      */
@@ -66,6 +70,7 @@ class AuthContext {
         return 'ok';
     }
 
+    // Clears the local user state after the server invalidates the session cookie.
     async logout() {
         await fetch('/api/auth', {
             method: 'POST',
@@ -87,10 +92,12 @@ class AuthContext {
         });
         const data = await res.json();
         if (!res.ok) return data.error;
+        // Update the local user object so the UI reflects the change immediately.
         if (this.user) this.user = { ...this.user, email: email.trim().toLowerCase() };
         return 'ok';
     }
 
+    // Used when sharing a list — checks whether the target username exists before sending an invitation.
     /** @param {string} username */
     async userExists(username) {
         const res = await fetch('/api/auth', {

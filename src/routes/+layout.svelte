@@ -1,4 +1,5 @@
 <script>
+    // Root layout — bootstraps all global contexts and renders the sticky header + nav.
     import favicon from '$lib/assets/favicon.svg';
     import { authContext } from '$lib/context/auth-context.svelte';
     import { shoppingContext } from '$lib/context/shopping-context.svelte';
@@ -11,10 +12,13 @@
 
     let { data, children } = $props();
 
+    // Sync the server-side session user into the client-side auth context on every navigation.
     $effect(() => {
         authContext.user = data.user;
     });
 
+    // Load all user data when logged in, or clear it when logged out.
+    // This runs reactively whenever authContext.user changes.
     $effect(() => {
         if (authContext.user) {
             shoppingContext.load();
@@ -32,6 +36,7 @@
         goto('/');
     }
 
+    // Used to apply the active class on nav links.
     const path = $derived(page.url.pathname);
 </script>
 

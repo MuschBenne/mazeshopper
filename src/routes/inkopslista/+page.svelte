@@ -1,14 +1,18 @@
 <script>
+    // Overview page — shows all lists the user owns or has been shared with,
+    // plus any pending invitations that need to be accepted or declined.
     import { shoppingContext } from "$lib/context/shopping-context.svelte";
     import { authContext } from "$lib/context/auth-context.svelte";
     import { goto } from '$app/navigation';
 
     const username = $derived(authContext.user?.username ?? '');
+    // Includes both owned and shared lists for this user.
     const myLists = $derived(shoppingContext.listsForUser(username));
     const pendingInvitations = $derived(shoppingContext.invitations);
 
     let newListName = $state('');
 
+    // Creates the list and immediately navigates to it so the user can start adding items.
     async function createList() {
         if (newListName.trim().length === 0) return;
         const id = await shoppingContext.createList(newListName, username);
