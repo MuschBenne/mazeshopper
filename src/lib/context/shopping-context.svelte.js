@@ -231,6 +231,37 @@ class ShoppingContext {
     /**
      * @param {string} listId
      * @param {string} itemId
+     * @param {string} name
+     * @param {string} spec
+     */
+    async editItem(listId, itemId, name, spec) {
+        const list = this.getList(listId);
+        if (!list) return false;
+        const item = list.items.find(i => i.itemId === itemId);
+        if (!item) return false;
+        const prevName = item.name;
+        const prevSpec = item.spec;
+        item.name = name.trim();
+        item.spec = spec.trim();
+        try {
+            const res = await fetch(`/api/lists/${listId}/items/${itemId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: name.trim(), spec: spec.trim() })
+            });
+            if (!res.ok) throw new Error();
+            return true;
+        } catch {
+            item.name = prevName;
+            item.spec = prevSpec;
+            notificationContext.show('Kunde inte uppdatera vara. Försök igen.');
+            return false;
+        }
+    }
+
+    /**
+     * @param {string} listId
+     * @param {string} itemId
      */
     async increaseQuantity(listId, itemId) {
         const list = this.getList(listId);

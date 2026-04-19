@@ -13,14 +13,29 @@
 
     let collapsed = $state(false);
 
-    /** Items sorted so unbought come first in shopping mode */
-    const displayItems = $derived.by(() => {
-        if (!shoppingMode) return items;
-        return [...items].sort((a, b) => {
-            if (a.bought === b.bought) return 0;
-            return a.bought ? 1 : -1;
-        });
-    });
+    /** @type {string | null} */
+    let editingItemId = $state(null);
+    let editName = $state('');
+    let editSpec = $state('');
+
+    const displayItems = $derived(items);
+
+    /** @param {import('$lib/context/shopping-context.svelte').ShoppingItem} item */
+    function startEdit(item) {
+        editingItemId = item.itemId;
+        editName = item.name;
+        editSpec = item.spec;
+    }
+
+    async function saveEdit() {
+        if (!editingItemId || editName.trim().length === 0) return;
+        await shoppingContext.editItem(listId, editingItemId, editName, editSpec);
+        editingItemId = null;
+    }
+
+    function cancelEdit() {
+        editingItemId = null;
+    }
 </script>
 
 <button class="category-header" onclick={() => (collapsed = !collapsed)}>
@@ -34,28 +49,50 @@
     <ul>
         {#each displayItems as item (item.itemId)}
             <li class:bought={item.bought}>
-                <span class="item-name" style:text-decoration={item.bought ? 'line-through' : 'none'}>
-                    {item.name}{item.spec ? ` – ${item.spec}` : ''}
-                </span>
-                <div class="quantity-controls">
-                    {#if !shoppingMode}
-                        <button onclick={() => shoppingContext.decreaseQuantity(listId, item.itemId)}>-</button>
-                    {/if}
-                    <span class="quantity">{item.quantity}</span>
-                    {#if !shoppingMode}
-                        <button onclick={() => shoppingContext.increaseQuantity(listId, item.itemId)}>+</button>
-                    {/if}
-                    {#if shoppingMode}
-                        <button
-                            class="btn-bought"
-                            class:bought={item.bought}
-                            onclick={() => shoppingContext.toggleBought(listId, item.itemId)}
-                        >{item.bought ? '✓' : ''}</button>
-                    {/if}
-                    {#if !shoppingMode}
-                        <button onclick={() => shoppingContext.removeItem(listId, item.itemId)}>🗑️</button>
-                    {/if}
-                </div>
+                {#if editingItemId === item.itemId}
+                    <div class="edit-form">
+                        <input
+                            class="edit-input"
+                            bind:value={editName}
+                            placeholder="Vara"
+                            onkeydown={(e) => { if (e.key === 'Enter') saveEdit(); else if (e.key === 'Escape') cancelEdit(); }}
+                        />
+                        <input
+                            class="edit-input"
+                            bind:value={editSpec}
+                            placeholder="Specifikation (valfritt)"
+                            onkeydown={(e) => { if (e.key === 'Enter') saveEdit(); else if (e.key === 'Escape') cancelEdit(); }}
+                        />
+                        <div class="edit-actions">
+                            <button class="btn-save" onclick={saveEdit}>Spara</button>
+                            <button class="btn-cancel" onclick={cancelEdit}>Avbryt</button>
+                        </div>
+                    </div>
+                {:else}
+                    <span class="item-name" style:text-decoration={item.bought ? 'line-through' : 'none'}>
+                        {item.name}{item.spec ? ` – ${item.spec}` : ''}
+                    </span>
+                    <div class="quantity-controls">
+                        {#if !shoppingMode}
+                            <button onclick={() => shoppingContext.decreaseQuantity(listId, item.itemId)}>-</button>
+                        {/if}
+                        <span class="quantity">{item.quantity}</span>
+                        {#if !shoppingMode}
+                            <button onclick={() => shoppingContext.increaseQuantity(listId, item.itemId)}>+</button>
+                        {/if}
+                        {#if shoppingMode}
+                            <button
+                                class="btn-bought"
+                                class:bought={item.bought}
+                                onclick={() => shoppingContext.toggleBought(listId, item.itemId)}
+                            >{item.bought ? '✓' : ''}</button>
+                        {/if}
+                        {#if !shoppingMode}
+                            <button class="btn-edit" onclick={() => startEdit(item)}>✏️</button>
+                            <button onclick={() => shoppingContext.removeItem(listId, item.itemId)}>🗑️</button>
+                        {/if}
+                    </div>
+                {/if}
             </li>
         {/each}
     </ul>
@@ -181,6 +218,65 @@
         background: #16a34a;
         border-color: #16a34a;
         color: #fff;
+    }
+
+    .edit-form {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+        flex: 1;
+        padding: 0.25rem 0;
+    }
+
+    .edit-input {
+        padding: 0.4rem 0.6rem;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 0.9em;
+        outline: none;
+        transition: border-color 0.15s;
+    }
+
+    .edit-input:focus { border-color: #f97316; }
+
+    .edit-actions {
+        display: flex;
+        gap: 0.4rem;
+    }
+
+    .btn-save {
+        padding: 0.3rem 0.75rem;
+        background: #f97316;
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        font-size: 0.85em;
+        font-weight: 600;
+        cursor: pointer;
+        min-height: unset;
+        min-width: unset;
+    }
+
+    .btn-save:hover { background: #ea6c0a; }
+
+    .btn-cancel {
+        padding: 0.3rem 0.75rem;
+        background: none;
+        color: #6b7280;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        font-size: 0.85em;
+        cursor: pointer;
+        min-height: unset;
+        min-width: unset;
+    }
+
+    .btn-cancel:hover { background: #f3f4f6; }
+
+    .btn-edit {
+        font-size: 0.85em;
+        min-height: 36px;
+        min-width: 36px;
     }
 
     /* Shopping mode overrides */

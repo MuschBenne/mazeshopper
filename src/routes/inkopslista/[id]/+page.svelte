@@ -46,15 +46,20 @@
 
     const sortedCategories = $derived.by(() => {
         const store = storeContext.selectedStore;
-        if (!store || Object.keys(store.categoryOrder).length === 0) {
-            return settingContext.categories;
-        }
-        const order = store.categoryOrder;
-        return [...settingContext.categories].sort((a, b) => {
-            const pa = order[a.name] ?? Infinity;
-            const pb = order[b.name] ?? Infinity;
-            return pa - pb;
-        });
+        const base = (!store || Object.keys(store.categoryOrder).length === 0)
+            ? settingContext.categories
+            : [...settingContext.categories].sort((a, b) => {
+                const pa = store.categoryOrder[a.name] ?? Infinity;
+                const pb = store.categoryOrder[b.name] ?? Infinity;
+                return pa - pb;
+            });
+
+        if (!list) return base;
+        const knownNames = new Set(base.map(c => c.name));
+        const extraNames = [...new Set(list.items.map(i => i.category))].filter(n => n && !knownNames.has(n));
+        if (extraNames.length === 0) return base;
+        const extras = extraNames.map(name => ({ name, color: '#e2e8f0' }));
+        return [...base, ...extras];
     });
 
     const filteredItems = $derived.by(() => {
