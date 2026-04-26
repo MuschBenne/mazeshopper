@@ -9,6 +9,7 @@
     let password = $state('');
     let email = $state('');
     let error = $state('');
+    let ageConfirmed = $state(false);
 
     async function submit() {
         error = '';
@@ -21,6 +22,7 @@
         } else {
             if (!email.trim()) { error = 'Fyll i din e-postadress.'; return; }
             if (password.length < 8) { error = 'Lösenordet måste vara minst 8 tecken.'; return; }
+            if (!ageConfirmed) { error = 'Du måste bekräfta att du är 16 år eller äldre.'; return; }
             const result = await authContext.register(username, password, email);
             if (result === 'taken') { error = 'Användarnamnet är redan taget.'; return; }
             if (result === 'email_taken') { error = 'E-postadressen används redan.'; return; }
@@ -98,6 +100,16 @@
             </button>
             {#if mode === 'login'}
                 <a class="forgot-link" href="/glomt-losenord">Glömt lösenordet?</a>
+            {:else}
+                <label class="age-check">
+                    <input type="checkbox" bind:checked={ageConfirmed} />
+                    Jag är 16 år eller äldre
+                </label>
+                <p class="policy-note">
+                    Genom att skapa ett konto godkänner du vår
+                    <a href="/integritetspolicy" target="_blank">integritetspolicy</a>
+                    och våra <a href="/anvandardvillkor" target="_blank">användarvillkor</a>.
+                </p>
             {/if}
         </div>
     </div>
@@ -261,5 +273,38 @@
     .forgot-link:hover {
         color: #f97316;
         text-decoration: underline;
+    }
+
+    .policy-note {
+        margin: 0;
+        text-align: center;
+        font-size: 0.78em;
+        color: #9ca3af;
+        line-height: 1.4;
+    }
+
+    .policy-note a {
+        color: #9ca3af;
+        text-decoration: underline;
+    }
+
+    .policy-note a:hover { color: #6b7280; }
+
+    .age-check {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.88em;
+        color: #374151;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .age-check input[type="checkbox"] {
+        width: 1rem;
+        height: 1rem;
+        cursor: pointer;
+        flex-shrink: 0;
+        accent-color: #f97316;
     }
 </style>
