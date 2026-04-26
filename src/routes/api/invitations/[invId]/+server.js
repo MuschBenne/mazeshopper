@@ -27,10 +27,10 @@ export async function POST({ params, request, cookies }) {
             // Add to sharedWith and remove from pendingInvites atomically.
             await db.collection('lists').updateOne(
                 { _id: new ObjectId(inv.listId) },
-                {
+                /** @type {any} */ ({
                     $push: { sharedWith: username },
                     $pull: { pendingInvites: username }
-                }
+                })
             );
         }
         await db.collection('invitations').updateOne(
@@ -44,6 +44,7 @@ export async function POST({ params, request, cookies }) {
         if (ObjectId.isValid(inv.listId)) {
             await db.collection('lists').updateOne(
                 { _id: new ObjectId(inv.listId) },
+                // @ts-ignore — MongoDB driver types don't accept plain strings for $pull
                 { $pull: { pendingInvites: username } }
             );
         }

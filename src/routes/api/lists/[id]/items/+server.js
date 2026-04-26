@@ -3,7 +3,11 @@ import { getDb } from '$lib/server/db';
 import { getSessionUser } from '$lib/server/session';
 import { ObjectId } from 'mongodb';
 
-// Returns true only if the user is the owner or in the sharedWith array.
+/**
+ * @param {import('mongodb').Db} db
+ * @param {string} listId
+ * @param {string} username
+ */
 async function getAccessibleList(db, listId, username) {
     if (!ObjectId.isValid(listId)) return null;
     return db.collection('lists').findOne({
@@ -36,6 +40,7 @@ export async function POST({ params, request, cookies }) {
 
     await db.collection('lists').updateOne(
         { _id: new ObjectId(params.id) },
+        // @ts-ignore — MongoDB driver types don't accept plain objects for $push
         { $push: { items: item } }
     );
     return json({ ok: true });
@@ -58,6 +63,7 @@ export async function DELETE({ params, request, cookies }) {
         // Remove only items that have been marked as bought.
         await db.collection('lists').updateOne(
             { _id: new ObjectId(params.id) },
+            // @ts-ignore — MongoDB driver types don't accept plain objects for $pull
             { $pull: { items: { bought: true } } }
         );
     } else {

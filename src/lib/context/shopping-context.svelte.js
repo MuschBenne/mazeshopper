@@ -107,6 +107,31 @@ class ShoppingContext {
         return this.lists.find(l => l.id === id) ?? null;
     }
 
+    /**
+     * Toggles the bought state of a single item with optimistic update.
+     * @param {string} listId
+     * @param {string} itemId
+     */
+    async toggleBought(listId, itemId) {
+        const list = this.getList(listId);
+        if (!list) return;
+        const item = list.items.find(i => i.itemId === itemId);
+        if (!item) return;
+        const prev = item.bought;
+        item.bought = !prev;
+        try {
+            const res = await fetch(`/api/lists/${listId}/items/${itemId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ bought: !prev })
+            });
+            if (!res.ok) throw new Error();
+        } catch {
+            item.bought = prev;
+            notificationContext.show('Kunde inte uppdatera vara. Försök igen.');
+        }
+    }
+
     // Returns lists where the user is either the owner or in the sharedWith array.
     /** @param {string} username */
     listsForUser(username) {

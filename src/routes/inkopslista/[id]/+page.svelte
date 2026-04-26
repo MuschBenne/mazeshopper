@@ -11,7 +11,7 @@
     import { goto } from '$app/navigation';
     import { browser } from '$app/environment';
 
-    const id = $derived(page.params.id);
+    const id = $derived(page.params.id ?? '');
     const list = $derived(shoppingContext.getList(id));
     const username = $derived(authContext.user?.username ?? '');
     // Only the owner can delete the list or share it with others.

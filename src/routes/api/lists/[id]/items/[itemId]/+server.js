@@ -3,7 +3,11 @@ import { getDb } from '$lib/server/db';
 import { getSessionUser } from '$lib/server/session';
 import { ObjectId } from 'mongodb';
 
-// Returns the list only if the current user is the owner or in the sharedWith array.
+/**
+ * @param {import('mongodb').Db} db
+ * @param {string} listId
+ * @param {string} username
+ */
 async function getAccessibleList(db, listId, username) {
     if (!ObjectId.isValid(listId)) return null;
     return db.collection('lists').findOne({
@@ -23,6 +27,7 @@ export async function DELETE({ params, cookies }) {
 
     await db.collection('lists').updateOne(
         { _id: new ObjectId(params.id) },
+        // @ts-ignore — MongoDB driver types don't accept plain objects for $pull
         { $pull: { items: { itemId: params.itemId } } }
     );
     return json({ ok: true });

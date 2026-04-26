@@ -60,7 +60,7 @@
                     {#if expandedStore === index}
                         <StoreEditor
                             {store}
-                            onSave={(layout) => onSave(index, layout)}
+                            onSave={(/** @type {Parameters<typeof onSave>[1]} */ layout) => onSave(index, layout)}
                         />
                     {/if}
                 </li>

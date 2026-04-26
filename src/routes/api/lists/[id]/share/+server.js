@@ -74,6 +74,7 @@ export async function DELETE({ params, request, cookies }) {
     await db.collection('lists').updateOne(
         { _id: new ObjectId(params.id) },
         {
+            // @ts-ignore — MongoDB driver types don't accept regex inside $pull
             $pull: {
                 sharedWith: { $regex: new RegExp(`^${escapeRegex(target)}$`, 'i') },
                 pendingInvites: { $regex: new RegExp(`^${escapeRegex(target)}$`, 'i') }
