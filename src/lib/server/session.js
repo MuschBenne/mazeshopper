@@ -9,7 +9,7 @@ export async function getSessionUser(cookies) {
     const token = cookies.get('session');
     if (!token) return null;
     const db = await getDb();
-    const session = await db.collection('sessions').findOne({ token });
+    const session = await db.collection('sessions').findOne({ token, expiresAt: { $gt: new Date() } });
     return session ? session.username : null;
 }
 
@@ -21,10 +21,12 @@ export async function getSessionUser(cookies) {
 export async function createSession(cookies, username) {
     const token = crypto.randomUUID();
     const db = await getDb();
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
     await db.collection('sessions').insertOne({
         token,
         username,
-        createdAt: new Date()
+        createdAt: new Date(),
+        expiresAt
     });
     cookies.set('session', token, {
         path: '/',
