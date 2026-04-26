@@ -1,3 +1,5 @@
+<svelte:head><title>Inställningar – MazeShopper</title></svelte:head>
+
 <script>
     // Settings page — lets the user manage their personal categories and email address.
     import { settingContext } from "$lib/context/setting-context.svelte";

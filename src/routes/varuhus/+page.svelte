@@ -1,3 +1,5 @@
+<svelte:head><title>Varuhus – MazeShopper</title></svelte:head>
+
 <script>
     // Page for managing grocery stores and their category layouts.
     // Each store can have a drag-and-drop map that determines the aisle order

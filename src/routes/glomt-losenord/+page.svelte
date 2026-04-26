@@ -1,3 +1,5 @@
+<svelte:head><title>Glömt lösenordet – MazeShopper</title></svelte:head>
+
 <script>
     import { authContext } from '$lib/context/auth-context.svelte';
 

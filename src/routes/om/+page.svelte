@@ -1,3 +1,5 @@
+<svelte:head><title>Om MazeShopper</title></svelte:head>
+
 <div class="page">
     <a class="back" href="/">← Tillbaka</a>
 

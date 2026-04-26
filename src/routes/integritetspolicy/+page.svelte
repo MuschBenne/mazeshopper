@@ -1,3 +1,5 @@
+<svelte:head><title>Integritetspolicy – MazeShopper</title></svelte:head>
+
 <div class="page">
     <a class="back" href="/">← Tillbaka</a>
 

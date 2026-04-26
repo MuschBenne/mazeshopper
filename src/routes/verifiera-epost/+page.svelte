@@ -1,3 +1,5 @@
+<svelte:head><title>Verifiera e-post – MazeShopper</title></svelte:head>
+
 <script>
     import { onMount } from 'svelte';
     import { goto } from '$app/navigation';
