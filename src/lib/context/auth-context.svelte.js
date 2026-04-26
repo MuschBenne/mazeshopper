@@ -1,13 +1,13 @@
 // Manages authentication state and all user-related API calls.
 // A single singleton instance is shared across the entire app via the module export.
 class AuthContext {
-    /** @type {{ username: string, email: string | null } | null} */
+    /** @type {{ username: string, email: string | null, emailVerified: boolean } | null} */
     user = $state(null);
 
     /**
      * @param {string} username
      * @param {string} password
-     * @returns {Promise<'ok' | 'wrong_password' | 'not_found'>}
+     * @returns {Promise<'ok' | 'wrong_password' | 'not_found' | 'too_many_attempts'>}
      */
     async login(username, password) {
         const res = await fetch('/api/auth', {
@@ -95,6 +95,14 @@ class AuthContext {
         // Update the local user object so the UI reflects the change immediately.
         if (this.user) this.user = { ...this.user, email: email.trim().toLowerCase() };
         return 'ok';
+    }
+
+    async resendVerification() {
+        await fetch('/api/auth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'resend_verification' })
+        });
     }
 
     async deleteAccount() {

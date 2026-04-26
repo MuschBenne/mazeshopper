@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import { getDb } from '$lib/server/db';
 import { createSession, deleteSession, getSessionUser } from '$lib/server/session';
-import { sendPasswordReset } from '$lib/server/email';
+import { sendPasswordReset, sendEmailVerification } from '$lib/server/email';
 import bcrypt from 'bcryptjs';
 
 const SALT_ROUNDS = 12;
@@ -37,10 +37,13 @@ export async function GET({ cookies }) {
     if (!username) return json({ user: null });
     const db = await getDb();
     const dbUser = await db.collection('users').findOne({ username });
-    return json({ user: { username, email: dbUser?.email ?? null } });
+    return json({ user: { username, email: dbUser?.email ?? null, emailVerified: dbUser?.emailVerified ?? true } });
 }
 
-export async function POST({ request, cookies }) {
+const LOGIN_MAX_ATTEMPTS = 10;
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+
+export async function POST({ request, cookies, getClientAddress }) {
     const body = await request.json();
     const { action } = body;
     const db = await getDb();
@@ -73,19 +76,47 @@ export async function POST({ request, cookies }) {
 
         const hash = await bcrypt.hash(password, SALT_ROUNDS);
         const name = username.trim();
-        await users.insertOne({ username: name, password: hash, email: emailNorm });
+        await users.insertOne({ username: name, password: hash, email: emailNorm, emailVerified: false });
         await createSession(cookies, name);
-        return json({ ok: true, user: { username: name, email: emailNorm } });
+
+        const verifyToken = generateToken();
+        const verifyTokenHash = await hashToken(verifyToken);
+        await db.collection('email_verifications').insertOne({
+            email: emailNorm, username: name, tokenHash: verifyTokenHash,
+            createdAt: new Date(), expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000)
+        });
+        const origin = new URL(request.url).origin;
+        try {
+            await sendEmailVerification(emailNorm, name, `${origin}/verifiera-epost?token=${verifyToken}`);
+        } catch (err) {
+            console.error('Failed to send verification email:', err);
+        }
+
+        return json({ ok: true, user: { username: name, email: emailNorm, emailVerified: false } });
     }
 
     if (action === 'login') {
+        const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? getClientAddress();
+        const rateLimitKey = `login:${ip}`;
+        const since = new Date(Date.now() - LOGIN_WINDOW_MS);
+        const attempts = await db.collection('login_attempts').countDocuments({ key: rateLimitKey, at: { $gt: since } });
+        if (attempts >= LOGIN_MAX_ATTEMPTS) {
+            return json({ error: 'too_many_attempts' }, { status: 429 });
+        }
+
         const { username, password } = body;
         const user = await users.findOne({ username: { $regex: new RegExp(`^${escapeRegex(username)}$`, 'i') } });
-        if (!user) return json({ error: 'not_found' }, { status: 401 });
+        if (!user) {
+            await db.collection('login_attempts').insertOne({ key: rateLimitKey, at: new Date() });
+            return json({ error: 'not_found' }, { status: 401 });
+        }
         const match = await bcrypt.compare(password, user.password);
-        if (!match) return json({ error: 'wrong_password' }, { status: 401 });
+        if (!match) {
+            await db.collection('login_attempts').insertOne({ key: rateLimitKey, at: new Date() });
+            return json({ error: 'wrong_password' }, { status: 401 });
+        }
         await createSession(cookies, user.username);
-        return json({ ok: true, user: { username: user.username, email: user.email ?? null } });
+        return json({ ok: true, user: { username: user.username, email: user.email ?? null, emailVerified: user.emailVerified ?? true } });
     }
 
     if (action === 'update_email') {
@@ -99,7 +130,22 @@ export async function POST({ request, cookies }) {
         const existing = await users.findOne({ email: emailNorm });
         if (existing && existing.username !== username) return json({ error: 'email_taken' }, { status: 400 });
 
-        await users.updateOne({ username }, { $set: { email: emailNorm } });
+        await users.updateOne({ username }, { $set: { email: emailNorm, emailVerified: false } });
+
+        const verifyToken = generateToken();
+        const verifyTokenHash = await hashToken(verifyToken);
+        await db.collection('email_verifications').deleteMany({ email: emailNorm });
+        await db.collection('email_verifications').insertOne({
+            email: emailNorm, username, tokenHash: verifyTokenHash,
+            createdAt: new Date(), expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000)
+        });
+        const originForVerify = new URL(request.url).origin;
+        try {
+            await sendEmailVerification(emailNorm, username, `${originForVerify}/verifiera-epost?token=${verifyToken}`);
+        } catch (err) {
+            console.error('Failed to send verification email on email change:', err);
+        }
+
         return json({ ok: true });
     }
 
@@ -113,6 +159,7 @@ export async function POST({ request, cookies }) {
         const emailNorm = email.trim().toLowerCase();
         const user = await users.findOne({ email: emailNorm });
         if (!user) return json({ ok: true });
+        if (!user.emailVerified) return json({ ok: true }); // silently skip — user needs to verify email first
 
         const resets = db.collection('password_resets');
 
@@ -175,6 +222,43 @@ export async function POST({ request, cookies }) {
         return json({ ok: true });
     }
 
+    if (action === 'verify_email') {
+        const { token } = body;
+        if (!token) return json({ error: 'invalid' }, { status: 400 });
+        const tokenHash = await hashToken(token);
+        const verifications = db.collection('email_verifications');
+        const verification = await verifications.findOne({ tokenHash });
+        if (!verification) return json({ error: 'invalid_token' }, { status: 400 });
+        if (verification.expiresAt < new Date()) {
+            await verifications.deleteOne({ tokenHash });
+            return json({ error: 'expired' }, { status: 400 });
+        }
+        await users.updateOne({ username: verification.username }, { $set: { emailVerified: true } });
+        await verifications.deleteMany({ email: verification.email });
+        return json({ ok: true });
+    }
+
+    if (action === 'resend_verification') {
+        const username = await getSessionUser(cookies);
+        if (!username) return json({ error: 'unauthorized' }, { status: 401 });
+        const user = await users.findOne({ username });
+        if (!user || user.emailVerified || !user.email) return json({ ok: true });
+        const verifyToken = generateToken();
+        const verifyTokenHash = await hashToken(verifyToken);
+        await db.collection('email_verifications').deleteMany({ email: user.email });
+        await db.collection('email_verifications').insertOne({
+            email: user.email, username, tokenHash: verifyTokenHash,
+            createdAt: new Date(), expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000)
+        });
+        const origin = new URL(request.url).origin;
+        try {
+            await sendEmailVerification(user.email, username, `${origin}/verifiera-epost?token=${verifyToken}`);
+        } catch (err) {
+            console.error('Failed to resend verification email:', err);
+        }
+        return json({ ok: true });
+    }
+
     if (action === 'delete_account') {
         const username = await getSessionUser(cookies);
         if (!username) return json({ error: 'unauthorized' }, { status: 401 });
@@ -185,6 +269,7 @@ export async function POST({ request, cookies }) {
         await users.deleteOne({ username });
         await db.collection('sessions').deleteMany({ username });
         if (email) await db.collection('password_resets').deleteMany({ email });
+        if (email) await db.collection('email_verifications').deleteMany({ email });
         await db.collection('lists').deleteMany({ owner: username });
         await db.collection('lists').updateMany(
             { $or: [{ sharedWith: username }, { pendingInvites: username }] },

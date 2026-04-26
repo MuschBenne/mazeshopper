@@ -19,6 +19,7 @@
             const result = await authContext.login(username, password);
             if (result === 'not_found') { error = 'Användaren finns inte.'; return; }
             if (result === 'wrong_password') { error = 'Fel lösenord.'; return; }
+            if (result === 'too_many_attempts') { error = 'För många inloggningsförsök. Vänta 15 minuter och försök igen.'; return; }
         } else {
             if (!email.trim()) { error = 'Fyll i din e-postadress.'; return; }
             if (password.length < 8) { error = 'Lösenordet måste vara minst 8 tecken.'; return; }
