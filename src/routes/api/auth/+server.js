@@ -175,5 +175,28 @@ export async function POST({ request, cookies }) {
         return json({ ok: true });
     }
 
+    if (action === 'delete_account') {
+        const username = await getSessionUser(cookies);
+        if (!username) return json({ error: 'unauthorized' }, { status: 401 });
+
+        const user = await users.findOne({ username });
+        const email = user?.email ?? null;
+
+        await users.deleteOne({ username });
+        await db.collection('sessions').deleteMany({ username });
+        if (email) await db.collection('password_resets').deleteMany({ email });
+        await db.collection('lists').deleteMany({ owner: username });
+        await db.collection('lists').updateMany(
+            { $or: [{ sharedWith: username }, { pendingInvites: username }] },
+            // @ts-ignore — MongoDB $pull with plain string value is valid at runtime
+            { $pull: { sharedWith: username, pendingInvites: username } }
+        );
+        await db.collection('stores').deleteMany({ owner: username });
+        await db.collection('user_settings').deleteMany({ owner: username });
+
+        cookies.delete('session', { path: '/' });
+        return json({ ok: true });
+    }
+
     return json({ error: 'unknown action' }, { status: 400 });
 }

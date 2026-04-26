@@ -2,6 +2,7 @@
     // Settings page — lets the user manage their personal categories and email address.
     import { settingContext } from "$lib/context/setting-context.svelte";
     import { authContext } from "$lib/context/auth-context.svelte";
+    import { goto } from '$app/navigation';
 
     let newCategory = $state('');
     let newColor = $state('#e2e8f0');
@@ -12,9 +13,22 @@
     let emailStatus = $state(/** @type {'idle'|'saving'|'ok'|'error'} */ ('idle'));
     let emailError = $state('');
 
+    let deleteConfirm = $state(false);
+    let deleteStatus = $state(/** @type {'idle'|'deleting'|'error'} */ ('idle'));
+
     async function addCategory() {
         await settingContext.addCategory(newCategory, newColor);
         newCategory = '';
+    }
+
+    async function deleteAccount() {
+        deleteStatus = 'deleting';
+        const result = await authContext.deleteAccount();
+        if (result === 'ok') {
+            goto('/');
+        } else {
+            deleteStatus = 'error';
+        }
     }
 
     async function saveEmail() {
@@ -109,6 +123,45 @@
         {:else if emailStatus === 'error'}
             <p class="email-err">{emailError}</p>
         {/if}
+    </div>
+
+    <div class="card">
+        <h2>Min data</h2>
+        <p class="export-desc">
+            Ladda ner en kopia av all din data (listor, varuhus, kategorier) som en JSON-fil.
+        </p>
+        <a class="btn-export" href="/api/user/export" download>Exportera min data</a>
+    </div>
+
+    <div class="card danger-card">
+        <h2>Fara-zon</h2>
+        <p class="danger-desc">
+            Raderar ditt konto permanent — alla listor du äger, varuhus och inställningar tas bort.
+            Listor du delar med andra försvinner enbart för dig.
+        </p>
+        {#if !deleteConfirm}
+            <button class="btn-danger" onclick={() => deleteConfirm = true}>
+                Radera mitt konto
+            </button>
+        {:else}
+            <div class="confirm-box">
+                <p class="confirm-warning">Är du säker? Det går inte att ångra.</p>
+                <div class="confirm-row">
+                    <button class="btn-cancel" onclick={() => { deleteConfirm = false; deleteStatus = 'idle'; }} disabled={deleteStatus === 'deleting'}>
+                        Avbryt
+                    </button>
+                    <button class="btn-danger-confirm" onclick={deleteAccount} disabled={deleteStatus === 'deleting'}>
+                        {deleteStatus === 'deleting' ? 'Raderar...' : 'Ja, radera permanent'}
+                    </button>
+                </div>
+                {#if deleteStatus === 'error'}
+                    <p class="delete-err">Något gick fel. Försök igen.</p>
+                {/if}
+            </div>
+        {/if}
+        <p class="privacy-link-note">
+            Läs vår <a href="/integritetspolicy" target="_blank">integritetspolicy</a> för information om hur vi hanterar dina uppgifter.
+        </p>
     </div>
 </div>
 
@@ -280,4 +333,118 @@
 
     .email-ok { margin: 0.5rem 0 0; font-size: 0.9em; color: #16a34a; }
     .email-err { margin: 0.5rem 0 0; font-size: 0.9em; color: #dc2626; }
+
+    .export-desc {
+        margin: 0 0 0.9rem;
+        font-size: 0.88em;
+        color: #6b7280;
+        line-height: 1.5;
+    }
+
+    .btn-export {
+        display: inline-block;
+        padding: 0.5rem 1.1rem;
+        background: #fff;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-size: 0.9em;
+        font-weight: 500;
+        color: #374151;
+        text-decoration: none;
+        transition: background 0.15s;
+    }
+
+    .btn-export:hover { background: #f9fafb; }
+
+    .danger-card {
+        border-color: #fecaca;
+        margin-top: 0;
+    }
+
+    .danger-card h2 {
+        margin: 0 0 0.5rem;
+        font-size: 1.1rem;
+        color: #dc2626;
+    }
+
+    .danger-desc {
+        margin: 0 0 1rem;
+        font-size: 0.88em;
+        color: #6b7280;
+        line-height: 1.5;
+    }
+
+    .btn-danger {
+        padding: 0.5rem 1.1rem;
+        background: #fff;
+        border: 1px solid #dc2626;
+        color: #dc2626;
+        border-radius: 8px;
+        font-size: 0.9em;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .btn-danger:hover { background: #fef2f2; }
+
+    .confirm-box {
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+    }
+
+    .confirm-warning {
+        margin: 0;
+        font-size: 0.9em;
+        font-weight: 600;
+        color: #dc2626;
+    }
+
+    .confirm-row {
+        display: flex;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+    }
+
+    .btn-cancel {
+        padding: 0.5rem 1rem;
+        border: 1px solid #d1d5db;
+        background: #fff;
+        border-radius: 8px;
+        font-size: 0.9em;
+        cursor: pointer;
+        color: #374151;
+    }
+
+    .btn-cancel:hover { background: #f9fafb; }
+    .btn-cancel:disabled { opacity: 0.5; cursor: default; }
+
+    .btn-danger-confirm {
+        padding: 0.5rem 1.1rem;
+        background: #dc2626;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        font-size: 0.9em;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .btn-danger-confirm:hover { background: #b91c1c; }
+    .btn-danger-confirm:disabled { opacity: 0.6; cursor: default; }
+
+    .delete-err { margin: 0; font-size: 0.85em; color: #dc2626; }
+
+    .privacy-link-note {
+        margin: 0.9rem 0 0;
+        font-size: 0.8em;
+        color: #9ca3af;
+    }
+
+    .privacy-link-note a {
+        color: #9ca3af;
+        text-decoration: underline;
+    }
+
+    .privacy-link-note a:hover { color: #6b7280; }
 </style>

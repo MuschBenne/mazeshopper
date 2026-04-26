@@ -97,6 +97,17 @@ class AuthContext {
         return 'ok';
     }
 
+    async deleteAccount() {
+        const res = await fetch('/api/auth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'delete_account' })
+        });
+        if (!res.ok) return 'error';
+        this.user = null;
+        return 'ok';
+    }
+
     // Used when sharing a list — checks whether the target username exists before sending an invitation.
     /** @param {string} username */
     async userExists(username) {
