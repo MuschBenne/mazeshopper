@@ -1,3 +1,5 @@
+<svelte:head><title>Mina listor – MazeShopper</title></svelte:head>
+
 <script>
     // Overview page — shows all lists the user owns or has been shared with,
     // plus any pending invitations that need to be accepted or declined.
@@ -16,6 +18,7 @@
     async function createList() {
         if (newListName.trim().length === 0) return;
         const id = await shoppingContext.createList(newListName, username);
+        if (!id) return;
         newListName = '';
         goto(`/inkopslista/${id}`);
     }

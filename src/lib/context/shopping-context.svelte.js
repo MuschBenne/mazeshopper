@@ -33,31 +33,39 @@ class ShoppingContext {
 
     // Loads all lists the current user owns or has been shared with, plus pending invitations.
     async load() {
-        const [listsRes, invRes] = await Promise.all([
-            fetch('/api/lists'),
-            fetch('/api/invitations')
-        ]);
-        if (listsRes.ok) {
-            const { lists } = await listsRes.json();
-            this.lists = lists;
-        }
-        if (invRes.ok) {
-            const { invitations } = await invRes.json();
-            this.invitations = invitations;
+        try {
+            const [listsRes, invRes] = await Promise.all([
+                fetch('/api/lists'),
+                fetch('/api/invitations')
+            ]);
+            if (listsRes.ok) {
+                const { lists } = await listsRes.json();
+                this.lists = lists;
+            }
+            if (invRes.ok) {
+                const { invitations } = await invRes.json();
+                this.invitations = invitations;
+            }
+        } catch {
+            notificationContext.show('Kunde inte ladda listor. Kontrollera din anslutning.');
         }
     }
 
     // Fetches a single list from the server and replaces it in the local array.
+    // Returns true on success and false on any network or server error.
     // Used for polling during shopping mode so all collaborators see live changes.
     /** @param {string} listId */
     async refreshList(listId) {
         try {
             const res = await fetch(`/api/lists/${listId}`);
-            if (!res.ok) return;
+            if (!res.ok) return false;
             const { list } = await res.json();
             const idx = this.lists.findIndex(l => l.id === listId);
             if (idx !== -1) this.lists[idx] = list;
-        } catch { /* silent poll failure — network hiccup, will retry on next tick */ }
+            return true;
+        } catch {
+            return false;
+        }
     }
 
     // Clears all data on logout so the next user starts with a clean state.
@@ -71,14 +79,20 @@ class ShoppingContext {
      * @param {string} owner
      */
     async createList(name, owner) {
-        const res = await fetch('/api/lists', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, owner })
-        });
-        const { list } = await res.json();
-        this.lists.push(list);
-        return list.id;
+        try {
+            const res = await fetch('/api/lists', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, owner })
+            });
+            if (!res.ok) throw new Error();
+            const { list } = await res.json();
+            this.lists.push(list);
+            return list.id;
+        } catch {
+            notificationContext.show('Kunde inte skapa lista. Försök igen.');
+            return null;
+        }
     }
 
     /** @param {string} id */

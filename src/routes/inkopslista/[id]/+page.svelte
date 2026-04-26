@@ -25,6 +25,7 @@
     let showSharePanel = $state(false);
     let search = $state('');
     let showHistory = $state(false);
+    let pollFailures = $state(0);
 
     // Persist the last-used category per list in sessionStorage so it's
     // pre-selected when the user navigates back to the same list.
@@ -43,9 +44,13 @@
 
     // Poll the server every 15 seconds in shopping mode so all collaborators
     // see each other's check-offs without needing to refresh the page.
+    // Tracks consecutive failures to show an offline indicator after 2+ misses.
     $effect(() => {
-        if (!shoppingMode) return;
-        const interval = setInterval(() => shoppingContext.refreshList(id), 15000);
+        if (!shoppingMode) { pollFailures = 0; return; }
+        const interval = setInterval(async () => {
+            const ok = await shoppingContext.refreshList(id);
+            pollFailures = ok ? 0 : pollFailures + 1;
+        }, 15000);
         return () => clearInterval(interval);
     });
 
@@ -112,6 +117,8 @@
     }
 </script>
 
+<svelte:head><title>{list?.name ? `${list.name} – MazeShopper` : 'MazeShopper'}</title></svelte:head>
+
 {#if !list}
     <div class="page">
         <p>Listan hittades inte. <a href="/inkopslista">Tillbaka</a></p>
@@ -152,6 +159,11 @@
         <!-- Share panel -->
         {#if showSharePanel && isOwner && !shoppingMode}
             <SharePanel {list} listId={id} {username} onClose={() => (showSharePanel = false)} />
+        {/if}
+
+        <!-- Offline indicator: shown after 2+ consecutive poll failures in shopping mode -->
+        {#if shoppingMode && pollFailures >= 2}
+            <div class="offline-badge">Ingen anslutning – listan uppdateras inte</div>
         {/if}
 
         <!-- Shopping mode: store selector + actions -->
@@ -380,6 +392,16 @@
         border-radius: 8px;
         padding: 0.5rem 0.9rem;
         margin: 0;
+    }
+
+    .offline-badge {
+        background: #fef3c7;
+        border: 1px solid #fcd34d;
+        border-radius: 8px;
+        color: #92400e;
+        font-size: 0.82em;
+        padding: 0.45rem 0.9rem;
+        text-align: center;
     }
 
     /* Store selector */
