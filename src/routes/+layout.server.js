@@ -6,5 +6,5 @@ export async function load({ cookies }) {
     if (!username) return { user: null };
     const db = await getDb();
     const dbUser = await db.collection('users').findOne({ username });
-    return { user: { username, email: dbUser?.email ?? null } };
+    return { user: { username, email: dbUser?.email ?? null, emailVerified: dbUser?.emailVerified ?? true } };
 }

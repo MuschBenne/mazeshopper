@@ -3,6 +3,48 @@ import { env } from '$env/dynamic/private';
 
 /**
  * @param {string} to
+ * @param {string} username
+ * @param {string} verifyUrl
+ */
+export async function sendEmailVerification(to, username, verifyUrl) {
+    const resend = new Resend(env.RESEND_API_KEY);
+    await resend.emails.send({
+        from: env.EMAIL_FROM,
+        to,
+        subject: 'Verifiera din e-postadress – MazeShopper',
+        text: [
+            `Hej ${username}!`,
+            '',
+            'Välkommen till MazeShopper! Klicka på länken nedan för att verifiera din e-postadress:',
+            verifyUrl,
+            '',
+            'Länken är giltig i 24 timmar.',
+            '',
+            'Om du inte har skapat ett konto kan du ignorera detta mail.',
+            '',
+            '// MazeShopper'
+        ].join('\n'),
+        html: `
+            <div style="font-family:sans-serif;max-width:480px;margin:0 auto;color:#111827">
+                <h2 style="margin-bottom:0.5rem">Verifiera din e-postadress</h2>
+                <p>Hej ${username}! Välkommen till MazeShopper.</p>
+                <p>Klicka på knappen nedan för att verifiera din e-postadress och aktivera ditt konto.</p>
+                <p>
+                    <a href="${verifyUrl}" style="display:inline-block;padding:0.6rem 1.2rem;background:linear-gradient(135deg,#f97316,#c026d3);color:#fff;text-decoration:none;border-radius:8px;font-weight:600">
+                        Verifiera e-postadress
+                    </a>
+                </p>
+                <p style="color:#6b7280;font-size:0.85em">Länken är giltig i <strong>24 timmar</strong>.</p>
+                <p style="color:#6b7280;font-size:0.85em">Om du inte har skapat ett konto kan du ignorera detta mail.</p>
+                <hr style="border:none;border-top:1px solid #e5e7eb;margin:1.5rem 0">
+                <p style="color:#9ca3af;font-size:0.8em">MazeShopper</p>
+            </div>
+        `
+    });
+}
+
+/**
+ * @param {string} to
  * @param {string} resetUrl
  */
 export async function sendPasswordReset(to, resetUrl) {

@@ -36,6 +36,12 @@
         goto('/');
     }
 
+    let verificationSent = $state(false);
+    async function resendVerification() {
+        await authContext.resendVerification();
+        verificationSent = true;
+    }
+
     // Used to apply the active class on nav links.
     const path = $derived(page.url.pathname);
 </script>
@@ -55,6 +61,16 @@
         <a class="btn-about" href="/om">Om appen</a>
     {/if}
 </header>
+
+{#if authContext.user && authContext.user.emailVerified === false}
+    <div class="verify-banner">
+        {#if verificationSent}
+            <span>Verifieringsmail skickat! Kolla din inkorg.</span>
+        {:else}
+            <span>Din e-postadress är inte verifierad. <button class="verify-link" onclick={resendVerification}>Skicka verifieringsmail</button></span>
+        {/if}
+    </div>
+{/if}
 
 {#if authContext.user}
     <nav>
@@ -130,6 +146,29 @@
     }
 
     .btn-about:hover { background: #f9fafb; }
+
+    .verify-banner {
+        background: #fefce8;
+        border-bottom: 1px solid #fde047;
+        padding: 0.55rem 1.25rem;
+        font-size: 0.85em;
+        color: #713f12;
+        text-align: center;
+    }
+
+    .verify-link {
+        background: none;
+        border: none;
+        padding: 0;
+        color: #713f12;
+        font-weight: 600;
+        text-decoration: underline;
+        cursor: pointer;
+        font-size: inherit;
+        min-height: unset;
+    }
+
+    .verify-link:hover { color: #431407; }
 
     nav {
         display: flex;
