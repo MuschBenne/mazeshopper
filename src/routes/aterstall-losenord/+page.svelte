@@ -1,3 +1,5 @@
+<svelte:head><title>Återställ lösenord – MazeShopper</title></svelte:head>
+
 <script>
     import { authContext } from '$lib/context/auth-context.svelte';
     import { page } from '$app/state';
@@ -14,7 +16,9 @@
     async function submit() {
         error = '';
         if (!password) { error = 'Fyll i ett nytt lösenord.'; return; }
-        if (password.length < 8) { error = 'Lösenordet måste vara minst 8 tecken.'; return; }
+        if (password.length < 8 || !/[a-zA-ZåäöÅÄÖ]/.test(password) || !/[0-9]/.test(password)) {
+            error = 'Lösenordet måste vara minst 8 tecken och innehålla minst en bokstav och en siffra.'; return;
+        }
         if (password !== passwordConfirm) { error = 'Lösenorden matchar inte.'; return; }
 
         loading = true;

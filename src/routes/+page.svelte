@@ -21,18 +21,24 @@
             if (result === 'wrong_password') { error = 'Fel lösenord.'; return; }
             if (result === 'too_many_attempts') { error = 'För många inloggningsförsök. Vänta 15 minuter och försök igen.'; return; }
         } else {
+            if (username.trim().length < 2 || username.trim().length > 30) { error = 'Användarnamnet måste vara 2–30 tecken.'; return; }
             if (!email.trim()) { error = 'Fyll i din e-postadress.'; return; }
-            if (password.length < 8) { error = 'Lösenordet måste vara minst 8 tecken.'; return; }
+            if (password.length < 8 || !/[a-zA-ZåäöÅÄÖ]/.test(password) || !/[0-9]/.test(password)) {
+                error = 'Lösenordet måste vara minst 8 tecken och innehålla minst en bokstav och en siffra.'; return;
+            }
             if (!ageConfirmed) { error = 'Du måste bekräfta att du är 16 år eller äldre.'; return; }
             const result = await authContext.register(username, password, email);
             if (result === 'taken') { error = 'Användarnamnet är redan taget.'; return; }
             if (result === 'email_taken') { error = 'E-postadressen används redan.'; return; }
             if (result === 'invalid_email') { error = 'Ogiltig e-postadress.'; return; }
+            if (result === 'weak_password') { error = 'Lösenordet uppfyller inte kraven.'; return; }
         }
 
         goto('/inkopslista');
     }
 </script>
+
+<svelte:head><title>MazeShopper</title></svelte:head>
 
 <div class="hero">
     <div class="hero-text">

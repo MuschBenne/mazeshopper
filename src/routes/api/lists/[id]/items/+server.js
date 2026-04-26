@@ -26,11 +26,11 @@ export async function POST({ params, request, cookies }) {
     // Only allow known fields — never trust the client blindly.
     const item = {
         itemId: typeof body.itemId === 'string' ? body.itemId : crypto.randomUUID(),
-        name: String(body.name ?? '').trim(),
-        spec: String(body.spec ?? '').trim(),
-        quantity: Number.isInteger(body.quantity) && body.quantity > 0 ? body.quantity : 1,
+        name: String(body.name ?? '').trim().slice(0, 200),
+        spec: String(body.spec ?? '').trim().slice(0, 500),
+        quantity: Number.isInteger(body.quantity) && body.quantity > 0 && body.quantity <= 9999 ? body.quantity : 1,
         bought: false,
-        category: String(body.category ?? '').trim()
+        category: String(body.category ?? '').trim().slice(0, 50)
     };
     if (!item.name) return json({ error: 'invalid_item' }, { status: 400 });
 

@@ -18,7 +18,7 @@ export async function POST({ request, cookies }) {
     if (!username) return json({ error: 'unauthorized' }, { status: 401 });
 
     const { name } = await request.json();
-    if (!name || typeof name !== 'string' || !name.trim()) {
+    if (!name || typeof name !== 'string' || !name.trim() || name.trim().length > 100) {
         return json({ error: 'invalid_name' }, { status: 400 });
     }
     const db = await getDb();

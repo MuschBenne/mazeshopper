@@ -25,7 +25,7 @@ class AuthContext {
      * @param {string} username
      * @param {string} password
      * @param {string} email
-     * @returns {Promise<'ok' | 'taken' | 'email_taken' | 'invalid_email'>}
+     * @returns {Promise<'ok' | 'taken' | 'email_taken' | 'invalid_email' | 'weak_password' | 'invalid_username'>}
      */
     async register(username, password, email) {
         const res = await fetch('/api/auth', {

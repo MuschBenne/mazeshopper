@@ -44,9 +44,9 @@ export async function PATCH({ params, request, cookies }) {
     /** @type {Record<string, any>} */
     const setFields = {};
     if (typeof body.bought === 'boolean') setFields['items.$[el].bought'] = body.bought;
-    if (Number.isInteger(body.quantity) && body.quantity > 0) setFields['items.$[el].quantity'] = body.quantity;
-    if (typeof body.name === 'string' && body.name.trim().length > 0) setFields['items.$[el].name'] = body.name.trim();
-    if (typeof body.spec === 'string') setFields['items.$[el].spec'] = body.spec.trim();
+    if (Number.isInteger(body.quantity) && body.quantity > 0 && body.quantity <= 9999) setFields['items.$[el].quantity'] = body.quantity;
+    if (typeof body.name === 'string' && body.name.trim().length > 0) setFields['items.$[el].name'] = body.name.trim().slice(0, 200);
+    if (typeof body.spec === 'string') setFields['items.$[el].spec'] = body.spec.trim().slice(0, 500);
 
     if (Object.keys(setFields).length === 0) return json({ error: 'no_valid_fields' }, { status: 400 });
 

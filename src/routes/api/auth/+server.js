@@ -32,6 +32,11 @@ function isValidEmail(email) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 }
 
+/** @param {string} pw */
+function isValidPassword(pw) {
+    return pw.length >= 8 && /[a-zA-ZåäöÅÄÖ]/.test(pw) && /[0-9]/.test(pw);
+}
+
 export async function GET({ cookies }) {
     const username = await getSessionUser(cookies);
     if (!username) return json({ user: null });
@@ -63,6 +68,12 @@ export async function POST({ request, cookies, getClientAddress }) {
     if (action === 'register') {
         const { username, password, email } = body;
 
+        if (!username || typeof username !== 'string' || username.trim().length < 2 || username.trim().length > 30) {
+            return json({ error: 'invalid_username' }, { status: 400 });
+        }
+        if (!password || !isValidPassword(password)) {
+            return json({ error: 'weak_password' }, { status: 400 });
+        }
         if (!email || !isValidEmail(email)) {
             return json({ error: 'invalid_email' }, { status: 400 });
         }
@@ -75,7 +86,7 @@ export async function POST({ request, cookies, getClientAddress }) {
         if (existsEmail) return json({ error: 'email_taken' }, { status: 400 });
 
         const hash = await bcrypt.hash(password, SALT_ROUNDS);
-        const name = username.trim();
+        const name = username.trim().toLowerCase();
         await users.insertOne({ username: name, password: hash, email: emailNorm, emailVerified: false });
         await createSession(cookies, name);
 
@@ -201,7 +212,7 @@ export async function POST({ request, cookies, getClientAddress }) {
     if (action === 'reset_password') {
         const { token, newPassword } = body;
         if (!token || !newPassword) return json({ error: 'invalid' }, { status: 400 });
-        if (newPassword.length < 8) return json({ error: 'too_short' }, { status: 400 });
+        if (!isValidPassword(newPassword)) return json({ error: 'weak_password' }, { status: 400 });
 
         const tokenHash = await hashToken(token);
         const resets = db.collection('password_resets');

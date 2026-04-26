@@ -33,9 +33,10 @@ export async function PUT({ request, cookies }) {
     if (!Array.isArray(categories)) return json({ error: 'invalid' }, { status: 400 });
 
     // Strip unknown fields and filter out any entries with an empty name.
+    const validHex = /^#[0-9a-fA-F]{6}$/;
     const clean = categories.map(/** @param {any} c */ c => ({
         name: String(c.name ?? '').trim(),
-        color: String(c.color ?? '#e2e8f0').trim()
+        color: validHex.test(String(c.color ?? '')) ? String(c.color).trim() : '#e2e8f0'
     })).filter(c => c.name.length > 0);
 
     const db = await getDb();

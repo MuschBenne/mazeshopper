@@ -13,13 +13,19 @@ export async function getSessionUser(cookies) {
     return session ? session.username : null;
 }
 
+function generateSessionToken() {
+    const bytes = new Uint8Array(32);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 /**
  * Creates a new session and sets the cookie.
  * @param {import('@sveltejs/kit').Cookies} cookies
  * @param {string} username
  */
 export async function createSession(cookies, username) {
-    const token = crypto.randomUUID();
+    const token = generateSessionToken();
     const db = await getDb();
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
     await db.collection('sessions').insertOne({
