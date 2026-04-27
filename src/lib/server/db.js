@@ -9,6 +9,14 @@ let indexesEnsured = false;
 export async function ensureIndexes() {
     if (indexesEnsured) return;
     const db = await getDb();
+
+    // Drop legacy token index and purge old-format sessions that lack tokenHash.
+    // The tokenHash migration (replacing plaintext token storage) left a unique
+    // index on 'token' that treats missing fields as null — only one null is
+    // allowed, so a second new-format session causes a duplicate key error.
+    await db.collection('sessions').dropIndex('token_1').catch(() => {});
+    await db.collection('sessions').deleteMany({ tokenHash: { $exists: false } });
+
     await Promise.all([
         db.collection('users').createIndex({ username: 1 }, { unique: true }),
         db.collection('users').createIndex({ email: 1 }, { sparse: true }),
