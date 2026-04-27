@@ -66,6 +66,13 @@ export async function POST({ request, cookies, getClientAddress }) {
     }
 
     if (action === 'register') {
+        const ip = getClientAddress();
+        const regKey = `register:${ip}`;
+        const regSince = new Date(Date.now() - LOGIN_WINDOW_MS);
+        const regCount = await db.collection('login_attempts').countDocuments({ key: regKey, at: { $gt: regSince } });
+        if (regCount >= 5) return json({ error: 'too_many_attempts' }, { status: 429 });
+        await db.collection('login_attempts').insertOne({ key: regKey, at: new Date() });
+
         const { username, password, email } = body;
 
         if (!username || typeof username !== 'string' || username.trim().length < 2 || username.trim().length > 30) {
@@ -107,7 +114,7 @@ export async function POST({ request, cookies, getClientAddress }) {
     }
 
     if (action === 'login') {
-        const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? getClientAddress();
+        const ip = getClientAddress();
         const rateLimitKey = `login:${ip}`;
         const since = new Date(Date.now() - LOGIN_WINDOW_MS);
         const attempts = await db.collection('login_attempts').countDocuments({ key: rateLimitKey, at: { $gt: since } });
@@ -119,12 +126,12 @@ export async function POST({ request, cookies, getClientAddress }) {
         const user = await users.findOne({ username: { $regex: new RegExp(`^${escapeRegex(username)}$`, 'i') } });
         if (!user) {
             await db.collection('login_attempts').insertOne({ key: rateLimitKey, at: new Date() });
-            return json({ error: 'not_found' }, { status: 401 });
+            return json({ error: 'invalid_credentials' }, { status: 401 });
         }
         const match = await bcrypt.compare(password, user.password);
         if (!match) {
             await db.collection('login_attempts').insertOne({ key: rateLimitKey, at: new Date() });
-            return json({ error: 'wrong_password' }, { status: 401 });
+            return json({ error: 'invalid_credentials' }, { status: 401 });
         }
         await createSession(cookies, user.username);
         return json({ ok: true, user: { username: user.username, email: user.email ?? null, emailVerified: user.emailVerified ?? true } });
@@ -227,7 +234,8 @@ export async function POST({ request, cookies, getClientAddress }) {
         const hash = await bcrypt.hash(newPassword, SALT_ROUNDS);
         await users.updateOne({ username: reset.username }, { $set: { password: hash } });
 
-        // Delete all reset tokens for this email
+        // Invalidate all active sessions and reset tokens so old stolen sessions stop working.
+        await db.collection('sessions').deleteMany({ username: reset.username });
         await resets.deleteMany({ email: reset.email });
 
         return json({ ok: true });
@@ -252,6 +260,13 @@ export async function POST({ request, cookies, getClientAddress }) {
     if (action === 'resend_verification') {
         const username = await getSessionUser(cookies);
         if (!username) return json({ error: 'unauthorized' }, { status: 401 });
+
+        const resendKey = `resend_verify:${username}`;
+        const resendSince = new Date(Date.now() - LOGIN_WINDOW_MS);
+        const resendCount = await db.collection('login_attempts').countDocuments({ key: resendKey, at: { $gt: resendSince } });
+        if (resendCount >= 3) return json({ ok: true });
+        await db.collection('login_attempts').insertOne({ key: resendKey, at: new Date() });
+
         const user = await users.findOne({ username });
         if (!user || user.emailVerified || !user.email) return json({ ok: true });
         const verifyToken = generateToken();
@@ -287,6 +302,7 @@ export async function POST({ request, cookies, getClientAddress }) {
             // @ts-ignore — MongoDB $pull with plain string value is valid at runtime
             { $pull: { sharedWith: username, pendingInvites: username } }
         );
+        await db.collection('invitations').deleteMany({ $or: [{ fromUser: username }, { toUser: username }] });
         await db.collection('stores').deleteMany({ owner: username });
         await db.collection('user_settings').deleteMany({ owner: username });
 
