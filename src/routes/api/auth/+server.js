@@ -48,7 +48,17 @@ export async function GET({ cookies }) {
 const LOGIN_MAX_ATTEMPTS = 10;
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 
-export async function POST({ request, cookies, getClientAddress }) {
+/** @param {import('@sveltejs/kit').RequestEvent} event */
+function safeGetClientAddress(event) {
+    try {
+        return event.getClientAddress();
+    } catch {
+        return event.request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
+    }
+}
+
+export async function POST(event) {
+    const { request, cookies } = event;
     const body = await request.json();
     const { action } = body;
     const db = await getDb();
@@ -66,7 +76,7 @@ export async function POST({ request, cookies, getClientAddress }) {
     }
 
     if (action === 'register') {
-        const ip = getClientAddress();
+        const ip = safeGetClientAddress(event);
         const regKey = `register:${ip}`;
         const regSince = new Date(Date.now() - LOGIN_WINDOW_MS);
         const regCount = await db.collection('login_attempts').countDocuments({ key: regKey, at: { $gt: regSince } });
@@ -114,7 +124,7 @@ export async function POST({ request, cookies, getClientAddress }) {
     }
 
     if (action === 'login') {
-        const ip = getClientAddress();
+        const ip = safeGetClientAddress(event);
         const rateLimitKey = `login:${ip}`;
         const since = new Date(Date.now() - LOGIN_WINDOW_MS);
         const attempts = await db.collection('login_attempts').countDocuments({ key: rateLimitKey, at: { $gt: since } });

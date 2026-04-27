@@ -11,6 +11,4 @@
   <!-- Cart wheels -->
   <circle cx="224" cy="368" r="24" fill="white"/>
   <circle cx="352" cy="368" r="24" fill="white"/>
-  <!-- Checkmark -->
-  <path d="M280 224 l24 24 l48-48" fill="none" stroke="white" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
