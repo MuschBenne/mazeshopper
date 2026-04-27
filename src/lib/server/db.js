@@ -12,7 +12,7 @@ export async function ensureIndexes() {
     await Promise.all([
         db.collection('users').createIndex({ username: 1 }, { unique: true }),
         db.collection('users').createIndex({ email: 1 }, { sparse: true }),
-        db.collection('sessions').createIndex({ token: 1 }, { unique: true }),
+        db.collection('sessions').createIndex({ tokenHash: 1 }, { unique: true }),
         db.collection('sessions').createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
         db.collection('lists').createIndex({ owner: 1 }),
         db.collection('lists').createIndex({ sharedWith: 1 }),

@@ -1,4 +1,12 @@
+import { dev } from '$app/environment';
 import { getDb } from './db.js';
+
+/** @param {string} token */
+async function hashToken(token) {
+    const data = new TextEncoder().encode(token);
+    const buf = await crypto.subtle.digest('SHA-256', data);
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
 
 /**
  * Returns the username for the current session token, or null if invalid.
@@ -8,8 +16,9 @@ import { getDb } from './db.js';
 export async function getSessionUser(cookies) {
     const token = cookies.get('session');
     if (!token) return null;
+    const tokenHash = await hashToken(token);
     const db = await getDb();
-    const session = await db.collection('sessions').findOne({ token, expiresAt: { $gt: new Date() } });
+    const session = await db.collection('sessions').findOne({ tokenHash, expiresAt: { $gt: new Date() } });
     return session ? session.username : null;
 }
 
@@ -26,10 +35,11 @@ function generateSessionToken() {
  */
 export async function createSession(cookies, username) {
     const token = generateSessionToken();
+    const tokenHash = await hashToken(token);
     const db = await getDb();
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
     await db.collection('sessions').insertOne({
-        token,
+        tokenHash,
         username,
         createdAt: new Date(),
         expiresAt
@@ -37,6 +47,7 @@ export async function createSession(cookies, username) {
     cookies.set('session', token, {
         path: '/',
         httpOnly: true,
+        secure: !dev,
         maxAge: 60 * 60 * 24 * 30,
         sameSite: 'lax'
     });
@@ -49,8 +60,9 @@ export async function createSession(cookies, username) {
 export async function deleteSession(cookies) {
     const token = cookies.get('session');
     if (token) {
+        const tokenHash = await hashToken(token);
         const db = await getDb();
-        await db.collection('sessions').deleteOne({ token });
+        await db.collection('sessions').deleteOne({ tokenHash });
     }
     cookies.delete('session', { path: '/' });
 }
