@@ -7,6 +7,14 @@
     import { authContext } from "$lib/context/auth-context.svelte";
     import { goto } from '$app/navigation';
 
+    let { data } = $props();
+
+    // Seed lists before first render so they appear immediately without waiting
+    // for the background load() triggered by the layout effect.
+    $effect.pre(() => {
+        shoppingContext.lists = data.lists;
+    });
+
     const username = $derived(authContext.user?.username ?? '');
     // Includes both owned and shared lists for this user.
     const myLists = $derived(shoppingContext.listsForUser(username));
