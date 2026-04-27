@@ -7,7 +7,7 @@ class AuthContext {
     /**
      * @param {string} username
      * @param {string} password
-     * @returns {Promise<'ok' | 'wrong_password' | 'not_found' | 'too_many_attempts'>}
+     * @returns {Promise<'ok' | 'invalid_credentials' | 'too_many_attempts'>}
      */
     async login(username, password) {
         const res = await fetch('/api/auth', {
