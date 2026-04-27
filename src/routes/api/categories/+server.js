@@ -32,10 +32,11 @@ export async function PUT({ request, cookies }) {
     const { categories } = await request.json();
     if (!Array.isArray(categories)) return json({ error: 'invalid' }, { status: 400 });
 
-    // Strip unknown fields and filter out any entries with an empty name.
+    // Strip unknown fields and filter out any entries with an empty or too-long name.
     const validHex = /^#[0-9a-fA-F]{6}$/;
-    const clean = categories.map(/** @param {any} c */ c => ({
-        name: String(c.name ?? '').trim(),
+    const MAX_CATEGORIES = 200;
+    const clean = categories.slice(0, MAX_CATEGORIES).map(/** @param {any} c */ c => ({
+        name: String(c.name ?? '').trim().slice(0, 100),
         color: validHex.test(String(c.color ?? '')) ? String(c.color).trim() : '#e2e8f0'
     })).filter(c => c.name.length > 0);
 

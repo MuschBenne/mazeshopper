@@ -23,7 +23,19 @@ export async function PATCH({ params, request, cookies }) {
     if (!username) return json({ error: 'unauthorized' }, { status: 401 });
     if (!ObjectId.isValid(params.storeId)) return json({ error: 'not_found' }, { status: 404 });
 
-    const { positions, categoryOrder } = await request.json();
+    const body = await request.json();
+    const { positions, categoryOrder } = body;
+
+    /** @param {unknown} v */
+    const isPlainObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+    if (!isPlainObject(positions) || !isPlainObject(categoryOrder)) {
+        return json({ error: 'invalid' }, { status: 400 });
+    }
+    const MAX_KEYS = 200;
+    if (Object.keys(positions).length > MAX_KEYS || Object.keys(categoryOrder).length > MAX_KEYS) {
+        return json({ error: 'too_large' }, { status: 400 });
+    }
+
     const db = await getDb();
     const result = await db.collection('stores').updateOne(
         { _id: new ObjectId(params.storeId), owner: username },
