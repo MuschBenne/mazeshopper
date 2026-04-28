@@ -77,6 +77,7 @@
         <a href="/inkopslista" class:active={path.startsWith('/inkopslista')}>Inköpslista</a>
         <a href="/varuhus" class:active={path.startsWith('/varuhus')}>Varuhus</a>
         <a href="/installningar" class:active={path.startsWith('/installningar')}>Inställningar</a>
+        <a href="/om" class:active={path === '/om'}>Om</a>
     </nav>
 {/if}
 

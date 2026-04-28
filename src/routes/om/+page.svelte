@@ -1,7 +1,11 @@
+<script>
+    import { authContext } from '$lib/context/auth-context.svelte';
+</script>
+
 <svelte:head><title>Om MazeShopper</title></svelte:head>
 
 <div class="page">
-    <a class="back" href="/">← Tillbaka</a>
+    <a class="back" href={authContext.user ? '/inkopslista' : '/'}>← Tillbaka</a>
 
     <div class="hero-text">
         <h1>MazeShopper</h1>
@@ -85,9 +89,22 @@
         </div>
     </section>
 
-    <div class="cta">
-        <a class="btn-cta" href="/">Skapa konto eller logga in</a>
-    </div>
+    <section class="section">
+        <h2>Hittade du en bugg?</h2>
+        <p>
+            Om något inte fungerar som det ska är du välkommen att höra av dig.
+            Beskriv gärna vad som hände och hur man återupprepar det.
+        </p>
+        <a class="bug-link" href="mailto:benjamin@rosenbergab.com?subject=Buggrapport%20MazeShopper">
+            Skicka buggrapport
+        </a>
+    </section>
+
+    {#if !authContext.user}
+        <div class="cta">
+            <a class="btn-cta" href="/">Skapa konto eller logga in</a>
+        </div>
+    {/if}
 </div>
 
 <style>
@@ -246,4 +263,19 @@
     }
 
     .btn-cta:hover { opacity: 0.9; }
+
+    .bug-link {
+        display: inline-block;
+        padding: 0.55rem 1.25rem;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 0.9em;
+        color: #374151;
+        text-decoration: none;
+        background: #fff;
+        transition: background 0.15s;
+        align-self: flex-start;
+    }
+
+    .bug-link:hover { background: #f9fafb; }
 </style>
