@@ -25,7 +25,8 @@
     let showSharePanel = $state(false);
     let search = $state('');
     let showHistory = $state(false);
-    let pollFailures = $state(0);
+    let sseConnected = $state(false);
+    let sseHasConnected = $state(false);
 
     // Persist the last-used category per list in sessionStorage so it's
     // pre-selected when the user navigates back to the same list.
@@ -42,16 +43,19 @@
         }
     });
 
-    // Poll the server every 15 seconds in shopping mode so all collaborators
-    // see each other's check-offs without needing to refresh the page.
-    // Tracks consecutive failures to show an offline indicator after 2+ misses.
+    // Connect to the SSE stream for this list so all collaborators see changes in real-time.
+    // EventSource reconnects automatically on error; we just track connection state for the UI.
     $effect(() => {
-        if (!shoppingMode) { pollFailures = 0; return; }
-        const interval = setInterval(async () => {
-            const ok = await shoppingContext.refreshList(id);
-            pollFailures = ok ? 0 : pollFailures + 1;
-        }, 15000);
-        return () => clearInterval(interval);
+        if (!browser || !id) return;
+        const es = new EventSource(`/api/lists/${id}/stream`);
+        es.onopen = () => { sseConnected = true; sseHasConnected = true; };
+        es.onmessage = (e) => {
+            const data = JSON.parse(e.data);
+            if (data.deleted) { goto('/inkopslista'); return; }
+            shoppingContext.applyUpdate(data);
+        };
+        es.onerror = () => { sseConnected = false; };
+        return () => es.close();
     });
 
     const sortedCategories = $derived.by(() => {
@@ -162,7 +166,7 @@
         {/if}
 
         <!-- Offline indicator: shown after 2+ consecutive poll failures in shopping mode -->
-        {#if shoppingMode && pollFailures >= 2}
+        {#if sseHasConnected && !sseConnected}
             <div class="offline-badge">Ingen anslutning – listan uppdateras inte</div>
         {/if}
 

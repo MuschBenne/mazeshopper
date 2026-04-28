@@ -68,6 +68,12 @@ class ShoppingContext {
         }
     }
 
+    /** @param {ShoppingList} list */
+    applyUpdate(list) {
+        const idx = this.lists.findIndex(l => l.id === list.id);
+        if (idx !== -1) this.lists[idx] = list;
+    }
+
     // Clears all data on logout so the next user starts with a clean state.
     reset() {
         this.lists = [];
