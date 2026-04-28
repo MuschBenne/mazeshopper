@@ -1,30 +1,19 @@
 import { json } from '@sveltejs/kit';
 import { getDb } from '$lib/server/db';
-import { createSession, deleteSession, getSessionUser } from '$lib/server/session';
+import { createSession, deleteSession, getSessionUser, hashToken } from '$lib/server/session';
 import { sendPasswordReset, sendEmailVerification } from '$lib/server/email';
+import { escapeRegex } from '$lib/server/utils';
 import bcrypt from 'bcryptjs';
 
 const SALT_ROUNDS = 12;
 const RESET_EXPIRY_MS = 15 * 60 * 1000; // 15 minutes
 const RESET_MAX_PER_HOUR = 3;
 
-/** @param {string} s */
-function escapeRegex(s) {
-    return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
 /** @returns {string} 64-char hex token */
 function generateToken() {
     const arr = new Uint8Array(32);
     crypto.getRandomValues(arr);
     return Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-/** @param {string} token */
-async function hashToken(token) {
-    const data = new TextEncoder().encode(token);
-    const buf = await crypto.subtle.digest('SHA-256', data);
-    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 /** @param {string} email */

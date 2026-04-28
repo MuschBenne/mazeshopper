@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
 import { getDb } from '$lib/server/db';
 import { getSessionUser } from '$lib/server/session';
+import { serializeList } from '$lib/server/utils';
 
 // Returns all lists where the current user is either the owner or in the sharedWith array.
 // The sharedWith lookup is case-insensitive so usernames match regardless of casing.
@@ -39,25 +40,4 @@ export async function POST({ request, cookies }) {
 
     const list = { id: result.insertedId.toString(), name: name.trim(), owner: username, sharedWith: [], pendingInvites: [], items: [] };
     return json({ list });
-}
-
-// Converts a MongoDB document into the plain object shape expected by the client.
-// Strips the _id field and ensures array fields have safe defaults.
-/** @param {any} doc */
-function serializeList(doc) {
-    return {
-        id: doc._id.toString(),
-        name: doc.name,
-        owner: doc.owner,
-        sharedWith: doc.sharedWith ?? [],
-        pendingInvites: doc.pendingInvites ?? [],
-        items: (doc.items ?? []).map(/** @param {any} item */ item => ({
-            itemId: item.itemId,
-            name: item.name,
-            spec: item.spec,
-            quantity: item.quantity,
-            bought: item.bought,
-            category: item.category
-        }))
-    };
 }

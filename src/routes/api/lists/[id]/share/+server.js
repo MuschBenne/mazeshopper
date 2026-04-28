@@ -1,13 +1,8 @@
 import { json } from '@sveltejs/kit';
 import { getDb } from '$lib/server/db';
 import { getSessionUser } from '$lib/server/session';
+import { escapeRegex } from '$lib/server/utils';
 import { ObjectId } from 'mongodb';
-
-// Escapes special regex characters so usernames are matched literally.
-/** @param {string} s */
-function escapeRegex(s) {
-    return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
 
 // Sends a sharing invitation to another user.
 // Only the list owner can share — shared users cannot re-share the list.
