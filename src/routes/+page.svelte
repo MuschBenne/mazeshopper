@@ -11,30 +11,35 @@
     let error = $state('');
     let ageConfirmed = $state(false);
     let showPassword = $state(false);
+    let loading = $state(false);
 
     async function submit() {
         error = '';
         if (!username.trim() || !password) { error = 'Fyll i alla fält.'; return; }
 
-        if (mode === 'login') {
-            const result = await authContext.login(username, password);
-            if (result === 'invalid_credentials') { error = 'Felaktigt användarnamn eller lösenord.'; return; }
-            if (result === 'too_many_attempts') { error = 'För många inloggningsförsök. Vänta 15 minuter och försök igen.'; return; }
-        } else {
-            if (username.trim().length < 2 || username.trim().length > 30) { error = 'Användarnamnet måste vara 2–30 tecken.'; return; }
-            if (!email.trim()) { error = 'Fyll i din e-postadress.'; return; }
-            if (password.length < 8 || !/[a-zA-ZåäöÅÄÖ]/.test(password) || !/[0-9]/.test(password)) {
-                error = 'Lösenordet måste vara minst 8 tecken och innehålla minst en bokstav och en siffra.'; return;
+        loading = true;
+        try {
+            if (mode === 'login') {
+                const result = await authContext.login(username, password);
+                if (result === 'invalid_credentials') { error = 'Felaktigt användarnamn eller lösenord.'; return; }
+                if (result === 'too_many_attempts') { error = 'För många inloggningsförsök. Vänta 15 minuter och försök igen.'; return; }
+            } else {
+                if (username.trim().length < 2 || username.trim().length > 30) { error = 'Användarnamnet måste vara 2–30 tecken.'; return; }
+                if (!email.trim()) { error = 'Fyll i din e-postadress.'; return; }
+                if (password.length < 8 || !/[a-zA-ZåäöÅÄÖ]/.test(password) || !/[0-9]/.test(password)) {
+                    error = 'Lösenordet måste vara minst 8 tecken och innehålla minst en bokstav och en siffra.'; return;
+                }
+                if (!ageConfirmed) { error = 'Du måste bekräfta att du är 16 år eller äldre.'; return; }
+                const result = await authContext.register(username, password, email);
+                if (result === 'taken') { error = 'Användarnamnet är redan taget.'; return; }
+                if (result === 'email_taken') { error = 'E-postadressen används redan.'; return; }
+                if (result === 'invalid_email') { error = 'Ogiltig e-postadress.'; return; }
+                if (result === 'weak_password') { error = 'Lösenordet uppfyller inte kraven.'; return; }
             }
-            if (!ageConfirmed) { error = 'Du måste bekräfta att du är 16 år eller äldre.'; return; }
-            const result = await authContext.register(username, password, email);
-            if (result === 'taken') { error = 'Användarnamnet är redan taget.'; return; }
-            if (result === 'email_taken') { error = 'E-postadressen används redan.'; return; }
-            if (result === 'invalid_email') { error = 'Ogiltig e-postadress.'; return; }
-            if (result === 'weak_password') { error = 'Lösenordet uppfyller inte kraven.'; return; }
+            goto('/inkopslista');
+        } finally {
+            loading = false;
         }
-
-        goto('/inkopslista');
     }
 </script>
 
@@ -111,8 +116,13 @@
             {#if error}
                 <p class="error">{error}</p>
             {/if}
-            <button class="btn-submit" onclick={submit}>
-                {mode === 'login' ? 'Logga in' : 'Skapa konto'}
+            <button class="btn-submit" onclick={submit} disabled={loading}>
+                {#if loading}
+                    <span class="spinner"></span>
+                    {mode === 'login' ? 'Loggar in…' : 'Skapar konto…'}
+                {:else}
+                    {mode === 'login' ? 'Logga in' : 'Skapa konto'}
+                {/if}
             </button>
             {#if mode === 'login'}
                 <a class="forgot-link" href="/glomt-losenord">Glömt lösenordet?</a>
@@ -304,8 +314,34 @@
         transition: opacity 0.15s;
     }
 
-    .btn-submit:hover {
+    .btn-submit:hover:not(:disabled) {
         opacity: 0.9;
+    }
+
+    .btn-submit:disabled {
+        opacity: 0.75;
+        cursor: not-allowed;
+    }
+
+    .btn-submit {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    .spinner {
+        width: 1em;
+        height: 1em;
+        border: 2px solid rgba(255,255,255,0.4);
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: spin 0.6s linear infinite;
+        flex-shrink: 0;
     }
 
     .forgot-link {
