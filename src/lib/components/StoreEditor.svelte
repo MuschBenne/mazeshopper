@@ -1,409 +1,451 @@
 <script>
     import { settingContext } from "$lib/context/setting-context.svelte";
 
-    /**
-     * @typedef {{x: number, y: number}} Point
-     */
-
     let { store, onSave } = $props();
 
-    const W = 620;
-    const H = 400;
-    const SW = 118;  // square width
-    const SH = 50;   // square height
-    const COLS = 4;
-    const COL_GAP = 148;
-    const ROW_GAP = 80;
-    const PAD = 14;
-
-    /** @type {SVGSVGElement | null} */
-    let svgEl = $state(null);
-
-    /** @type {{[name: string]: Point}} */
-    let positions = $state({});
     /** @type {string[]} */
     let route = $state([]);
-    /** @type {'move' | 'route'} */
-    let mode = $state('move');
-
-    // Move-mode drag state
-    /** @type {string | null} */
-    let dragCat = $state(null);
-    let dragOff = $state({ x: 0, y: 0 });
-
-    // Route-drawing state
-    let isDrawing = $state(false);
-    /** @type {Point[]} */
-    let drawPts = $state([]);
-    /** @type {string[]} */
-    let pendingRoute = $state([]);
-    /** @type {Point | null} */
-    let lastPt = $state(null);
 
     $effect(() => {
-        const cats = settingContext.categories;
-        const storedPos = store.positions ?? {};
         const storedOrder = store.categoryOrder ?? {};
-
-        const defaultPos = Object.fromEntries(cats.map((cat, i) => [
-            cat.name,
-            { x: PAD + (i % COLS) * COL_GAP, y: PAD + Math.floor(i / COLS) * ROW_GAP }
-        ]));
-
-        positions = { ...defaultPos, ...storedPos };
-
-        route = cats
+        route = settingContext.categories
             .filter(c => c.name in storedOrder)
             .sort((a, b) => storedOrder[a.name] - storedOrder[b.name])
             .map(c => c.name);
     });
 
-    /**
-     * @param {{ clientX: number, clientY: number }} e
-     * @returns {Point}
-     */
-    function svgPoint(e) {
-        const rect = /** @type {SVGSVGElement} */ (svgEl).getBoundingClientRect();
-        return { x: e.clientX - rect.left, y: e.clientY - rect.top };
-    }
-
-    /** @param {number} px @param {number} py @returns {string | null} */
-    function catNameAt(px, py) {
-        const hit = settingContext.categories.find(cat => {
-            const p = positions[cat.name];
-            return p && px >= p.x && px <= p.x + SW && py >= p.y && py <= p.y + SH;
-        });
-        return hit?.name ?? null;
-    }
-
-    /**
-     * Sample along segment to find categories even when mouse moves fast.
-     * @param {number} x1 @param {number} y1 @param {number} x2 @param {number} y2
-     */
-    function checkSegment(x1, y1, x2, y2) {
-        const dist = Math.hypot(x2 - x1, y2 - y1);
-        const steps = Math.max(1, Math.ceil(dist / 8));
-        const added = [];
-        for (let i = 0; i <= steps; i++) {
-            const t = i / steps;
-            const name = catNameAt(x1 + (x2 - x1) * t, y1 + (y2 - y1) * t);
-            if (name && !pendingRoute.includes(name) && !added.includes(name)) {
-                added.push(name);
-            }
-        }
-        if (added.length > 0) pendingRoute = [...pendingRoute, ...added];
-    }
-
-    /** @param {{ clientX: number, clientY: number } & { preventDefault?: () => void }} e */
-    function onMouseDown(e) {
-        if (!svgEl) return;
-        const pt = svgPoint(e);
-
-        if (mode === 'move') {
-            const name = catNameAt(pt.x, pt.y);
-            if (name) {
-                e.preventDefault();
-                dragCat = name;
-                const p = positions[name];
-                dragOff = { x: pt.x - p.x, y: pt.y - p.y };
-            }
-        } else {
-            e.preventDefault();
-            isDrawing = true;
-            drawPts = [pt];
-            pendingRoute = [];
-            lastPt = pt;
-            const name = catNameAt(pt.x, pt.y);
-            if (name) pendingRoute = [name];
-        }
-    }
-
-    /** @param {{ clientX: number, clientY: number }} e */
-    function onMouseMove(e) {
-        if (!svgEl) return;
-        const pt = svgPoint(e);
-
-        if (mode === 'move' && dragCat) {
-            positions = {
-                ...positions,
-                [dragCat]: {
-                    x: Math.max(0, Math.min(W - SW, pt.x - dragOff.x)),
-                    y: Math.max(0, Math.min(H - SH, pt.y - dragOff.y))
-                }
-            };
-        }
-
-        if (mode === 'route' && isDrawing) {
-            if (lastPt) checkSegment(lastPt.x, lastPt.y, pt.x, pt.y);
-            drawPts = [...drawPts, pt];
-            lastPt = pt;
-        }
-    }
-
-    function onMouseUp() {
-        if (mode === 'move') {
-            dragCat = null;
-        }
-        if (mode === 'route' && isDrawing) {
-            isDrawing = false;
-            if (pendingRoute.length > 0) route = pendingRoute;
-            drawPts = [];
-            pendingRoute = [];
-            lastPt = null;
-        }
-    }
-
-    const routeCenters = $derived(
-        route
-            .map(name => {
-                const p = positions[name];
-                return p ? { x: p.x + SW / 2, y: p.y + SH / 2 } : null;
-            })
-            .filter(/** @param {any} p */ p => p !== null)
+    const available = $derived(
+        settingContext.categories.filter(c => !route.includes(c.name))
     );
 
-    const routePoly = $derived(routeCenters.map(p => `${p.x},${p.y}`).join(' '));
-    const drawPoly  = $derived(drawPts.map(p => `${p.x},${p.y}`).join(' '));
+    /** @type {Set<string>} */
+    let checked = $state(new Set());
+
+    // Drop checked entries that are no longer available (e.g. already added).
+    $effect(() => {
+        const availableNames = new Set(available.map(c => c.name));
+        const stale = [...checked].filter(n => !availableNames.has(n));
+        if (stale.length > 0) {
+            checked = new Set([...checked].filter(n => availableNames.has(n)));
+        }
+    });
+
+    /** @param {string} name */
+    function toggleChecked(name) {
+        const next = new Set(checked);
+        if (next.has(name)) next.delete(name);
+        else next.add(name);
+        checked = next;
+    }
+
+    function addSelected() {
+        if (checked.size === 0) return;
+        const toAdd = available.filter(c => checked.has(c.name)).map(c => c.name);
+        route = [...route, ...toAdd];
+        checked = new Set();
+    }
+
+    function addAll() {
+        route = [...route, ...available.map(c => c.name)];
+        checked = new Set();
+    }
+
+    /** @param {string} name */
+    function removeFromRoute(name) {
+        route = route.filter(n => n !== name);
+    }
+
+    /** @type {number | null} */
+    let dragIndex = $state(null);
+    /** @type {number | null} */
+    let dragOverIndex = $state(null);
+
+    /**
+     * @param {DragEvent} e
+     * @param {number} index
+     */
+    function onDragStart(e, index) {
+        dragIndex = index;
+        if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
+    }
+
+    /**
+     * @param {DragEvent} e
+     * @param {number} index
+     */
+    function onDragOver(e, index) {
+        e.preventDefault();
+        if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+        dragOverIndex = index;
+    }
+
+    /**
+     * @param {DragEvent} e
+     * @param {number} index
+     */
+    function onDrop(e, index) {
+        e.preventDefault();
+        if (dragIndex === null || dragIndex === index) {
+            dragIndex = null;
+            dragOverIndex = null;
+            return;
+        }
+        const newRoute = [...route];
+        const [moved] = newRoute.splice(dragIndex, 1);
+        newRoute.splice(index, 0, moved);
+        route = newRoute;
+        dragIndex = null;
+        dragOverIndex = null;
+    }
+
+    function onDragEnd() {
+        dragIndex = null;
+        dragOverIndex = null;
+    }
 
     let saved = $state(false);
     /** @type {ReturnType<typeof setTimeout> | null} */
     let savedTimer = null;
 
     function save() {
-        onSave({ positions: { ...positions }, route: [...route] });
+        onSave({ positions: {}, route: [...route] });
         saved = true;
         if (savedTimer) clearTimeout(savedTimer);
         savedTimer = setTimeout(() => { saved = false; }, 2000);
     }
 
-    /** @param {TouchEvent} e */
-    function onTouchStart(e) {
-        const t = e.touches[0];
-        if (!t || !svgEl) return;
-        const pt = svgPoint(t);
-        const hitsCat = !!catNameAt(pt.x, pt.y);
-        if (mode === 'route' || hitsCat) e.preventDefault();
-        onMouseDown(t);
-    }
-
-    /** @param {TouchEvent} e */
-    function onTouchMove(e) {
-        e.preventDefault();
-        const t = e.touches[0];
-        if (t) onMouseMove(t);
-    }
-
-    function onTouchEnd() {
-        onMouseUp();
+    /** @param {string} name */
+    function getCategoryColor(name) {
+        return settingContext.categories.find(c => c.name === name)?.color ?? '#e2e8f0';
     }
 </script>
 
 <div class="editor">
-    <div class="toolbar">
-        <button class:active={mode === 'move'} onclick={() => mode = 'move'}>Flytta rutor</button>
-        <button class:active={mode === 'route'} onclick={() => mode = 'route'}>Rita rutt</button>
-        <button onclick={() => { route = []; }} disabled={route.length === 0}>Rensa rutt</button>
-        <button class="btn-save" class:saved onclick={save}>
-            {saved ? '✓ Sparat!' : 'Spara layout'}
-        </button>
-    </div>
+    {#if available.length > 0}
+        <div class="picker">
+            <ul class="picker-list">
+                {#each available as cat}
+                    {@const isChecked = checked.has(cat.name)}
+                    <li>
+                        <label class="picker-item" class:is-checked={isChecked}>
+                            <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onchange={() => toggleChecked(cat.name)}
+                            />
+                            <span class="picker-dot" style="background: {cat.color}"></span>
+                            <span class="picker-name">{cat.name}</span>
+                        </label>
+                    </li>
+                {/each}
+            </ul>
+            <div class="picker-actions">
+                <button onclick={addSelected} disabled={checked.size === 0}>
+                    Lägg till markerade ({checked.size})
+                </button>
+                <button class="btn-add-all" onclick={addAll}>Lägg till alla</button>
+            </div>
+        </div>
+    {:else if route.length > 0}
+        <p class="hint-all-added">Alla kategorier är tillagda i rutten.</p>
+    {/if}
 
-    <p class="hint">
-        {#if mode === 'move'}
-            Dra kategorirutorna för att spegla avdelningarnas placering i butiken.
-        {:else}
-            Håll nere musknappen och dra en linje genom rutorna i den ordning du handlar.
-        {/if}
-    </p>
-
-    <div class="canvas-scroll">
-    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-    <svg
-        bind:this={svgEl}
-        width={W}
-        height={H}
-        class="canvas"
-        class:crosshair={mode === 'route'}
-        role="img"
-        aria-label="Varuhus layout-editor"
-        onmousedown={onMouseDown}
-        onmousemove={onMouseMove}
-        onmouseup={onMouseUp}
-        onmouseleave={onMouseUp}
-        ontouchstart={onTouchStart}
-        ontouchmove={onTouchMove}
-        ontouchend={onTouchEnd}
-    >
-        <!-- Canvas background -->
-        <rect width={W} height={H} fill="#f8fafc" rx="4" />
-
-        <!-- Saved route line -->
-        {#if routeCenters.length > 1}
-            <polyline
-                points={routePoly}
-                fill="none"
-                stroke="#3b82f6"
-                stroke-width="3"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                opacity="0.55"
-            />
-            <!-- Arrowhead at end of route -->
-            {@const last = routeCenters[routeCenters.length - 1]}
-            {@const prev = routeCenters[routeCenters.length - 2]}
-            {@const angle = Math.atan2(last.y - prev.y, last.x - prev.x) * 180 / Math.PI}
-            <polygon
-                points="-9,-5 9,0 -9,5"
-                transform={`translate(${last.x},${last.y}) rotate(${angle})`}
-                fill="#3b82f6"
-                opacity="0.75"
-            />
-        {/if}
-
-        <!-- In-progress drawing line -->
-        {#if isDrawing && drawPts.length > 1}
-            <polyline
-                points={drawPoly}
-                fill="none"
-                stroke="#f97316"
-                stroke-width="2"
-                stroke-dasharray="7,4"
-                stroke-linecap="round"
-                opacity="0.7"
-            />
-        {/if}
-
-        <!-- Category squares -->
-        {#each settingContext.categories as cat}
-            {@const pos = positions[cat.name]}
-            {#if pos}
-                {@const routeIdx   = route.indexOf(cat.name)}
-                {@const isPending  = pendingRoute.includes(cat.name)}
-                {@const inRoute    = routeIdx >= 0}
-                {@const isGrabbing = dragCat === cat.name}
-
-                <g
-                    transform={`translate(${pos.x},${pos.y})`}
-                    style:cursor={mode === 'move' ? (isGrabbing ? 'grabbing' : 'grab') : 'crosshair'}
+    {#if route.length > 0}
+        <ul class="route-list">
+            {#each route as name, i}
+                {@const color = getCategoryColor(name)}
+                {@const isFirst = i === 0}
+                {@const isLast = i === route.length - 1}
+                <li
+                    class="route-item"
+                    class:is-dragging={dragIndex === i}
+                    class:drag-over={dragOverIndex === i && dragIndex !== i}
+                    draggable="true"
+                    ondragstart={(e) => onDragStart(e, i)}
+                    ondragover={(e) => onDragOver(e, i)}
+                    ondrop={(e) => onDrop(e, i)}
+                    ondragend={onDragEnd}
+                    style="--cat-color: {color}"
                 >
-                    <rect
-                        width={SW}
-                        height={SH}
-                        rx="8"
-                        fill={isPending ? '#fff7ed' : inRoute ? '#eff6ff' : '#ffffff'}
-                        stroke={isPending ? '#f97316' : inRoute ? '#3b82f6' : '#d1d5db'}
-                        stroke-width={isPending || inRoute ? 2 : 1}
-                    />
-                    <text
-                        x={SW / 2}
-                        y={SH / 2}
-                        text-anchor="middle"
-                        dominant-baseline="middle"
-                        font-size="13"
-                        font-family="system-ui, sans-serif"
-                        fill="#374151"
-                        pointer-events="none"
-                        style:user-select="none"
-                    >
-                        {cat.name.length > 15 ? cat.name.slice(0, 14) + '…' : cat.name}
-                    </text>
+                    <span class="drag-handle" aria-hidden="true">⠿</span>
+                    <span class="color-dot" style="background: {color}"></span>
+                    <span class="cat-name">{name}</span>
+                    <div class="badges">
+                        {#if isFirst}
+                            <span class="badge badge-start">Ingång</span>
+                        {/if}
+                        {#if isLast && route.length > 1}
+                            <span class="badge badge-end">Utgång</span>
+                        {/if}
+                    </div>
+                    <button
+                        class="btn-item-remove"
+                        onclick={() => removeFromRoute(name)}
+                        aria-label="Ta bort {name} från rutten"
+                    >×</button>
+                </li>
+            {/each}
+        </ul>
+    {:else}
+        <p class="empty-hint">Lägg till kategorier ovan för att bygga din varuhusrutt.</p>
+    {/if}
 
-                    {#if inRoute}
-                        <circle cx={SW - 14} cy={14} r={11} fill="#3b82f6" />
-                        <text
-                            x={SW - 14}
-                            y={14}
-                            text-anchor="middle"
-                            dominant-baseline="middle"
-                            font-size="11"
-                            font-weight="bold"
-                            font-family="system-ui, sans-serif"
-                            fill="white"
-                            pointer-events="none"
-                            style:user-select="none"
-                        >{routeIdx + 1}</text>
-                    {/if}
-                </g>
-            {/if}
-        {/each}
-    </svg>
+    <div class="save-row">
+        <button class="btn-save" class:saved onclick={save} disabled={route.length === 0}>
+            {saved ? '✓ Sparat!' : 'Spara rutt'}
+        </button>
     </div>
 </div>
 
 <style>
     .editor {
         margin-top: 0.75rem;
-        padding: 0.75rem;
+        padding: 0.875rem;
         background: #f9fafb;
         border: 1px solid #e5e7eb;
         border-radius: 8px;
-    }
-
-    .toolbar {
         display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .picker {
+        display: flex;
+        flex-direction: column;
         gap: 0.5rem;
-        flex-wrap: wrap;
-        margin-bottom: 0.4rem;
-        align-items: center;
-    }
-
-    .toolbar button {
-        padding: 0.3rem 0.75rem;
-        border: 1px solid #d1d5db;
-        border-radius: 5px;
         background: #fff;
-        cursor: pointer;
-        font-size: 0.9em;
-    }
-
-    .toolbar button:hover:not(:disabled) {
-        background: #f3f4f6;
-    }
-
-    .toolbar button.active {
-        background: #3b82f6;
-        color: #fff;
-        border-color: #3b82f6;
-    }
-
-    .toolbar button:disabled {
-        opacity: 0.4;
-        cursor: not-allowed;
-    }
-
-    .btn-save {
-        margin-left: auto;
-        background: #16a34a !important;
-        color: #fff !important;
-        border-color: #16a34a !important;
-        transition: background 0.2s, border-color 0.2s;
-        min-width: 7rem;
-    }
-
-    .btn-save.saved {
-        background: #15803d !important;
-        border-color: #15803d !important;
-    }
-
-    .hint {
-        font-size: 0.82em;
-        color: #6b7280;
-        margin: 0 0 0.5rem;
-    }
-
-    .canvas-scroll {
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        border-radius: 6px;
         border: 1px solid #e5e7eb;
+        border-radius: 7px;
+        padding: 0.65rem;
     }
 
-    .canvas {
-        display: block;
+    .picker-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+    }
+
+    .picker-item {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.3rem 0.6rem 0.3rem 0.45rem;
+        border: 1px solid #e5e7eb;
+        border-radius: 999px;
+        cursor: pointer;
+        font-size: 0.88em;
+        background: #f9fafb;
+        transition: background 0.12s, border-color 0.12s;
         user-select: none;
     }
 
-    .canvas.crosshair {
-        cursor: crosshair;
+    .picker-item:hover { background: #f3f4f6; border-color: #d1d5db; }
+
+    .picker-item.is-checked {
+        background: #eff6ff;
+        border-color: #93c5fd;
     }
+
+    .picker-item input[type="checkbox"] {
+        width: 14px;
+        height: 14px;
+        accent-color: #3b82f6;
+        cursor: pointer;
+        flex-shrink: 0;
+    }
+
+    .picker-dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        border: 1px solid rgba(0,0,0,0.1);
+    }
+
+    .picker-name {
+        color: #374151;
+        font-weight: 500;
+    }
+
+    .picker-actions {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .picker-actions button {
+        padding: 0.35rem 0.8rem;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        background: #fff;
+        cursor: pointer;
+        font-size: 0.88em;
+        white-space: nowrap;
+        transition: background 0.12s;
+    }
+
+    .picker-actions button:hover:not(:disabled) { background: #f3f4f6; }
+    .picker-actions button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .btn-add-all {
+        border-color: #3b82f6 !important;
+        color: #1d4ed8;
+        background: #eff6ff !important;
+    }
+
+    .btn-add-all:hover:not(:disabled) { background: #dbeafe !important; }
+
+    .hint-all-added {
+        font-size: 0.83em;
+        color: #6b7280;
+        margin: 0;
+    }
+
+    .route-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+    }
+
+    .route-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.55rem 0.65rem;
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-left: 4px solid var(--cat-color, #e2e8f0);
+        border-radius: 7px;
+        cursor: grab;
+        user-select: none;
+        transition: box-shadow 0.12s, opacity 0.12s, background 0.12s;
+    }
+
+    .route-item:hover { box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+
+    .route-item.is-dragging {
+        opacity: 0.45;
+        cursor: grabbing;
+    }
+
+    .route-item.drag-over {
+        background: #eff6ff;
+        border-color: #93c5fd;
+        border-left-color: var(--cat-color, #e2e8f0);
+        box-shadow: 0 0 0 2px #bfdbfe;
+    }
+
+    .drag-handle {
+        font-size: 1.1em;
+        color: #9ca3af;
+        cursor: grab;
+        flex-shrink: 0;
+        line-height: 1;
+    }
+
+    .color-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        border: 1px solid rgba(0,0,0,0.08);
+    }
+
+    .cat-name {
+        flex: 1;
+        font-size: 0.92em;
+        font-weight: 500;
+        color: #1f2937;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .badges {
+        display: flex;
+        gap: 0.3rem;
+        flex-shrink: 0;
+    }
+
+    .badge {
+        font-size: 0.72em;
+        font-weight: 600;
+        padding: 0.15rem 0.45rem;
+        border-radius: 999px;
+        letter-spacing: 0.02em;
+    }
+
+    .badge-start {
+        background: #dcfce7;
+        color: #15803d;
+        border: 1px solid #bbf7d0;
+    }
+
+    .badge-end {
+        background: #dbeafe;
+        color: #1d4ed8;
+        border: 1px solid #bfdbfe;
+    }
+
+    .btn-item-remove {
+        flex-shrink: 0;
+        width: 22px;
+        height: 22px;
+        border: 1px solid #e5e7eb;
+        border-radius: 50%;
+        background: #f9fafb;
+        color: #9ca3af;
+        font-size: 1em;
+        line-height: 1;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        transition: background 0.12s, color 0.12s, border-color 0.12s;
+    }
+
+    .btn-item-remove:hover {
+        background: #fef2f2;
+        color: #dc2626;
+        border-color: #fca5a5;
+    }
+
+    .empty-hint {
+        font-size: 0.85em;
+        color: #9ca3af;
+        margin: 0;
+        text-align: center;
+        padding: 0.75rem 0;
+    }
+
+    .save-row {
+        display: flex;
+        justify-content: flex-end;
+    }
+
+    .btn-save {
+        padding: 0.4rem 1.1rem;
+        border: none;
+        border-radius: 6px;
+        background: #16a34a;
+        color: #fff;
+        font-size: 0.9em;
+        font-weight: 500;
+        cursor: pointer;
+        min-width: 7rem;
+        transition: background 0.15s;
+    }
+
+    .btn-save:hover:not(:disabled) { background: #15803d; }
+    .btn-save:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .btn-save.saved { background: #15803d; }
 </style>

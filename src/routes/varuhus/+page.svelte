@@ -24,6 +24,7 @@
     async function onSave(index, layout) {
         await storeContext.setStoreLayout(index, layout.positions, layout.route);
     }
+
 </script>
 
 <div class="page">
@@ -51,7 +52,7 @@
                                 class:active={expandedStore === index}
                                 onclick={() => expandedStore = expandedStore === index ? null : index}
                             >
-                                {expandedStore === index ? 'Stäng' : 'Redigera layout'}
+                                {expandedStore === index ? 'Stäng' : 'Redigera rutt'}
                             </button>
                             <button class="btn-remove" onclick={() => storeContext.removeStore(index)}>Ta bort</button>
                         </div>
