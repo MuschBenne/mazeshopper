@@ -7,6 +7,7 @@
     import { storeContext } from "$lib/context/store-context.svelte";
     import SharePanel from "$lib/components/SharePanel.svelte";
     import CategorySection from "$lib/components/CategorySection.svelte";
+    import ImportModal from "$lib/components/ImportModal.svelte";
     import { page } from '$app/state';
     import { goto } from '$app/navigation';
     import { browser } from '$app/environment';
@@ -21,6 +22,7 @@
     let spec = $state('');
     let selectedCategory = $state('');
     let adding = $state(false);
+    let showImportModal = $state(false);
     let shoppingMode = $state(false);
     let showSharePanel = $state(false);
     let search = $state('');
@@ -238,7 +240,17 @@
                 <button class="btn-add" onclick={addItem} disabled={adding}>
                     {adding ? 'Lägger till…' : 'Lägg till vara'}
                 </button>
+                <button class="btn-import-template" onclick={() => showImportModal = true}>
+                    Importera mall
+                </button>
             </div>
+        {/if}
+
+        {#if showImportModal}
+            <ImportModal
+                onImport={(items) => shoppingContext.importItems(id, items)}
+                onClose={() => showImportModal = false}
+            />
         {/if}
 
         <!-- Search -->
@@ -509,6 +521,23 @@
 
     .btn-add:hover:not(:disabled) { opacity: 0.9; }
     .btn-add:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .btn-import-template {
+        padding: 0.5rem;
+        background: none;
+        border: 1px dashed #d1d5db;
+        border-radius: 8px;
+        font-size: 0.88em;
+        color: #6b7280;
+        cursor: pointer;
+        transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+
+    .btn-import-template:hover {
+        border-color: #f97316;
+        color: #f97316;
+        background: #fff7ed;
+    }
 
     /* Search */
     .search-row {

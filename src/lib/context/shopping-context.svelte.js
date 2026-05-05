@@ -262,34 +262,35 @@ class ShoppingContext {
     }
 
     /**
-     * Updates the item's name and spec both locally and on the server.
+     * Updates the item's name, spec, and category both locally and on the server.
      * @param {string} listId
      * @param {string} itemId
      * @param {string} name
      * @param {string} spec
+     * @param {string} category
      */
-    async editItem(listId, itemId, name, spec) {
+    async editItem(listId, itemId, name, spec, category) {
         const list = this.getList(listId);
         if (!list) return false;
         const item = list.items.find(i => i.itemId === itemId);
         if (!item) return false;
-        const prevName = item.name;
-        const prevSpec = item.spec;
+        const prev = { name: item.name, spec: item.spec, category: item.category };
         // Optimistic update.
         item.name = name.trim();
         item.spec = spec.trim();
+        item.category = category;
         try {
             const res = await fetch(`/api/lists/${listId}/items/${itemId}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: name.trim(), spec: spec.trim() })
+                body: JSON.stringify({ name: name.trim(), spec: spec.trim(), category })
             });
             if (!res.ok) throw new Error();
             return true;
         } catch {
-            // Roll back to the previous values on failure.
-            item.name = prevName;
-            item.spec = prevSpec;
+            item.name = prev.name;
+            item.spec = prev.spec;
+            item.category = prev.category;
             notificationContext.show('Kunde inte uppdatera vara. Försök igen.');
             return false;
         }
@@ -365,6 +366,39 @@ class ShoppingContext {
             list.items = [...list.items, ...boughtItems];
             this.#removeLastHistory(listId);
             notificationContext.show('Kunde inte rensa köpta varor. Försök igen.');
+        }
+    }
+
+    /**
+     * Bulk-imports items from a template into a list with optimistic update.
+     * @param {string} listId
+     * @param {{ name: string, spec: string, quantity: number, category: string }[]} items
+     */
+    async importItems(listId, items) {
+        const list = this.getList(listId);
+        if (!list) return false;
+        const tempIds = /** @type {Set<string>} */ (new Set());
+        const optimisticItems = items.map(i => {
+            const itemId = crypto.randomUUID();
+            tempIds.add(itemId);
+            return { ...i, itemId, bought: false };
+        });
+        list.items = [...list.items, ...optimisticItems];
+        try {
+            const res = await fetch(`/api/lists/${listId}/import`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ items })
+            });
+            if (!res.ok) throw new Error();
+            const data = await res.json();
+            // Replace temp IDs with the real IDs assigned by the server
+            list.items = [...list.items.filter(i => !tempIds.has(i.itemId)), ...data.items];
+            return true;
+        } catch {
+            list.items = list.items.filter(i => !tempIds.has(i.itemId));
+            notificationContext.show('Kunde inte importera varor. Försök igen.');
+            return false;
         }
     }
 

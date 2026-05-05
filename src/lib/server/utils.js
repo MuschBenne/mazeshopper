@@ -3,6 +3,16 @@ export function escapeRegex(s) {
     return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+/** @param {string} email */
+export function isValidEmail(email) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+}
+
+/** @param {string} pw */
+export function isValidPassword(pw) {
+    return pw.length >= 8 && /[a-zA-ZåäöÅÄÖ]/.test(pw) && /[0-9]/.test(pw);
+}
+
 /** @param {any} doc */
 export function serializeList(doc) {
     return {

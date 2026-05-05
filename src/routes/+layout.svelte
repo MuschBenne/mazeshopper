@@ -5,6 +5,7 @@
     import { shoppingContext } from '$lib/context/shopping-context.svelte';
     import { storeContext } from '$lib/context/store-context.svelte';
     import { settingContext } from '$lib/context/setting-context.svelte';
+    import { templateContext } from '$lib/context/template-context.svelte';
     import Toast from '$lib/components/Toast.svelte';
     import { goto } from '$app/navigation';
     import { page } from '$app/state';
@@ -24,10 +25,12 @@
             shoppingContext.load();
             storeContext.load();
             settingContext.load();
+            templateContext.load();
         } else {
             shoppingContext.reset();
             storeContext.reset();
             settingContext.reset();
+            templateContext.reset();
         }
     });
 
@@ -75,6 +78,7 @@
 {#if authContext.user}
     <nav>
         <a href="/inkopslista" class:active={path.startsWith('/inkopslista')}>Inköpslista</a>
+        <a href="/mallar" class:active={path.startsWith('/mallar')}>Mallar</a>
         <a href="/varuhus" class:active={path.startsWith('/varuhus')}>Varuhus</a>
         <a href="/installningar" class:active={path.startsWith('/installningar')}>Inställningar</a>
         <a href="/om" class:active={path === '/om'}>Om</a>

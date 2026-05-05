@@ -30,8 +30,17 @@ export async function ensureIndexes() {
         db.collection('email_verifications').createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
         db.collection('login_attempts').createIndex({ key: 1 }),
         db.collection('login_attempts').createIndex({ at: 1 }, { expireAfterSeconds: 900 }),
+        db.collection('templates').createIndex({ owner: 1 }),
     ]);
     indexesEnsured = true;
+}
+
+export async function closeClient() {
+    if (client) {
+        await client.close();
+        client = null;
+        indexesEnsured = false;
+    }
 }
 
 export async function getDb() {

@@ -2,10 +2,11 @@ import { json } from '@sveltejs/kit';
 import { getDb } from '$lib/server/db';
 import { createSession, deleteSession, getSessionUser, hashToken } from '$lib/server/session';
 import { sendPasswordReset, sendEmailVerification } from '$lib/server/email';
-import { escapeRegex } from '$lib/server/utils';
+import { escapeRegex, isValidEmail, isValidPassword } from '$lib/server/utils';
 import bcrypt from 'bcryptjs';
+import { dev } from '$app/environment';
 
-const SALT_ROUNDS = 12;
+const SALT_ROUNDS = dev ? 1 : 12;
 const RESET_EXPIRY_MS = 15 * 60 * 1000; // 15 minutes
 const RESET_MAX_PER_HOUR = 3;
 
@@ -16,15 +17,6 @@ function generateToken() {
     return Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-/** @param {string} email */
-function isValidEmail(email) {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
-}
-
-/** @param {string} pw */
-function isValidPassword(pw) {
-    return pw.length >= 8 && /[a-zA-ZåäöÅÄÖ]/.test(pw) && /[0-9]/.test(pw);
-}
 
 export async function GET({ cookies }) {
     const username = await getSessionUser(cookies);
@@ -303,6 +295,7 @@ export async function POST(event) {
         );
         await db.collection('invitations').deleteMany({ $or: [{ fromUser: username }, { toUser: username }] });
         await db.collection('stores').deleteMany({ owner: username });
+        await db.collection('templates').deleteMany({ owner: username });
         await db.collection('user_settings').deleteMany({ owner: username });
 
         cookies.delete('session', { path: '/' });
