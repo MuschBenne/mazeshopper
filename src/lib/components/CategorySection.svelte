@@ -1,6 +1,7 @@
 <script>
     // Renders all items belonging to a single category, with collapse, edit, and shopping-mode support.
     import { shoppingContext } from '$lib/context/shopping-context.svelte';
+    import { settingContext } from '$lib/context/setting-context.svelte';
 
     /**
      * @type {{
@@ -19,6 +20,7 @@
     let editingItemId = $state(null);
     let editName = $state('');
     let editSpec = $state('');
+    let editCategory = $state('');
 
     // Items are displayed in their original insertion order — no re-sorting on check-off.
     const displayItems = $derived(items);
@@ -29,11 +31,12 @@
         editingItemId = item.itemId;
         editName = item.name;
         editSpec = item.spec;
+        editCategory = item.category;
     }
 
     async function saveEdit() {
         if (!editingItemId || editName.trim().length === 0) return;
-        await shoppingContext.editItem(listId, editingItemId, editName, editSpec);
+        await shoppingContext.editItem(listId, editingItemId, editName, editSpec, editCategory);
         editingItemId = null;
     }
 
@@ -67,6 +70,19 @@
                             placeholder="Specifikation (valfritt)"
                             onkeydown={(e) => { if (e.key === 'Enter') saveEdit(); else if (e.key === 'Escape') cancelEdit(); }}
                         />
+                        {#if settingContext.categories.length > 0}
+                            <div class="category-picker">
+                                {#each settingContext.categories as cat (cat.name)}
+                                    <button
+                                        type="button"
+                                        class="category-chip"
+                                        class:selected={editCategory === cat.name}
+                                        style="--chip-color: {cat.color}"
+                                        onclick={() => editCategory = cat.name}
+                                    >{cat.name}</button>
+                                {/each}
+                            </div>
+                        {/if}
                         <div class="edit-actions">
                             <button class="btn-save" onclick={saveEdit}>Spara</button>
                             <button class="btn-cancel" onclick={cancelEdit}>Avbryt</button>
@@ -281,6 +297,36 @@
         font-size: 0.85em;
         min-height: 36px;
         min-width: 36px;
+    }
+
+    .category-picker {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+        padding-top: 0.1rem;
+    }
+
+    .category-chip {
+        padding: 0.25rem 0.65rem;
+        border-radius: 999px;
+        border: 1.5px solid color-mix(in srgb, var(--chip-color, #e5e7eb) 60%, #9ca3af);
+        background: var(--chip-color, #f3f4f6);
+        cursor: pointer;
+        font-size: 0.8em;
+        font-weight: 500;
+        color: #374151;
+        opacity: 0.75;
+        transition: opacity 0.1s, box-shadow 0.1s;
+        min-height: unset;
+        min-width: unset;
+    }
+
+    .category-chip:hover { opacity: 1; }
+
+    .category-chip.selected {
+        opacity: 1;
+        box-shadow: 0 0 0 2px #374151;
+        font-weight: 700;
     }
 
     /* Shopping mode overrides */
