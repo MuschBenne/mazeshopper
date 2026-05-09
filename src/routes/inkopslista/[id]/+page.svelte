@@ -337,12 +337,17 @@
         margin: 0;
         flex: 1;
         font-size: 1.5rem;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     .header-actions {
         display: flex;
         gap: 0.5rem;
         align-items: center;
+        flex-shrink: 0;
     }
 
     .back {
