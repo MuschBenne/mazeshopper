@@ -3,45 +3,31 @@ import { getDb } from '$lib/server/db';
 import { getSessionUser } from '$lib/server/session';
 import { ObjectId } from 'mongodb';
 
-/**
- * @param {import('mongodb').Db} db
- * @param {string} listId
- * @param {string} username
- */
-async function getAccessibleList(db, listId, username) {
-    if (!ObjectId.isValid(listId)) return null;
-    return db.collection('lists').findOne({
-        _id: new ObjectId(listId),
-        $or: [{ owner: username }, { sharedWith: username }]
-    });
-}
-
 // Removes a single item from the list by its itemId.
 export async function DELETE({ params, cookies }) {
     const username = await getSessionUser(cookies);
     if (!username) return json({ error: 'unauthorized' }, { status: 401 });
+    if (!ObjectId.isValid(params.id)) return json({ error: 'forbidden' }, { status: 403 });
 
     const db = await getDb();
-    const list = await getAccessibleList(db, params.id, username);
-    if (!list) return json({ error: 'forbidden' }, { status: 403 });
-
-    await db.collection('lists').updateOne(
-        { _id: new ObjectId(params.id) },
+    const result = await db.collection('lists').updateOne(
+        {
+            _id: new ObjectId(params.id),
+            $or: [{ owner: username }, { sharedWith: username }]
+        },
         // @ts-ignore — MongoDB driver types don't accept plain objects for $pull
         { $pull: { items: { itemId: params.itemId } } }
     );
+    if (result.matchedCount === 0) return json({ error: 'forbidden' }, { status: 403 });
     return json({ ok: true });
 }
 
 // Partially updates a single item. Accepts: bought, quantity, name, spec.
 // Uses MongoDB arrayFilters to target the specific item inside the embedded array.
+// Access check is merged into the updateOne filter to save a round-trip.
 export async function PATCH({ params, request, cookies }) {
     const username = await getSessionUser(cookies);
     if (!username) return json({ error: 'unauthorized' }, { status: 401 });
-
-    const db = await getDb();
-    const list = await getAccessibleList(db, params.id, username);
-    if (!list) return json({ error: 'forbidden' }, { status: 403 });
 
     const body = await request.json();
 
@@ -56,10 +42,17 @@ export async function PATCH({ params, request, cookies }) {
 
     if (Object.keys(setFields).length === 0) return json({ error: 'no_valid_fields' }, { status: 400 });
 
-    await db.collection('lists').updateOne(
-        { _id: new ObjectId(params.id) },
+    if (!ObjectId.isValid(params.id)) return json({ error: 'forbidden' }, { status: 403 });
+
+    const db = await getDb();
+    const result = await db.collection('lists').updateOne(
+        {
+            _id: new ObjectId(params.id),
+            $or: [{ owner: username }, { sharedWith: username }]
+        },
         { $set: setFields },
         { arrayFilters: [{ 'el.itemId': params.itemId }] }
     );
+    if (result.matchedCount === 0) return json({ error: 'forbidden' }, { status: 403 });
     return json({ ok: true });
 }

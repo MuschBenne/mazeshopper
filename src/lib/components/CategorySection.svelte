@@ -226,7 +226,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        transition: background 0.15s, border-color 0.15s;
+        transition: background 0.08s, border-color 0.08s;
         flex-shrink: 0;
         min-height: unset;
         min-width: unset;
