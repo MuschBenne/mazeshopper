@@ -103,6 +103,49 @@
         dragOverIndex = null;
     }
 
+    // Touch drag state — used on mobile where HTML5 drag-and-drop is unavailable.
+    /** @type {number | null} */
+    let touchDragIndex = $state(null);
+    /** @type {number | null} */
+    let touchOverIndex = $state(null);
+    /** @type {HTMLUListElement | null} */
+    let listEl = $state(null);
+
+    /**
+     * @param {TouchEvent} e
+     * @param {number} index
+     */
+    function onHandleTouchStart(e, index) {
+        e.preventDefault(); // prevent scroll when grabbing the handle
+        touchDragIndex = index;
+        touchOverIndex = index;
+    }
+
+    /** @param {TouchEvent} e */
+    function onListTouchMove(e) {
+        if (touchDragIndex === null || !listEl) return;
+        e.preventDefault();
+        const y = e.touches[0].clientY;
+        const items = listEl.querySelectorAll('li.route-item');
+        let target = items.length - 1;
+        for (let i = 0; i < items.length; i++) {
+            const rect = items[i].getBoundingClientRect();
+            if (y < rect.top + rect.height / 2) { target = i; break; }
+        }
+        touchOverIndex = target;
+    }
+
+    function onListTouchEnd() {
+        if (touchDragIndex !== null && touchOverIndex !== null && touchOverIndex !== touchDragIndex) {
+            const newRoute = [...route];
+            const [moved] = newRoute.splice(touchDragIndex, 1);
+            newRoute.splice(touchOverIndex, 0, moved);
+            route = newRoute;
+        }
+        touchDragIndex = null;
+        touchOverIndex = null;
+    }
+
     let saved = $state(false);
     /** @type {ReturnType<typeof setTimeout> | null} */
     let savedTimer = null;
@@ -151,15 +194,18 @@
     {/if}
 
     {#if route.length > 0}
-        <ul class="route-list">
+        <ul class="route-list" bind:this={listEl}
+            ontouchmove={onListTouchMove}
+            ontouchend={onListTouchEnd}
+        >
             {#each route as name, i}
                 {@const color = getCategoryColor(name)}
                 {@const isFirst = i === 0}
                 {@const isLast = i === route.length - 1}
                 <li
                     class="route-item"
-                    class:is-dragging={dragIndex === i}
-                    class:drag-over={dragOverIndex === i && dragIndex !== i}
+                    class:is-dragging={dragIndex === i || touchDragIndex === i}
+                    class:drag-over={(dragOverIndex === i && dragIndex !== i) || (touchOverIndex === i && touchDragIndex !== null && touchDragIndex !== i)}
                     draggable="true"
                     ondragstart={(e) => onDragStart(e, i)}
                     ondragover={(e) => onDragOver(e, i)}
@@ -167,7 +213,9 @@
                     ondragend={onDragEnd}
                     style="--cat-color: {color}"
                 >
-                    <span class="drag-handle" aria-hidden="true">⠿</span>
+                    <span class="drag-handle" aria-hidden="true"
+                        ontouchstart={(e) => onHandleTouchStart(e, i)}
+                    >⠿</span>
                     <span class="color-dot" style="background: {color}"></span>
                     <span class="cat-name">{name}</span>
                     <div class="badges">
@@ -347,6 +395,17 @@
         cursor: grab;
         flex-shrink: 0;
         line-height: 1;
+        padding: 0.25rem;
+        margin: -0.25rem;
+        touch-action: none;
+    }
+
+    @media (pointer: coarse) {
+        .drag-handle {
+            font-size: 1.4em;
+            padding: 0.5rem;
+            margin: -0.5rem;
+        }
     }
 
     .color-dot {
