@@ -1,38 +1,65 @@
-# sv
+# MazeShopper
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+En delad inköpslistapp byggd med SvelteKit och MongoDB. Skapa listor, dela dem med andra, sätt upp varuhusrutter med drag-and-drop och handla i ett renodlat handelsläge.
 
-## Creating a project
+## Kom igång
 
-If you're seeing this, you've probably already done this step. Congrats!
+### Krav
+
+- Node.js 18+
+- MongoDB Atlas-konto (eller lokal MongoDB)
+- Resend-konto (för transaktionsmejl)
+
+### Installation
 
 ```sh
-# create a new project in the current directory
-npx sv create
-
-# create a new project in my-app
-npx sv create my-app
+npm install
 ```
 
-## Developing
+### Miljövariabler
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+Kopiera `.env.example` till `.env` och fyll i:
+
+```
+MONGODB_URI=          # MongoDB Atlas connection string
+RESEND_API_KEY=       # API-nyckel för transaktionsmejl
+EMAIL_FROM=           # Avsändaradress, t.ex. noreply@dindomän.se
+```
+
+### Starta dev-server
 
 ```sh
 npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
 ```
 
-## Building
+Appen körs på [localhost:5173](http://localhost:5173).
 
-To create a production version of your app:
+## Kommandon
 
 ```sh
-npm run build
+npm run dev        # Starta dev-server
+npm run check      # Kör svelte-check (TypeScript/Svelte-validering)
+npm run build      # Produktionsbygge
+npm run preview    # Förhandsgranska produktionsbygge lokalt
 ```
 
-You can preview the production build with `npm run preview`.
+## Stack
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+- **SvelteKit 2** med Svelte 5 (runes: `$state`, `$derived`, `$effect`, `$props`)
+- **MongoDB** via native driver
+- **bcryptjs** för lösenordshashing
+- **Resend** för transaktionsmejl
+- **Vercel** för deployment (`@sveltejs/adapter-vercel`)
+
+## Funktioner
+
+- Skapa och hantera inköpslistor
+- Dela listor med andra användare via inbjudningar
+- Varuhusrutter med drag-and-drop kategoriordning
+- Handelsläge med realtidssynk (polling var 15:e sekund)
+- E-postverifiering och lösenordsåterställning
+- GDPR-anpassad — dataexport och kontoborttagning
+
+## Deployment
+
+Projektet är konfigurerat för Vercel. Lägg till miljövariablerna i Vercel-projektets inställningar och deploya.
