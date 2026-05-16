@@ -72,7 +72,7 @@
 
 <style>
     .page {
-        max-width: 720px;
+        max-width: 680px;
         margin: 0 auto;
         padding: 1.5rem 1rem;
     }
@@ -148,9 +148,9 @@
     }
 
     .btn-layout.active {
-        background: #3b82f6;
+        background: #f97316;
         color: #fff;
-        border-color: #3b82f6;
+        border-color: #f97316;
     }
 
     .btn-remove {
