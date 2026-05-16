@@ -169,7 +169,7 @@
 
         <!-- Offline indicator: shown after 2+ consecutive poll failures in shopping mode -->
         {#if sseHasConnected && !sseConnected}
-            <div class="offline-badge">Ingen anslutning – listan uppdateras inte</div>
+            <div class="offline-badge" role="alert">Ingen anslutning – listan uppdateras inte</div>
         {/if}
 
         <!-- Shopping mode: store selector + actions -->

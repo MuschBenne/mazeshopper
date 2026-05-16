@@ -66,7 +66,7 @@
 </header>
 
 {#if authContext.user && authContext.user.emailVerified === false}
-    <div class="verify-banner">
+    <div class="verify-banner" role="alert">
         {#if verificationSent}
             <span>Verifieringsmail skickat! Kolla din inkorg.</span>
         {:else}

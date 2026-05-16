@@ -45,7 +45,12 @@
     }
 </script>
 
-<button class="category-header" onclick={() => (collapsed = !collapsed)}>
+<button
+    class="category-header"
+    onclick={() => (collapsed = !collapsed)}
+    aria-expanded={!collapsed}
+    aria-controls="category-items-{category.name}"
+>
     <span class="category-dot" style:background={category.color}></span>
     <span class="category-arrow">{collapsed ? '▶' : '▼'}</span>
     {category.name}
@@ -53,7 +58,7 @@
 </button>
 
 {#if !collapsed}
-    <ul>
+    <ul id="category-items-{category.name}">
         {#each displayItems as item (item.itemId)}
             <li class:bought={item.bought}>
                 {#if editingItemId === item.itemId}
@@ -108,8 +113,8 @@
                             >{item.bought ? '✓' : ''}</button>
                         {/if}
                         {#if !shoppingMode}
-                            <button class="btn-edit" onclick={() => startEdit(item)}>✏️</button>
-                            <button onclick={() => shoppingContext.removeItem(listId, item.itemId)}>🗑️</button>
+                            <button class="btn-edit" aria-label="Redigera {item.name}" onclick={() => startEdit(item)}>✏️</button>
+                            <button aria-label="Ta bort {item.name}" onclick={() => shoppingContext.removeItem(listId, item.itemId)}>🗑️</button>
                         {/if}
                     </div>
                 {/if}
