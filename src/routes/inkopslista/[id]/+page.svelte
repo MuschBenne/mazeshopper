@@ -29,6 +29,9 @@
     let showHistory = $state(false);
     let sseConnected = $state(false);
     let sseHasConnected = $state(false);
+    let categoryError = $state(false);
+    let confirmDeleteList = $state(false);
+    let confirmClearAll = $state(false);
 
     // Persist the last-used category per list in sessionStorage so it's
     // pre-selected when the user navigates back to the same list.
@@ -96,9 +99,10 @@
 
     async function addItem() {
         if (selectedCategory === '') {
-            alert('Välj en kategori innan du lägger till en vara.');
+            categoryError = true;
             return;
         }
+        categoryError = false;
         if (newItem.trim().length === 0) return;
         adding = true;
         const ok = await shoppingContext.addItem(id, newItem, spec, selectedCategory);
@@ -110,10 +114,8 @@
     }
 
     async function deleteList() {
-        if (confirm(`Är du säker? Listan "${list?.name}" raderas permanent.`)) {
-            await shoppingContext.deleteList(id);
-            goto('/inkopslista');
-        }
+        await shoppingContext.deleteList(id);
+        goto('/inkopslista');
     }
 
     /** @param {string} dateStr */
@@ -145,7 +147,15 @@
                     </button>
                 {/if}
                 {#if !shoppingMode && isOwner}
-                    <button class="btn-delete-list" onclick={deleteList}>Ta bort</button>
+                    {#if confirmDeleteList}
+                        <span class="confirm-inline">
+                            <span>Ta bort?</span>
+                            <button class="btn-confirm-sm btn-confirm-sm--danger" onclick={deleteList}>Ja</button>
+                            <button class="btn-cancel" onclick={() => confirmDeleteList = false}>Nej</button>
+                        </span>
+                    {:else}
+                        <button class="btn-delete-list" onclick={() => confirmDeleteList = true}>Ta bort</button>
+                    {/if}
                 {/if}
                 <button
                     class="btn-shopping-mode"
@@ -198,17 +208,21 @@
                 >
                     Rensa köpta varor
                 </button>
-                <button
-                    class="btn-clear-all"
-                    onclick={() => {
-                        if (confirm('Är du säker? Hela listan raderas.')) {
-                            shoppingContext.clearAll(id);
-                        }
-                    }}
-                    disabled={list.items.length === 0}
-                >
-                    Töm hela listan
-                </button>
+                {#if confirmClearAll}
+                    <span class="confirm-inline">
+                        <span>Töm allt?</span>
+                        <button class="btn-confirm-sm btn-confirm-sm--danger" onclick={() => { shoppingContext.clearAll(id); confirmClearAll = false; }}>Ja</button>
+                        <button class="btn-cancel" onclick={() => confirmClearAll = false}>Nej</button>
+                    </span>
+                {:else}
+                    <button
+                        class="btn-clear-all"
+                        onclick={() => confirmClearAll = true}
+                        disabled={list.items.length === 0}
+                    >
+                        Töm hela listan
+                    </button>
+                {/if}
             </div>
         {/if}
 
@@ -225,18 +239,21 @@
                     placeholder="Specifikation (valfritt)"
                     onkeydown={(e) => e.key === 'Enter' && addItem()}
                 />
-                <div class="category-picker">
+                <div class="category-picker" class:picker-error={categoryError}>
                     {#each settingContext.categories as category}
                         <button
                             class="category-chip"
                             class:selected={selectedCategory === category.name}
                             style="--chip-color: {category.color}"
-                            onclick={() => (selectedCategory = category.name)}
+                            onclick={() => { selectedCategory = category.name; categoryError = false; }}
                         >
                             {category.name}
                         </button>
                     {/each}
                 </div>
+                {#if categoryError}
+                    <p class="field-error" role="alert">Välj en kategori innan du lägger till en vara.</p>
+                {/if}
                 <button class="btn-add" onclick={addItem} disabled={adding}>
                     {adding ? 'Lägger till…' : 'Lägg till vara'}
                 </button>
@@ -467,6 +484,28 @@
         cursor: not-allowed;
     }
 
+    .confirm-inline {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 0.82em;
+        color: #dc2626;
+        font-weight: 600;
+    }
+
+    .btn-confirm-sm {
+        padding: 0.2rem 0.55rem;
+        border: none;
+        border-radius: 6px;
+        font-size: 0.85em;
+        font-weight: 600;
+        cursor: pointer;
+        min-height: unset;
+    }
+
+    .btn-confirm-sm--danger { background: #dc2626; color: #fff; }
+    .btn-confirm-sm--danger:hover { background: #b91c1c; }
+
     /* Add item form */
     .add-card {
         display: flex;
@@ -510,6 +549,14 @@
         opacity: 1;
         box-shadow: 0 0 0 2px #374151;
         font-weight: 700;
+    }
+
+    .picker-error { outline: 1.5px solid #dc2626; border-radius: 6px; padding: 0.25rem; }
+
+    .field-error {
+        margin: 0;
+        font-size: 0.82em;
+        color: #dc2626;
     }
 
     .btn-add {

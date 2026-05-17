@@ -8,20 +8,20 @@ Nulägesanalys och prioriterad att-göra-lista. Sorterad efter område, inte pri
 
 Just nu är alla värden hårdkodade spridda i varje fil. Det gör det svårt att byta utseende och lätt att råka ha olika värden på olika ställen.
 
-- [ ] **CSS-variabler i `app.css`** — lägg till tokens för de värden som upprepas:
+- [x] **CSS-variabler i `app.css`** — lägg till tokens för de värden som upprepas:
   - `--radius-sm: 6px`, `--radius-md: 8px`, `--radius-lg: 12px` (nu är det en mix av 5/6/8/10/12/16px utan system)
   - `--color-primary: #f97316`, `--color-accent: #c026d3` (variabeln `--primary-color` finns redan men används aldrig)
   - `--shadow-card`, `--border-color` (upprepas identiskt i varje sida)
-- [ ] **Max-width konsistens** — varuhussidan har `max-width: 720px`, alla andra sidor `680px`. Välj ett värde.
-- [ ] **Duplicerade knappstilar** — `.btn-save`, `.btn-cancel`, `.btn-danger` m.fl. definieras identiskt i CategorySection, mallar och inköpslistan. Flytta till globala klasser i `app.css`.
+- [x] **Max-width konsistens** — varuhussidan har `max-width: 720px`, alla andra sidor `680px`. Välj ett värde.
+- [x] **Duplicerade knappstilar** — `.btn-save`, `.btn-cancel`, `.btn-danger` m.fl. definieras identiskt i CategorySection, mallar och inköpslistan. Flytta till globala klasser i `app.css`.
 
 ---
 
 ## 2. Blockande dialogs — byt ut `alert()` och `confirm()`
 
-- [ ] **`alert()` vid saknad kategori** — i inköpslistan när man försöker lägga till utan vald kategori. Ersätt med inline-felmeddelande under kategori-pickern.
-- [ ] **`confirm()` vid "Töm hela listan"** — stör flödet och ser inte ut som resten av appen. Ersätt med inline bekräftelseknapp (som "Radera konto"-flödet i inställningar redan gör rätt).
-- [ ] **`confirm()` vid "Ta bort lista"** — samma sak.
+- [x] **`alert()` vid saknad kategori** — i inköpslistan när man försöker lägga till utan vald kategori. Ersätt med inline-felmeddelande under kategori-pickern.
+- [x] **`confirm()` vid "Töm hela listan"** — stör flödet och ser inte ut som resten av appen. Ersätt med inline bekräftelseknapp (som "Radera konto"-flödet i inställningar redan gör rätt).
+- [x] **`confirm()` vid "Ta bort lista"** — samma sak.
 
 ---
 
@@ -49,11 +49,11 @@ Inga Svelte-transitions används alls just nu — allt poppar in och ut.
 
 ## 5. Tillgänglighet (a11y)
 
-- [ ] **Saknade `aria-label` på emoji-knappar** — `✏️`-knappen och `🗑️`-knappen i CategorySection saknar `aria-label`. Skärmläsare säger bara "knapp".
-- [ ] **`aria-expanded` på kategori-headern** — `<button class="category-header">` saknar `aria-expanded={!collapsed}` och `aria-controls`.
+- [x] **Saknade `aria-label` på emoji-knappar** — `✏️`-knappen och `🗑️`-knappen i CategorySection saknar `aria-label`. Skärmläsare säger bara "knapp".
+- [x] **`aria-expanded` på kategori-headern** — `<button class="category-header">` saknar `aria-expanded={!collapsed}` och `aria-controls`.
 - [ ] **Focus-ring** — `outline: none` sätts på inputs utan att ersättas med något bättre. Lägg till en synlig fokusring för tangentbordsnavigering (t.ex. `box-shadow: 0 0 0 2px #f97316`).
-- [ ] **Offline-badge** — borde ha `role="alert"` så skärmläsare annonserar statusförändringen automatiskt.
-- [ ] **Verifieringsbannern** — samma sak, `role="alert"`.
+- [x] **Offline-badge** — borde ha `role="alert"` så skärmläsare annonserar statusförändringen automatiskt.
+- [x] **Verifieringsbannern** — samma sak, `role="alert"`.
 
 ---
 
@@ -78,7 +78,7 @@ Inga Svelte-transitions används alls just nu — allt poppar in och ut.
 - [ ] **Sökinputens synlighet** — sökan visas bara om >4 varor. Det är rimligt, men den dyker upp utan animation. Lägg till en kort `slide`-transition.
 
 ### Varuhus (`/varuhus`)
-- [ ] **"Redigera rutt"-knappen är blå** — aktiv-state är `#3b82f6` (blå) medan resten av appen är orange. Byt till orange/primary.
+- [x] **"Redigera rutt"-knappen är blå** — aktiv-state är `#3b82f6` (blå) medan resten av appen är orange. Byt till orange/primary.
 - [ ] **Tom state** — om inga varuhus finns visas en tom lista utan förklaring. Lägg till en förklaringstext om vad varuhus gör och hur man använder funktionen.
 
 ### Mallar (`/mallar`)
