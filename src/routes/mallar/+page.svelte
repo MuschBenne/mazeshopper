@@ -114,8 +114,8 @@
                         bind:value={renameValue}
                         onkeydown={(e) => { if (e.key === 'Enter') saveRename(); else if (e.key === 'Escape') renamingId = ''; }}
                     />
-                    <button class="btn-save-rename" onclick={saveRename}>Spara</button>
-                    <button class="btn-cancel-rename" onclick={() => renamingId = ''}>Avbryt</button>
+                    <button class="btn-save" onclick={saveRename}>Spara</button>
+                    <button class="btn-cancel" onclick={() => renamingId = ''}>Avbryt</button>
                 {:else}
                     <h1>{selected.name}</h1>
                     <button class="btn-rename" onclick={() => startRename(selected)}>Byt namn</button>
@@ -125,7 +125,7 @@
                 <div class="confirm-delete">
                     <span>Ta bort?</span>
                     <button class="btn-confirm-delete" onclick={deleteTemplate}>Ja</button>
-                    <button class="btn-cancel-delete" onclick={() => confirmDelete = false}>Nej</button>
+                    <button class="btn-cancel" onclick={() => confirmDelete = false}>Nej</button>
                 </div>
             {:else}
                 <button class="btn-delete-template" onclick={() => confirmDelete = true}>Ta bort mall</button>
@@ -433,29 +433,6 @@
 
     .btn-rename:hover { background: #f3f4f6; color: #374151; }
 
-    .btn-save-rename {
-        padding: 0.3rem 0.7rem;
-        background: #f97316;
-        color: #fff;
-        border: none;
-        border-radius: 6px;
-        font-size: 0.85em;
-        font-weight: 600;
-        cursor: pointer;
-        min-height: unset;
-    }
-
-    .btn-cancel-rename {
-        padding: 0.3rem 0.7rem;
-        background: none;
-        color: #6b7280;
-        border: 1px solid #e5e7eb;
-        border-radius: 6px;
-        font-size: 0.85em;
-        cursor: pointer;
-        min-height: unset;
-    }
-
     .btn-delete-template {
         font-size: 0.8em;
         color: #dc2626;
@@ -493,19 +470,6 @@
     }
 
     .btn-confirm-delete:hover { background: #b91c1c; }
-
-    .btn-cancel-delete {
-        padding: 0.25rem 0.6rem;
-        background: none;
-        color: #6b7280;
-        border: 1px solid #e5e7eb;
-        border-radius: 6px;
-        cursor: pointer;
-        font-size: 0.85em;
-        min-height: unset;
-    }
-
-    .btn-cancel-delete:hover { background: #f3f4f6; }
 
     /* Items card */
     .items-card { padding: 0; overflow: hidden; }
@@ -611,35 +575,6 @@
         display: flex;
         gap: 0.4rem;
     }
-
-    .btn-save {
-        padding: 0.3rem 0.75rem;
-        background: #f97316;
-        color: #fff;
-        border: none;
-        border-radius: 6px;
-        font-size: 0.85em;
-        font-weight: 600;
-        cursor: pointer;
-        min-height: unset;
-        min-width: unset;
-    }
-
-    .btn-save:hover { background: #ea6c0a; }
-
-    .btn-cancel {
-        padding: 0.3rem 0.75rem;
-        background: none;
-        color: #6b7280;
-        border: 1px solid #e5e7eb;
-        border-radius: 6px;
-        font-size: 0.85em;
-        cursor: pointer;
-        min-height: unset;
-        min-width: unset;
-    }
-
-    .btn-cancel:hover { background: #f3f4f6; }
 
     /* Add item form */
     .add-card {

@@ -269,35 +269,6 @@
         gap: 0.4rem;
     }
 
-    .btn-save {
-        padding: 0.3rem 0.75rem;
-        background: #f97316;
-        color: #fff;
-        border: none;
-        border-radius: 6px;
-        font-size: 0.85em;
-        font-weight: 600;
-        cursor: pointer;
-        min-height: unset;
-        min-width: unset;
-    }
-
-    .btn-save:hover { background: #ea6c0a; }
-
-    .btn-cancel {
-        padding: 0.3rem 0.75rem;
-        background: none;
-        color: #6b7280;
-        border: 1px solid #e5e7eb;
-        border-radius: 6px;
-        font-size: 0.85em;
-        cursor: pointer;
-        min-height: unset;
-        min-width: unset;
-    }
-
-    .btn-cancel:hover { background: #f3f4f6; }
-
     .btn-edit {
         font-size: 0.85em;
         min-height: 36px;
