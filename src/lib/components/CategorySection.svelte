@@ -245,6 +245,8 @@
         color: #fff;
     }
 
+    .btn-bought.bought:hover { background: #16a34a; border-color: #16a34a; }
+
     .edit-form {
         display: flex;
         flex-direction: column;
