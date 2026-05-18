@@ -11,6 +11,7 @@
     import { page } from '$app/state';
     import { goto } from '$app/navigation';
     import { browser } from '$app/environment';
+    import { fade } from 'svelte/transition';
 
     const id = $derived(page.params.id ?? '');
     const list = $derived(shoppingContext.getList(id));
@@ -161,9 +162,8 @@
                     class="btn-shopping-mode"
                     class:active={shoppingMode}
                     onclick={() => { shoppingMode = !shoppingMode; showSharePanel = false; }}
-                    title={shoppingMode ? 'Avsluta handelsläge' : 'Handelsläge'}
                 >
-                    {shoppingMode ? '✕' : '🛒'}
+                    {shoppingMode ? 'Avsluta' : 'Handla'}
                 </button>
             </div>
         </div>
@@ -179,27 +179,36 @@
 
         <!-- Offline indicator: shown after 2+ consecutive poll failures in shopping mode -->
         {#if sseHasConnected && !sseConnected}
-            <div class="offline-badge" role="alert">Ingen anslutning – listan uppdateras inte</div>
+            <div class="offline-badge" role="alert" transition:fade={{ duration: 250 }}>Ingen anslutning – listan uppdateras inte</div>
         {/if}
 
         <!-- Shopping mode: store selector + actions -->
         {#if shoppingMode}
-            <div class="store-selector">
-                <label for="store-select">Varuhus:</label>
-                <select
-                    id="store-select"
-                    value={storeContext.selectedStoreIndex ?? ''}
-                    onchange={(e) => {
-                        const val = /** @type {HTMLSelectElement} */ (e.target).value;
-                        storeContext.selectStore(val === '' ? null : parseInt(val));
-                    }}
-                >
-                    <option value="">Inget varuhus valt</option>
-                    {#each storeContext.stores as store, i}
-                        <option value={i}>{store.name}</option>
-                    {/each}
-                </select>
-            </div>
+            {#if storeContext.stores.length > 0}
+                <div class="store-selector">
+                    <span class="store-label">Varuhus:</span>
+                    <div class="store-chips">
+                        {#each storeContext.stores as store, i}
+                            <button
+                                class="store-chip"
+                                class:selected={storeContext.selectedStoreIndex === i}
+                                onclick={() => storeContext.selectStore(storeContext.selectedStoreIndex === i ? null : i)}
+                            >{store.name}</button>
+                        {/each}
+                    </div>
+                </div>
+            {/if}
+            {@const boughtCount = list.items.filter(i => i.bought).length}
+            {@const totalCount = list.items.length}
+            {@const pct = totalCount > 0 ? Math.round((boughtCount / totalCount) * 100) : 0}
+            {#if totalCount > 0}
+                <div class="progress-row">
+                    <span class="progress-text">{boughtCount} av {totalCount} varor köpta</span>
+                    <div class="progress-track">
+                        <div class="progress-fill" style="width: {pct}%"></div>
+                    </div>
+                </div>
+            {/if}
             <div class="list-actions">
                 <button
                     class="btn-clear-bought"
@@ -403,13 +412,15 @@
     .btn-delete-list:hover { background: #fef2f2; }
 
     .btn-shopping-mode {
-        font-size: 1rem;
+        font-size: 0.85rem;
+        font-weight: 600;
         background: none;
         border: 1.5px solid #e5e7eb;
         border-radius: 8px;
-        padding: 0.25rem 0.55rem;
+        padding: 0.28rem 0.75rem;
         cursor: pointer;
         line-height: 1.4;
+        white-space: nowrap;
         transition: background 0.15s, border-color 0.15s;
     }
 
@@ -420,7 +431,6 @@
         border-color: #111827;
         color: #fff;
         font-weight: 700;
-        font-size: 0.85rem;
     }
 
     .shared-notice {
@@ -446,16 +456,73 @@
     .store-selector {
         display: flex;
         align-items: center;
-        gap: 0.5rem;
+        gap: 0.6rem;
         font-size: 0.9em;
+    }
+
+    .store-label {
+        color: #6b7280;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+
+    .store-chips {
+        display: flex;
+        gap: 0.4rem;
+        overflow-x: auto;
+        padding-bottom: 2px;
+        scrollbar-width: none;
+    }
+
+    .store-chips::-webkit-scrollbar { display: none; }
+
+    .store-chip {
+        padding: 0.3rem 0.75rem;
+        border-radius: 999px;
+        border: 1.5px solid #d1d5db;
+        background: #fff;
+        color: #374151;
+        font-size: 0.85em;
+        font-weight: 500;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: background 0.12s, border-color 0.12s, color 0.12s;
+        min-height: unset;
+    }
+
+    .store-chip:hover { border-color: #f97316; color: #f97316; }
+
+    .store-chip.selected {
+        background: #f97316;
+        border-color: #f97316;
+        color: #fff;
+        font-weight: 600;
+    }
+
+    /* Progress indicator */
+    .progress-row {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+    }
+
+    .progress-text {
+        font-size: 0.82em;
         color: #6b7280;
     }
 
-    .store-selector select {
-        border: 1px solid #d1d5db;
-        border-radius: 6px;
-        padding: 0.3rem 0.5rem;
-        font-size: 0.9em;
+    .progress-track {
+        height: 5px;
+        border-radius: 999px;
+        background: #e5e7eb;
+        overflow: hidden;
+    }
+
+    .progress-fill {
+        height: 100%;
+        border-radius: 999px;
+        background: linear-gradient(90deg, #f97316, #c026d3);
+        transition: width 0.4s ease;
     }
 
     /* List actions */
@@ -713,11 +780,5 @@
 
     .page.shopping-mode .store-selector {
         font-size: 1em;
-        color: #374151;
-    }
-
-    .page.shopping-mode .store-selector select {
-        font-size: 1em;
-        padding: 0.45rem 0.75rem;
     }
 </style>

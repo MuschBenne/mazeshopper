@@ -29,10 +29,10 @@ Just nu är alla värden hårdkodade spridda i varje fil. Det gör det svårt at
 
 Det mest använda läget förtjänar extra omsorg.
 
-- [ ] **Varuhus-selector** — `<select>` triggar native iOS-picker, ser klumpigt ut. Överväg en enklare lösning: knappar/chips för respektive varuhus om antalet är litet, eller en custom dropdown.
-- [ ] **Framstegsindikatorn saknas** — visa "5 av 12 varor köpta" någonstans i handelsläget, ger en tydlig känsla av progress utan att vara störande.
-- [ ] **Handelsknappen** — emoji `🛒` ser lite off ut mot resten av UI:t som är ikonfritt. Antingen gå all-in på ikoner (t.ex. Heroicons/Lucide) eller byt till text "Handla" / "Avsluta".
-- [ ] **Offline-bannern** — den gula bannern vid SSE-avbrott ser rätt ut men dyker upp lite abrupt. Lägg till en kort fade-in-transition.
+- [x] **Varuhus-selector** — `<select>` triggar native iOS-picker, ser klumpigt ut. Överväg en enklare lösning: knappar/chips för respektive varuhus om antalet är litet, eller en custom dropdown.
+- [x] **Framstegsindikatorn saknas** — visa "5 av 12 varor köpta" någonstans i handelsläget, ger en tydlig känsla av progress utan att vara störande.
+- [x] **Handelsknappen** — emoji `🛒` ser lite off ut mot resten av UI:t som är ikonfritt. Antingen gå all-in på ikoner (t.ex. Heroicons/Lucide) eller byt till text "Handla" / "Avsluta".
+- [x] **Offline-bannern** — den gula bannern vid SSE-avbrott ser rätt ut men dyker upp lite abrupt. Lägg till en kort fade-in-transition.
 
 ---
 
