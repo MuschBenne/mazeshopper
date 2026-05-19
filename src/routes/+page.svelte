@@ -2,8 +2,6 @@
     import { authContext } from '$lib/context/auth-context.svelte';
     import { goto } from '$app/navigation';
 
-    if (authContext.user) goto('/inkopslista');
-
     let mode = $state(/** @type {'login' | 'register'} */ ('login'));
     let username = $state('');
     let password = $state('');
