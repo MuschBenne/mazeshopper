@@ -11,7 +11,7 @@
     import { page } from '$app/state';
     import { goto } from '$app/navigation';
     import { browser } from '$app/environment';
-    import { fade } from 'svelte/transition';
+    import { fade, slide, fly } from 'svelte/transition';
 
     const id = $derived(page.params.id ?? '');
     const list = $derived(shoppingContext.getList(id));
@@ -21,6 +21,8 @@
 
     let newItem = $state('');
     let spec = $state('');
+    /** @type {HTMLInputElement | null} */
+    let itemInputEl = $state(null);
     let selectedCategory = $state('');
     let adding = $state(false);
     let showImportModal = $state(false);
@@ -111,6 +113,7 @@
         if (ok) {
             newItem = '';
             spec = '';
+            itemInputEl?.focus();
         }
     }
 
@@ -174,7 +177,9 @@
 
         <!-- Share panel -->
         {#if showSharePanel && isOwner && !shoppingMode}
-            <SharePanel {list} listId={id} {username} onClose={() => (showSharePanel = false)} />
+            <div transition:fly={{ y: -6, duration: 200 }}>
+                <SharePanel {list} listId={id} {username} onClose={() => (showSharePanel = false)} />
+            </div>
         {/if}
 
         <!-- Offline indicator: shown after 2+ consecutive poll failures in shopping mode -->
@@ -239,6 +244,7 @@
         {#if !shoppingMode}
             <div class="card add-card">
                 <input
+                    bind:this={itemInputEl}
                     bind:value={newItem}
                     placeholder="Vara"
                     onkeydown={(e) => e.key === 'Enter' && addItem()}
@@ -281,7 +287,7 @@
 
         <!-- Search -->
         {#if list.items.length > 4}
-            <div class="search-row">
+            <div class="search-row" transition:slide={{ duration: 150 }}>
                 <input
                     bind:value={search}
                     placeholder="Sök vara…"

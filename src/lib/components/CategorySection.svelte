@@ -2,6 +2,8 @@
     // Renders all items belonging to a single category, with collapse, edit, and shopping-mode support.
     import { shoppingContext } from '$lib/context/shopping-context.svelte';
     import { settingContext } from '$lib/context/setting-context.svelte';
+    import { slide } from 'svelte/transition';
+    import { flip } from 'svelte/animate';
 
     /**
      * @type {{
@@ -58,9 +60,9 @@
 </button>
 
 {#if !collapsed}
-    <ul id="category-items-{category.name}">
+    <ul id="category-items-{category.name}" transition:slide={{ duration: 180 }}>
         {#each displayItems as item (item.itemId)}
-            <li class:bought={item.bought}>
+            <li class:bought={item.bought} animate:flip={{ duration: 220 }} transition:slide={{ duration: 180 }}>
                 {#if editingItemId === item.itemId}
                     <div class="edit-form">
                         <input
@@ -95,7 +97,8 @@
                     </div>
                 {:else}
                     <span class="item-name" style:text-decoration={item.bought ? 'line-through' : 'none'}>
-                        {item.name}{item.spec ? ` – ${item.spec}` : ''}
+                        {item.name}
+                        {#if item.spec}<span class="item-spec">{item.spec}</span>{/if}
                     </span>
                     <div class="quantity-controls">
                         {#if !shoppingMode}
@@ -187,6 +190,14 @@
         flex: 1;
         min-width: 0;
         word-break: break-word;
+    }
+
+    .item-spec {
+        display: block;
+        font-size: 0.82em;
+        color: #9ca3af;
+        font-weight: 400;
+        margin-top: 0.1rem;
     }
 
     li.bought .item-name { color: #9ca3af; }

@@ -53,6 +53,13 @@
     </div>
 {/if}
 
+{#if myLists.length === 0}
+    <div class="empty-state">
+        <p class="empty-title">Inga listor än</p>
+        <p class="empty-hint">Skapa din första inköpslista nedan.</p>
+    </div>
+{/if}
+
 <div class="lists-grid">
     {#each myLists as list}
         <a class="list-card" href="/inkopslista/{list.id}">
@@ -235,4 +242,22 @@
     }
 
     .btn-decline:hover { background: #fef2f2; }
+
+    .empty-state {
+        text-align: center;
+        padding: 2.5rem 1rem 0.5rem;
+    }
+
+    .empty-title {
+        font-size: 1.05em;
+        font-weight: 600;
+        color: #374151;
+        margin: 0 0 0.35rem;
+    }
+
+    .empty-hint {
+        font-size: 0.88em;
+        color: #9ca3af;
+        margin: 0;
+    }
 </style>

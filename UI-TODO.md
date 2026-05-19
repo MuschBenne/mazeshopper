@@ -40,10 +40,10 @@ Det mest använda läget förtjänar extra omsorg.
 
 Inga Svelte-transitions används alls just nu — allt poppar in och ut.
 
-- [ ] **Toast-animationer** — toasts dyker upp och försvinner abrupt. Lägg till `fly` (in från botten) och `fade` (ut).
-- [ ] **Listposter** — varor som läggs till / tas bort kan använda `animate:flip` + `transition:slide` för att inte "hoppa".
-- [ ] **Kategori-collapse** — `{#if !collapsed}` borde ha en `slide`-transition.
-- [ ] **Menyövergångar** — SharePanel och ImportModal poppar in utan animation.
+- [x] **Toast-animationer** — toasts dyker upp och försvinner abrupt. Lägg till `fly` (in från botten) och `fade` (ut).
+- [x] **Listposter** — varor som läggs till / tas bort kan använda `animate:flip` + `transition:slide` för att inte "hoppa".
+- [x] **Kategori-collapse** — `{#if !collapsed}` borde ha en `slide`-transition.
+- [x] **Menyövergångar** — SharePanel och ImportModal poppar in utan animation.
 
 ---
 
@@ -51,7 +51,7 @@ Inga Svelte-transitions används alls just nu — allt poppar in och ut.
 
 - [x] **Saknade `aria-label` på emoji-knappar** — `✏️`-knappen och `🗑️`-knappen i CategorySection saknar `aria-label`. Skärmläsare säger bara "knapp".
 - [x] **`aria-expanded` på kategori-headern** — `<button class="category-header">` saknar `aria-expanded={!collapsed}` och `aria-controls`.
-- [ ] **Focus-ring** — `outline: none` sätts på inputs utan att ersättas med något bättre. Lägg till en synlig fokusring för tangentbordsnavigering (t.ex. `box-shadow: 0 0 0 2px #f97316`).
+- [x] **Focus-ring** — `outline: none` sätts på inputs utan att ersättas med något bättre. Lägg till en synlig fokusring för tangentbordsnavigering (t.ex. `box-shadow: 0 0 0 2px #f97316`).
 - [x] **Offline-badge** — borde ha `role="alert"` så skärmläsare annonserar statusförändringen automatiskt.
 - [x] **Verifieringsbannern** — samma sak, `role="alert"`.
 
@@ -68,14 +68,14 @@ Inga Svelte-transitions används alls just nu — allt poppar in och ut.
 ## 7. Specifika sidor
 
 ### Inköpslista-översikten (`/inkopslista`)
-- [ ] **Tom state** — om användaren har noll listor visas bara ett tomt rutnät. En uppmuntrande tom-state-text ("Skapa din första lista!") vore trevligare.
+- [x] **Tom state** — om användaren har noll listor visas bara ett tomt rutnät. En uppmuntrande tom-state-text ("Skapa din första lista!") vore trevligare.
 - [ ] **"Skapa lista"-kortet** — kortet med dashed-border blandas med riktiga listor i gridet. Det kan vara förvirrande. Kanske ett separat "+ Skapa ny lista"-element utanför gridet, eller tydligare visuell separation.
 - [ ] **Lista-kort saknar oläst-indikator** — om en delad lista uppdaterats sedan senaste besök finns det ingen indikation. (Kräver backend-stöd, lyfter som framtida UX-fråga.)
 
 ### Inköpslistan (`/inkopslista/[id]`)
-- [ ] **Fokus efter "Lägg till vara"** — efter att en vara lagts till borde fokus återgå till "Vara"-inputfältet automatiskt.
+- [x] **Fokus efter "Lägg till vara"** — efter att en vara lagts till borde fokus återgå till "Vara"-inputfältet automatiskt.
 - [ ] **Kategori-picker-tydlighet** — om ingen kategori är vald och man trycker "Lägg till vara" kommer ett `alert()`. Bättre: markera kategori-pickern visuellt som obligatorisk direkt (t.ex. `border: 1.5px solid #f97316` om inget är valt och formuläret berörts).
-- [ ] **Sökinputens synlighet** — sökan visas bara om >4 varor. Det är rimligt, men den dyker upp utan animation. Lägg till en kort `slide`-transition.
+- [x] **Sökinputens synlighet** — sökan visas bara om >4 varor. Det är rimligt, men den dyker upp utan animation. Lägg till en kort `slide`-transition.
 
 ### Varuhus (`/varuhus`)
 - [x] **"Redigera rutt"-knappen är blå** — aktiv-state är `#3b82f6` (blå) medan resten av appen är orange. Byt till orange/primary.
@@ -92,8 +92,7 @@ Inga Svelte-transitions används alls just nu — allt poppar in och ut.
 
 ## 8. Toast-systemet
 
-- [ ] **Neutral toast saknar stil** — om varken `error` eller `success` skickas finns ingen bakgrundsfärg definierad. Lägg till en neutral/default-stil (t.ex. mörk bakgrund).
-- [ ] **Toast kan hamna under tangentbordet på iOS** — `bottom: 1.5rem` räcker inte alltid. Använd `env(safe-area-inset-bottom)` för att säkerställa att den syns ovanför tangentbordet.
+- [x] **Toast kan hamna under tangentbordet på iOS** — `bottom: 1.5rem` räcker inte alltid. Använd `env(safe-area-inset-bottom)` för att säkerställa att den syns ovanför tangentbordet.
 
 ---
 
@@ -109,4 +108,4 @@ Appen stöder inte dark mode. Alla färger är hårdkodade light-mode-värden. A
 - [ ] **Logga ut-knappen är liten** — litet padding och liten text gör den svår att trycka på mobil. Kan ges lite mer yta.
 - [ ] **Inget loading-skeleton** — vid initial sidladdning visas ingenting tills datan laddats in. Ens en spinner eller skeleton-layout vore bättre än ett plötsligt "hop".
 - [ ] **Kategori-punkt i CategorySection** — 10×10px är liten. En lite större dot (12–14px) eller en smal vänsterborger på hela kategoriraden vore tydligare.
-- [ ] **Varulistan visar inte specifikation tydligt** — `namn – spec` med bindestreck funkar, men spec är alltid lika stor som namnet. Spec i mindre grå text under varumamnet vore mer skanbart.
+- [x] **Varulistan visar inte specifikation tydligt** — `namn – spec` med bindestreck funkar, men spec är alltid lika stor som namnet. Spec i mindre grå text under varumamnet vore mer skanbart.
