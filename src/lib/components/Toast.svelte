@@ -1,10 +1,17 @@
 <script>
     import { notificationContext } from '$lib/context/notification-context.svelte';
+    import { fly, fade } from 'svelte/transition';
 </script>
 
 <div class="toast-container">
     {#each notificationContext.toasts as toast (toast.id)}
-        <div class="toast" class:error={toast.type === 'error'} class:success={toast.type === 'success'}>
+        <div
+            class="toast"
+            class:error={toast.type === 'error'}
+            class:success={toast.type === 'success'}
+            in:fly={{ y: 16, duration: 200 }}
+            out:fade={{ duration: 150 }}
+        >
             <span>{toast.message}</span>
             <button onclick={() => notificationContext.dismiss(toast.id)} aria-label="Stäng">×</button>
         </div>
@@ -14,7 +21,7 @@
 <style>
     .toast-container {
         position: fixed;
-        bottom: 1.5rem;
+        bottom: max(1.5rem, calc(env(safe-area-inset-bottom) + 0.5rem));
         left: 50%;
         transform: translateX(-50%);
         display: flex;

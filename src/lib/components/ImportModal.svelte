@@ -1,6 +1,8 @@
 <script>
     import { templateContext } from '$lib/context/template-context.svelte';
     import { settingContext } from '$lib/context/setting-context.svelte';
+    import { fade } from 'svelte/transition';
+    import { fly } from 'svelte/transition';
 
     /**
      * @type {{
@@ -55,8 +57,8 @@
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-<div class="overlay" onclick={(e) => e.target === e.currentTarget && onClose()}>
-    <div class="modal">
+<div class="overlay" onclick={(e) => e.target === e.currentTarget && onClose()} transition:fade={{ duration: 180 }}>
+    <div class="modal" transition:fly={{ y: 32, duration: 220 }}>
         <div class="modal-header">
             <h2>{previewId ? 'Välj varor' : 'Välj mall'}</h2>
             <button class="btn-close" onclick={onClose}>×</button>

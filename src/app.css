@@ -42,6 +42,20 @@ img, svg {
     max-width: 100%;
 }
 
+/* Keyboard focus ring — only shown for keyboard navigation, not mouse clicks */
+:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+}
+
+/* Inputs have outline: none in component styles; use box-shadow so it can't be overridden by scoped CSS */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--color-primary);
+}
+
 /* Global button utilities */
 .btn-save {
     padding: 0.3rem 0.75rem;
