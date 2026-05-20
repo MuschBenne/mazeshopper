@@ -41,32 +41,38 @@
             <button onclick={addStore}>Lägg till</button>
         </div>
 
-        <ul>
-            {#each storeContext.stores as store, index}
-                <li class="store-item">
-                    <div class="store-header">
-                        <span class="store-name">{store.name}</span>
-                        <div class="store-actions">
-                            <button
-                                class="btn-layout"
-                                class:active={expandedStore === index}
-                                onclick={() => expandedStore = expandedStore === index ? null : index}
-                            >
-                                {expandedStore === index ? 'Stäng' : 'Redigera rutt'}
-                            </button>
-                            <button class="btn-remove" onclick={() => storeContext.removeStore(index)}>Ta bort</button>
+        {#if storeContext.stores.length === 0}
+            <p class="empty-state">
+                Varuhus låter dig ange i vilken ordning hyllorna ligger i din butik — så att varulistan sorteras efter din rutt när du handlar. Lägg till ett varuhus ovan för att komma igång.
+            </p>
+        {:else}
+            <ul>
+                {#each storeContext.stores as store, index}
+                    <li class="store-item">
+                        <div class="store-header">
+                            <span class="store-name">{store.name}</span>
+                            <div class="store-actions">
+                                <button
+                                    class="btn-layout"
+                                    class:active={expandedStore === index}
+                                    onclick={() => expandedStore = expandedStore === index ? null : index}
+                                >
+                                    {expandedStore === index ? 'Stäng' : 'Redigera rutt'}
+                                </button>
+                                <button class="btn-remove" onclick={() => storeContext.removeStore(index)}>Ta bort</button>
+                            </div>
                         </div>
-                    </div>
 
-                    {#if expandedStore === index}
-                        <StoreEditor
-                            {store}
-                            onSave={(/** @type {Parameters<typeof onSave>[1]} */ layout) => onSave(index, layout)}
-                        />
-                    {/if}
-                </li>
-            {/each}
-        </ul>
+                        {#if expandedStore === index}
+                            <StoreEditor
+                                {store}
+                                onSave={(/** @type {Parameters<typeof onSave>[1]} */ layout) => onSave(index, layout)}
+                            />
+                        {/if}
+                    </li>
+                {/each}
+            </ul>
+        {/if}
     </div>
 </div>
 
@@ -165,4 +171,12 @@
     }
 
     .btn-remove:hover { background: #fef2f2; }
+
+    .empty-state {
+        font-size: 0.88em;
+        color: #6b7280;
+        line-height: 1.6;
+        margin: 0;
+        padding: 0.25rem 0;
+    }
 </style>
