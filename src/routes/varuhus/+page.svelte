@@ -100,13 +100,19 @@
     .add-row input { flex: 1; }
 
     .add-row button {
-        padding: 0.4rem 0.9rem;
-        border: 1px solid #d1d5db;
+        padding: 0.4rem 1rem;
+        border: none;
         border-radius: 6px;
-        background: #f9fafb;
+        background: linear-gradient(135deg, #f97316, #c026d3);
+        color: #fff;
+        font-weight: 600;
+        font-size: 0.9em;
         cursor: pointer;
         white-space: nowrap;
+        transition: opacity 0.15s;
     }
+
+    .add-row button:hover { opacity: 0.88; }
 
     ul {
         list-style: none;

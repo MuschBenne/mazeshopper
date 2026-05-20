@@ -293,14 +293,14 @@
     .picker-item:hover { background: #f3f4f6; border-color: #d1d5db; }
 
     .picker-item.is-checked {
-        background: #eff6ff;
-        border-color: #93c5fd;
+        background: #fff7ed;
+        border-color: #fdba74;
     }
 
     .picker-item input[type="checkbox"] {
         width: 14px;
         height: 14px;
-        accent-color: #3b82f6;
+        accent-color: #f97316;
         cursor: pointer;
         flex-shrink: 0;
     }
@@ -339,12 +339,12 @@
     .picker-actions button:disabled { opacity: 0.4; cursor: not-allowed; }
 
     .btn-add-all {
-        border-color: #3b82f6 !important;
-        color: #1d4ed8;
-        background: #eff6ff !important;
+        border-color: #fdba74 !important;
+        color: #c2410c;
+        background: #fff7ed !important;
     }
 
-    .btn-add-all:hover:not(:disabled) { background: #dbeafe !important; }
+    .btn-add-all:hover:not(:disabled) { background: #ffedd5 !important; }
 
     .hint-all-added {
         font-size: 0.83em;
@@ -383,10 +383,10 @@
     }
 
     .route-item.drag-over {
-        background: #eff6ff;
-        border-color: #93c5fd;
+        background: #fff7ed;
+        border-color: #fdba74;
         border-left-color: var(--cat-color, #e2e8f0);
-        box-shadow: 0 0 0 2px #bfdbfe;
+        box-shadow: 0 0 0 2px #fed7aa;
     }
 
     .drag-handle {
@@ -494,17 +494,17 @@
         padding: 0.4rem 1.1rem;
         border: none;
         border-radius: 6px;
-        background: #16a34a;
+        background: linear-gradient(135deg, #f97316, #c026d3);
         color: #fff;
         font-size: 0.9em;
-        font-weight: 500;
+        font-weight: 600;
         cursor: pointer;
         min-width: 7rem;
-        transition: background 0.15s;
+        transition: opacity 0.15s;
     }
 
-    .btn-save:hover:not(:disabled) { background: #15803d; }
+    .btn-save:hover:not(:disabled) { opacity: 0.88; }
     .btn-save:disabled { opacity: 0.4; cursor: not-allowed; }
 
-    .btn-save.saved { background: #15803d; }
+    .btn-save.saved { background: #16a34a; }
 </style>
