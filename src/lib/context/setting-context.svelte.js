@@ -72,6 +72,19 @@ class SettingContext {
         await this.#save();
     }
 
+    /**
+     * @param {number} index
+     * @param {-1|1} direction  -1 = up, 1 = down
+     */
+    async moveCategory(index, direction) {
+        const target = index + direction;
+        if (target < 0 || target >= this.categories.length) return;
+        const tmp = this.categories[index];
+        this.categories[index] = this.categories[target];
+        this.categories[target] = tmp;
+        await this.#save();
+    }
+
     // Replaces the user's categories with the original defaults and saves to the server.
     async resetCategories() {
         this.categories = [...defaultCategories];

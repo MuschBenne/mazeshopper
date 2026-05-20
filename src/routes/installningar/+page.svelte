@@ -76,7 +76,23 @@
                     {:else}
                         <span class="dot" style:background={category.color}></span>
                     {/if}
-                    <span>{category.name}</span>
+                    <span class="category-name">{category.name}</span>
+                    {#if editMode}
+                        <div class="move-buttons">
+                            <button
+                                class="btn-move"
+                                onclick={() => settingContext.moveCategory(index, -1)}
+                                disabled={index === 0}
+                                aria-label="Flytta {category.name} uppåt"
+                            >↑</button>
+                            <button
+                                class="btn-move"
+                                onclick={() => settingContext.moveCategory(index, 1)}
+                                disabled={index === settingContext.categories.length - 1}
+                                aria-label="Flytta {category.name} nedåt"
+                            >↓</button>
+                        </div>
+                    {/if}
                 </li>
             {/each}
         </ul>
@@ -226,6 +242,33 @@
     }
 
     li:last-child { border-bottom: none; }
+
+    .category-name { flex: 1; min-width: 0; }
+
+    .move-buttons {
+        display: flex;
+        gap: 0.25rem;
+        flex-shrink: 0;
+    }
+
+    .btn-move {
+        width: 1.9rem;
+        height: 1.9rem;
+        border-radius: 6px;
+        border: 1px solid #d1d5db;
+        background: #fff;
+        color: #374151;
+        font-size: 0.9em;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        min-height: unset;
+    }
+
+    .btn-move:hover:not(:disabled) { background: #f3f4f6; border-color: #9ca3af; }
+    .btn-move:disabled { opacity: 0.3; cursor: default; }
 
     .dot {
         width: 10px;
