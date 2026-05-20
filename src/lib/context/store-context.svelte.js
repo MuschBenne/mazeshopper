@@ -1,19 +1,19 @@
 import { browser } from '$app/environment';
 
 // Manages the list of grocery stores and which one is currently selected.
-// The selected store index is persisted to localStorage so it survives page reloads.
+// The selected store ID is persisted to localStorage so it survives page reloads.
+// Storing by ID (not array index) prevents the selection from drifting when
+// stores are added or deleted between sessions.
 class StoreContext {
     /** @type {{id: string, name: string, categoryOrder: {[category: string]: number}, positions: {[category: string]: {x: number, y: number}}}[]} */
     stores = $state([]);
 
-    /** @type {number | null} */
-    selectedStoreIndex = $state(null);
+    /** @type {string | null} */
+    #selectedStoreId = $state(null);
 
     constructor() {
-        // Restore the previously selected store on page load.
         if (browser) {
-            const savedIndex = localStorage.getItem('selectedStoreIndex');
-            this.selectedStoreIndex = savedIndex !== null ? JSON.parse(savedIndex) : null;
+            this.#selectedStoreId = localStorage.getItem('selectedStoreId') ?? null;
         }
     }
 
@@ -27,14 +27,21 @@ class StoreContext {
     // Clears all store data on logout so the next user starts with a clean state.
     reset() {
         this.stores = [];
-        this.selectedStoreIndex = null;
-        if (browser) localStorage.removeItem('selectedStoreIndex');
+        this.#selectedStoreId = null;
+        if (browser) localStorage.removeItem('selectedStoreId');
+    }
+
+    // Returns the index of the selected store in the current stores array, or null.
+    get selectedStoreIndex() {
+        if (this.#selectedStoreId === null) return null;
+        const i = this.stores.findIndex(s => s.id === this.#selectedStoreId);
+        return i === -1 ? null : i;
     }
 
     // Returns the currently selected store object, or null if none is selected.
     get selectedStore() {
-        if (this.selectedStoreIndex === null) return null;
-        return this.stores[this.selectedStoreIndex] ?? null;
+        const i = this.selectedStoreIndex;
+        return i === null ? null : this.stores[i];
     }
 
     /** @param {string} name */
@@ -54,14 +61,8 @@ class StoreContext {
         const store = this.stores[index];
         await fetch(`/api/stores/${store.id}`, { method: 'DELETE' });
         this.stores = this.stores.filter((_, i) => i !== index);
-
-        // If the removed store was selected, clear the selection.
-        // If a store after it was selected, shift the index down by one.
-        if (this.selectedStoreIndex === index) {
-            this.selectedStoreIndex = null;
-            this.#saveSelection();
-        } else if (this.selectedStoreIndex !== null && this.selectedStoreIndex > index) {
-            this.selectedStoreIndex--;
+        if (this.#selectedStoreId === store.id) {
+            this.#selectedStoreId = null;
             this.#saveSelection();
         }
     }
@@ -75,7 +76,6 @@ class StoreContext {
      */
     async setStoreLayout(storeIndex, positions, route) {
         const store = this.stores[storeIndex];
-        // Convert the ordered route array into a {category: rank} map for fast lookups.
         /** @type {{[category: string]: number}} */
         const categoryOrder = {};
         route.forEach((name, i) => { categoryOrder[name] = i + 1; });
@@ -87,16 +87,18 @@ class StoreContext {
         this.stores[storeIndex] = { ...store, positions, categoryOrder };
     }
 
-    /** @param {number | null} index */
-    selectStore(index) {
-        this.selectedStoreIndex = index;
+    /** @param {string | null} id */
+    selectStore(id) {
+        this.#selectedStoreId = id;
         this.#saveSelection();
     }
 
-    // Writes the selected index to localStorage so it persists across reloads.
     #saveSelection() {
-        if (browser) {
-            localStorage.setItem('selectedStoreIndex', JSON.stringify(this.selectedStoreIndex));
+        if (!browser) return;
+        if (this.#selectedStoreId === null) {
+            localStorage.removeItem('selectedStoreId');
+        } else {
+            localStorage.setItem('selectedStoreId', this.#selectedStoreId);
         }
     }
 }

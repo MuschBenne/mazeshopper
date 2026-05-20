@@ -197,7 +197,7 @@
                             <button
                                 class="store-chip"
                                 class:selected={storeContext.selectedStoreIndex === i}
-                                onclick={() => storeContext.selectStore(storeContext.selectedStoreIndex === i ? null : i)}
+                                onclick={() => storeContext.selectStore(storeContext.selectedStoreIndex === i ? null : store.id)}
                             >{store.name}</button>
                         {/each}
                     </div>
