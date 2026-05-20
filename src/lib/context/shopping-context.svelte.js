@@ -17,6 +17,8 @@ class ShoppingContext {
     /** @type {Invitation[]} */
     invitations = $state([]);
 
+    loaded = $state(false);
+
     // Keyed by listId — stores up to 3 recent "cleared bought" sessions per list.
     /** @type {{ [listId: string]: BoughtEntry[] }} */
     recentlyBought = $state({});
@@ -48,6 +50,8 @@ class ShoppingContext {
             }
         } catch {
             notificationContext.show('Kunde inte ladda listor. Kontrollera din anslutning.');
+        } finally {
+            this.loaded = true;
         }
     }
 
@@ -78,6 +82,7 @@ class ShoppingContext {
     reset() {
         this.lists = [];
         this.invitations = [];
+        this.loaded = false;
     }
 
     /**

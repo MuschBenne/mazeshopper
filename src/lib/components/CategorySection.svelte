@@ -147,8 +147,8 @@
     .category-header:hover { background: #fafafa; }
 
     .category-dot {
-        width: 10px;
-        height: 10px;
+        width: 13px;
+        height: 13px;
         border-radius: 50%;
         flex-shrink: 0;
         border: 1px solid rgba(0,0,0,0.1);

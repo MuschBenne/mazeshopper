@@ -57,7 +57,7 @@
     <a class="brand" href="/">MazeShopper</a>
     {#if authContext.user}
         <div class="user-area">
-            <span class="username">{authContext.user.username}</span>
+            <a class="username" href="/installningar">{authContext.user.username}</a>
             <button class="btn-logout" onclick={logout}>Logga ut</button>
         </div>
     {:else}
@@ -85,7 +85,13 @@
     </nav>
 {/if}
 
-{@render children()}
+{#if authContext.user && !shoppingContext.loaded}
+    <div class="loading-screen" aria-label="Laddar…">
+        <div class="spinner"></div>
+    </div>
+{:else}
+    {@render children()}
+{/if}
 
 <Toast />
 
@@ -124,20 +130,45 @@
     .username {
         font-size: 0.9em;
         color: #6b7280;
+        text-decoration: none;
+        transition: color 0.15s;
     }
 
+    .username:hover { color: #f97316; }
+
     .btn-logout {
-        padding: 0.3rem 0.75rem;
+        padding: 0.45rem 1rem;
         border: 1px solid #e5e7eb;
         border-radius: 6px;
         background: #fff;
-        font-size: 0.85em;
+        font-size: 0.88em;
         cursor: pointer;
         color: #374151;
         min-height: unset;
+        white-space: nowrap;
     }
 
     .btn-logout:hover { background: #f9fafb; }
+
+    .loading-screen {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 4rem 1rem;
+    }
+
+    .spinner {
+        width: 32px;
+        height: 32px;
+        border: 3px solid #e5e7eb;
+        border-top-color: #f97316;
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
 
     .btn-about {
         padding: 0.3rem 0.75rem;
