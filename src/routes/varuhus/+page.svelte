@@ -97,7 +97,16 @@
         margin-bottom: 1rem;
     }
 
-    .add-row input { flex: 1; }
+    .add-row input {
+        flex: 1;
+        padding: 0.6rem 0.9rem;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        outline: none;
+        transition: border-color 0.15s;
+    }
+
+    .add-row input:focus { border-color: #f97316; }
 
     .add-row button {
         padding: 0.4rem 1rem;
