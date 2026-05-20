@@ -79,14 +79,14 @@ Inga Svelte-transitions används alls just nu — allt poppar in och ut.
 
 ### Varuhus (`/varuhus`)
 - [x] **"Redigera rutt"-knappen är blå** — aktiv-state är `#3b82f6` (blå) medan resten av appen är orange. Byt till orange/primary.
-- [ ] **Tom state** — om inga varuhus finns visas en tom lista utan förklaring. Lägg till en förklaringstext om vad varuhus gör och hur man använder funktionen.
+- [x] **Tom state** — om inga varuhus finns visas en tom lista utan förklaring. Lägg till en förklaringstext om vad varuhus gör och hur man använder funktionen.
 
 ### Mallar (`/mallar`)
 - [ ] **Mallkortet i listvyn** — templatekorten är fullbreddiga listrader, men inköpslistkortet är ett rutnät. Inkonsekvent. Överväg att göra mallarna till ett likadant grid.
 - [ ] **Editor-header trång på mobil** — "← Mallar" + mallnamn + "Byt namn" + "Ta bort mall" på en rad är för mycket på smal skärm. "Ta bort mall" kan flytta ner eller ligga i en expanderbar meny.
 
 ### Inställningar (`/installningar`)
-- [ ] **Kategori-ordning** — man kan lägga till och ta bort kategorier men inte sortera om dem. Drag-and-drop (eller upp/ned-knappar) vore naturligt här, speciellt eftersom ordningen i varuhusruttens editor beror på kategorierna.
+- [x] **Kategori-ordning** — man kan lägga till och ta bort kategorier men inte sortera om dem. Drag-and-drop (eller upp/ned-knappar) vore naturligt här, speciellt eftersom ordningen i varuhusruttens editor beror på kategorierna.
 
 ---
 
@@ -104,8 +104,8 @@ Appen stöder inte dark mode. Alla färger är hårdkodade light-mode-värden. A
 
 ## 10. Smärre polish
 
-- [ ] **Username i headern är inte klickbar** — det vore naturligt att klicka på sitt eget användarnamn och komma till inställningar.
-- [ ] **Logga ut-knappen är liten** — litet padding och liten text gör den svår att trycka på mobil. Kan ges lite mer yta.
-- [ ] **Inget loading-skeleton** — vid initial sidladdning visas ingenting tills datan laddats in. Ens en spinner eller skeleton-layout vore bättre än ett plötsligt "hop".
-- [ ] **Kategori-punkt i CategorySection** — 10×10px är liten. En lite större dot (12–14px) eller en smal vänsterborger på hela kategoriraden vore tydligare.
+- [x] **Username i headern är inte klickbar** — det vore naturligt att klicka på sitt eget användarnamn och komma till inställningar.
+- [x] **Logga ut-knappen är liten** — litet padding och liten text gör den svår att trycka på mobil. Kan ges lite mer yta.
+- [x] **Inget loading-skeleton** — vid initial sidladdning visas ingenting tills datan laddats in. Ens en spinner eller skeleton-layout vore bättre än ett plötsligt "hop".
+- [x] **Kategori-punkt i CategorySection** — 10×10px är liten. En lite större dot (12–14px) eller en smal vänsterborger på hela kategoriraden vore tydligare.
 - [x] **Varulistan visar inte specifikation tydligt** — `namn – spec` med bindestreck funkar, men spec är alltid lika stor som namnet. Spec i mindre grå text under varumamnet vore mer skanbart.
