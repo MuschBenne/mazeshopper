@@ -254,7 +254,7 @@
                     placeholder="Specifikation (valfritt)"
                     onkeydown={(e) => e.key === 'Enter' && addItem()}
                 />
-                <div class="category-picker" class:picker-error={categoryError}>
+                <div class="category-picker" class:picker-error={categoryError} class:picker-hint={newItem.trim().length > 0 && !selectedCategory && !categoryError}>
                     {#each settingContext.categories as category}
                         <button
                             class="category-chip"
@@ -599,9 +599,14 @@
 
     .category-picker {
         display: flex;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
         gap: 0.4rem;
+        overflow-x: auto;
+        padding: 3px 2px;
+        scrollbar-width: none;
     }
+
+    .category-picker::-webkit-scrollbar { display: none; }
 
     .category-chip {
         padding: 0.3rem 0.7rem;
@@ -625,6 +630,7 @@
     }
 
     .picker-error { outline: 1.5px solid #dc2626; border-radius: 6px; padding: 0.25rem; }
+    .picker-hint { outline: 1.5px solid #f97316; border-radius: 6px; padding: 0.25rem; }
 
     .field-error {
         margin: 0;
@@ -703,6 +709,7 @@
     .items-card {
         padding: 0;
         overflow: hidden;
+        border-radius: 12px;
     }
 
     .empty-list, .empty-search {
@@ -768,6 +775,17 @@
     .history-items {
         color: #374151;
         line-height: 1.5;
+    }
+
+    @media (max-width: 500px) {
+        .list-header {
+            flex-wrap: wrap;
+            gap: 0.4rem;
+        }
+        .header-actions {
+            width: 100%;
+            justify-content: flex-end;
+        }
     }
 
     /* Shopping mode overrides */
