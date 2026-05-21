@@ -554,6 +554,7 @@
     .btn-edit-item, .btn-remove-item {
         border: 1px solid var(--border);
         background: var(--bg-surface);
+        color: var(--text-secondary);
         border-radius: 6px;
         padding: 0.2rem 0.6rem;
         cursor: pointer;
@@ -562,7 +563,8 @@
     }
 
     .btn-edit-item:hover { background: var(--bg-elevated); }
-    .btn-remove-item:hover { background: var(--danger-bg); border-color: var(--danger-border); }
+    .btn-remove-item { color: var(--danger-text); border-color: var(--danger-border); }
+    .btn-remove-item:hover { background: var(--danger-bg); }
 
     /* Inline edit form */
     .edit-form {

@@ -421,6 +421,7 @@
         font-size: 0.85rem;
         font-weight: 600;
         background: none;
+        color: var(--text-secondary);
         border: 1.5px solid var(--border);
         border-radius: 8px;
         padding: 0.28rem 0.75rem;
