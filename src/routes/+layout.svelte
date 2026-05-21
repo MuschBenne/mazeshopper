@@ -76,13 +76,15 @@
 {/if}
 
 {#if authContext.user}
-    <nav>
-        <a href="/inkopslista" class:active={path.startsWith('/inkopslista')}>Inköpslista</a>
-        <a href="/mallar" class:active={path.startsWith('/mallar')}>Mallar</a>
-        <a href="/varuhus" class:active={path.startsWith('/varuhus')}>Varuhus</a>
-        <a href="/installningar" class:active={path.startsWith('/installningar')}>Inställningar</a>
-        <a href="/om" class:active={path === '/om'}>Om</a>
-    </nav>
+    <div class="nav-wrapper">
+        <nav>
+            <a href="/inkopslista" class:active={path.startsWith('/inkopslista')}>Inköpslista</a>
+            <a href="/mallar" class:active={path.startsWith('/mallar')}>Mallar</a>
+            <a href="/varuhus" class:active={path.startsWith('/varuhus')}>Varuhus</a>
+            <a href="/installningar" class:active={path.startsWith('/installningar')}>Inställningar</a>
+            <a href="/om" class:active={path === '/om'}>Om</a>
+        </nav>
+    </div>
 {/if}
 
 {#if authContext.user && !shoppingContext.loaded}
@@ -205,6 +207,23 @@
     }
 
     .verify-link:hover { color: #431407; }
+
+    .nav-wrapper {
+        position: relative;
+    }
+
+    @media (max-width: 600px) {
+        .nav-wrapper::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 1px;
+            width: 2.5rem;
+            background: linear-gradient(to right, transparent, #fff);
+            pointer-events: none;
+        }
+    }
 
     nav {
         display: flex;
