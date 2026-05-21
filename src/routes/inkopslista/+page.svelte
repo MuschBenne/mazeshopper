@@ -34,6 +34,16 @@
 
 <div class="page">
 <h1>Inköpslistor</h1>
+<p class="subtitle">Skapa och dela inköpslistor med familj eller vänner.</p>
+
+<div class="new-list-card">
+    <input
+        bind:value={newListName}
+        placeholder="Namn på ny lista"
+        onkeydown={(e) => e.key === 'Enter' && createList()}
+    />
+    <button onclick={createList}>+ Skapa lista</button>
+</div>
 
 {#if pendingInvitations.length > 0}
     <div class="invitations-section">
@@ -54,34 +64,22 @@
 {/if}
 
 {#if myLists.length === 0}
-    <div class="empty-state">
-        <p class="empty-title">Inga listor än</p>
-        <p class="empty-hint">Skapa din första inköpslista nedan.</p>
+    <p class="empty-hint">Inga listor än — skapa din första ovan.</p>
+{:else}
+    <div class="lists-grid">
+        {#each myLists as list}
+            <a class="list-card" href="/inkopslista/{list.id}">
+                <span class="list-name">{list.name}</span>
+                <span class="list-count">{list.items.length} varor</span>
+                {#if list.owner !== username}
+                    <span class="shared-badge">Delad av {list.owner}</span>
+                {:else if list.sharedWith.length > 0}
+                    <span class="shared-badge">Delad med {list.sharedWith.length} st</span>
+                {/if}
+            </a>
+        {/each}
     </div>
 {/if}
-
-<div class="lists-grid">
-    {#each myLists as list}
-        <a class="list-card" href="/inkopslista/{list.id}">
-            <span class="list-name">{list.name}</span>
-            <span class="list-count">{list.items.length} varor</span>
-            {#if list.owner !== username}
-                <span class="shared-badge">Delad av {list.owner}</span>
-            {:else if list.sharedWith.length > 0}
-                <span class="shared-badge">Delad med {list.sharedWith.length} st</span>
-            {/if}
-        </a>
-    {/each}
-
-    <div class="list-card new-card">
-        <input
-            bind:value={newListName}
-            placeholder="Namn på ny lista"
-            onkeydown={(e) => e.key === 'Enter' && createList()}
-        />
-        <button onclick={createList}>Skapa</button>
-    </div>
-</div>
 </div>
 
 <style>
@@ -89,13 +87,23 @@
         max-width: 680px;
         margin: 0 auto;
         padding: 1.5rem 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    h1 { margin: 0; font-size: 1.5rem; }
+
+    .subtitle {
+        margin: 0;
+        color: #6b7280;
+        font-size: 0.9em;
     }
 
     .lists-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
         gap: 1rem;
-        margin-top: 1.5rem;
     }
 
     .list-card {
@@ -140,35 +148,43 @@
         text-align: center;
     }
 
-    .new-card {
-        border-style: dashed;
-        gap: 0.6rem;
+    .new-list-card {
+        display: flex;
+        gap: 0.5rem;
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 1rem;
     }
 
-    .new-card input {
-        width: 100%;
-        text-align: center;
+    .new-list-card input {
+        flex: 1;
+        padding: 0.55rem 0.8rem;
         border: 1px solid #d1d5db;
-        border-radius: 6px;
-        padding: 0.3rem 0.5rem;
+        border-radius: 8px;
         font-size: 0.95em;
+        outline: none;
+        transition: border-color 0.15s;
     }
 
-    .new-card button {
-        padding: 0.3rem 1rem;
-        border-radius: 6px;
-        border: 1px solid #d1d5db;
-        background: #f9fafb;
-        cursor: pointer;
+    .new-list-card input:focus { border-color: #f97316; }
+
+    .new-list-card button {
+        padding: 0.55rem 1rem;
+        background: linear-gradient(135deg, #f97316, #c026d3);
+        color: #fff;
+        border: none;
+        border-radius: 8px;
         font-size: 0.9em;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: opacity 0.15s;
     }
 
-    .new-card button:hover {
-        background: #f3f4f6;
-    }
+    .new-list-card button:hover { opacity: 0.9; }
 
     .invitations-section {
-        margin-bottom: 1rem;
         display: flex;
         flex-direction: column;
         gap: 0.5rem;
