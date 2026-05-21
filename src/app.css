@@ -66,7 +66,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-    :root {
+    :root:not(.theme-light) {
         --shadow-card:  0 1px 4px rgba(0,0,0,0.25);
         --shadow-modal: 0 4px 24px rgba(0,0,0,0.5);
 
@@ -109,6 +109,50 @@
         --verify-bg:     #1c1000;
         --verify-border: #78350f;
     }
+}
+
+html.theme-dark {
+    --shadow-card:  0 1px 4px rgba(0,0,0,0.25);
+    --shadow-modal: 0 4px 24px rgba(0,0,0,0.5);
+
+    --bg-page:     #0f172a;
+    --bg-surface:  #1e293b;
+    --bg-elevated: #2d3748;
+    --bg-hover:    #334155;
+
+    --text-primary:   #f1f5f9;
+    --text-secondary: #cbd5e1;
+    --text-muted:     #94a3b8;
+    --text-faint:     #64748b;
+
+    --border:        #334155;
+    --border-input:  #475569;
+    --border-subtle: #1e293b;
+    --border-faint:  #0f172a;
+
+    --danger-text:       #f87171;
+    --danger-text-hover: #ef4444;
+    --danger-bg:         #1c0606;
+    --danger-border:     #7f1d1d;
+
+    --success-text:       #4ade80;
+    --success-text-hover: #22c55e;
+    --success-bg:         #052e16;
+    --success-border:     #166534;
+
+    --warning-text:   #fbbf24;
+    --warning-bg:     #1c0a00;
+    --warning-border: #78350f;
+
+    --violet-text:       #a78bfa;
+    --violet-text-hover: #c4b5fd;
+    --violet-bg:         #1e1035;
+    --violet-border:     #4c1d95;
+    --violet-light:      #2e1065;
+
+    --verify-text:   #fde68a;
+    --verify-bg:     #1c1000;
+    --verify-border: #78350f;
 }
 
 *, *::before, *::after {

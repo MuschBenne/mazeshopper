@@ -7,11 +7,14 @@
     import { settingContext } from '$lib/context/setting-context.svelte';
     import { templateContext } from '$lib/context/template-context.svelte';
     import Toast from '$lib/components/Toast.svelte';
+    import { themeContext } from '$lib/context/theme-context.svelte';
     import { goto } from '$app/navigation';
     import { page } from '$app/state';
     import "../app.css";
 
     let { data, children } = $props();
+
+    $effect(() => { themeContext.init(); });
 
     // Sync the server-side session user into the client-side auth context on every navigation.
     $effect(() => {

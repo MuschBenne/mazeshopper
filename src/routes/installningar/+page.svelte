@@ -4,6 +4,7 @@
     // Settings page — lets the user manage their personal categories and email address.
     import { settingContext } from "$lib/context/setting-context.svelte";
     import { authContext } from "$lib/context/auth-context.svelte";
+    import { themeContext } from "$lib/context/theme-context.svelte";
     import { goto } from '$app/navigation';
 
     let newCategory = $state('');
@@ -152,6 +153,20 @@
         <a class="btn-export" href="/api/user/export" download>Exportera min data</a>
     </div>
 
+    <div class="card">
+        <h2>Tema</h2>
+        <p class="theme-desc">Välj om appen ska följa enhetens inställning eller alltid visas i ljust eller mörkt läge.</p>
+        <div class="theme-toggle" role="group" aria-label="Välj tema">
+            {#each [['system', 'System'], ['light', 'Ljust'], ['dark', 'Mörkt']] as [val, label]}
+                <button
+                    class="theme-btn"
+                    class:active={themeContext.theme === val}
+                    onclick={() => themeContext.set(/** @type {'system'|'light'|'dark'} */ (val))}
+                >{label}</button>
+            {/each}
+        </div>
+    </div>
+
     <div class="card danger-card">
         <h2>Fara-zon</h2>
         <p class="danger-desc">
@@ -228,6 +243,7 @@
         border-radius: 6px;
         border: 1px solid var(--border-input);
         background: var(--bg-surface);
+        color: var(--text-secondary);
         cursor: pointer;
         font-size: 0.9em;
         white-space: nowrap;
@@ -506,4 +522,45 @@
     }
 
     .privacy-link-note a:hover { color: var(--text-muted); }
+
+    .theme-desc {
+        margin: 0 0 0.85rem;
+        font-size: 0.88em;
+        color: var(--text-muted);
+        line-height: 1.5;
+    }
+
+    .theme-toggle {
+        display: flex;
+        border: 1px solid var(--border-input);
+        border-radius: 8px;
+        overflow: hidden;
+        width: fit-content;
+    }
+
+    .theme-btn {
+        padding: 0.45rem 1.1rem;
+        border: none;
+        border-right: 1px solid var(--border-input);
+        background: var(--bg-surface);
+        color: var(--text-muted);
+        font-size: 0.9em;
+        font-weight: 500;
+        cursor: pointer;
+        min-height: unset;
+        transition: background 0.12s, color 0.12s;
+    }
+
+    .theme-btn:last-child { border-right: none; }
+
+    .theme-btn:hover:not(.active) {
+        background: var(--bg-elevated);
+        color: var(--text-secondary);
+    }
+
+    .theme-btn.active {
+        background: var(--color-primary);
+        color: #fff;
+        font-weight: 600;
+    }
 </style>
