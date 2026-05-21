@@ -50,6 +50,7 @@
 
 <div class="page">
     <h1>Inställningar</h1>
+    <p class="subtitle">Hantera kategorier, e-postadress och ditt konto.</p>
 
     <div class="card">
         <div class="section-header">
@@ -188,6 +189,17 @@
         max-width: 680px;
         margin: 0 auto;
         padding: 1.5rem 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    h1 { margin: 0; font-size: 1.5rem; }
+
+    .subtitle {
+        margin: 0;
+        color: #6b7280;
+        font-size: 0.9em;
     }
 
     .card {
