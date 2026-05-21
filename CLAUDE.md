@@ -4,6 +4,20 @@
 
 MazeShopper är en delad inköpslistapp byggd med SvelteKit + MongoDB. Användare kan skapa listor, dela dem med andra, sätta upp varuhusrutter (drag-and-drop kategoriordning) och handla i ett renodlat "handelsläge". Deployment via Vercel.
 
+## Git-konventioner
+
+Commits ska följa konventionella prefix och skrivas utan Co-Authored-By:
+
+```
+fix: åtgärda kategori-picker-klippning på mobil
+add: subtitle på inställningssidan
+update: varuhus till grid-layout
+refactor: flytta skapa-lista-kort ovanför grid
+style: konsekvent h1-storlek på alla sidor
+```
+
+Tillåtna prefix: `fix`, `add`, `update`, `refactor`, `style`, `remove`, `docs`
+
 ## Kommandon
 
 ```bash

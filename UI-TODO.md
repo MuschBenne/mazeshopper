@@ -59,9 +59,9 @@ Inga Svelte-transitions används alls just nu — allt poppar in och ut.
 
 ## 6. Mobil & responsivitet
 
-- [ ] **Lista-header på smal mobil** — "← Listor" + listnamn + "Dela" + "Ta bort" + shopping-knapp på en rad klämmer ihop sig på 320px-skärmar. Dela upp eller göm sekundära knappar bakom en meny.
-- [ ] **Kategori-chips i add-formuläret** — om man har många kategorier radbryts de, kan bli jättelångt. Överväg en scroll-container med `overflow-x: auto` och `flex-wrap: nowrap` om antalet är stort.
-- [ ] **Nav fade-hint** — nav-raden kan scrollas horisontellt på mobil, men det finns inget visuellt hint om att det finns fler tabs utanför synfältet. Lägg till ett `fade`-gradient i kanten.
+- [x] **Lista-header på smal mobil** — "← Listor" + listnamn + "Dela" + "Ta bort" + shopping-knapp på en rad klämmer ihop sig på 320px-skärmar. Dela upp eller göm sekundära knappar bakom en meny.
+- [x] **Kategori-chips i add-formuläret** — om man har många kategorier radbryts de, kan bli jättelångt. Överväg en scroll-container med `overflow-x: auto` och `flex-wrap: nowrap` om antalet är stort.
+- [x] **Nav fade-hint** — nav-raden kan scrollas horisontellt på mobil, men det finns inget visuellt hint om att det finns fler tabs utanför synfältet. Lägg till ett `fade`-gradient i kanten.
 
 ---
 
@@ -69,12 +69,12 @@ Inga Svelte-transitions används alls just nu — allt poppar in och ut.
 
 ### Inköpslista-översikten (`/inkopslista`)
 - [x] **Tom state** — om användaren har noll listor visas bara ett tomt rutnät. En uppmuntrande tom-state-text ("Skapa din första lista!") vore trevligare.
-- [ ] **"Skapa lista"-kortet** — kortet med dashed-border blandas med riktiga listor i gridet. Det kan vara förvirrande. Kanske ett separat "+ Skapa ny lista"-element utanför gridet, eller tydligare visuell separation.
+- [x] **"Skapa lista"-kortet** — kortet med dashed-border blandas med riktiga listor i gridet. Det kan vara förvirrande. Kanske ett separat "+ Skapa ny lista"-element utanför gridet, eller tydligare visuell separation.
 - [ ] **Lista-kort saknar oläst-indikator** — om en delad lista uppdaterats sedan senaste besök finns det ingen indikation. (Kräver backend-stöd, lyfter som framtida UX-fråga.)
 
 ### Inköpslistan (`/inkopslista/[id]`)
 - [x] **Fokus efter "Lägg till vara"** — efter att en vara lagts till borde fokus återgå till "Vara"-inputfältet automatiskt.
-- [ ] **Kategori-picker-tydlighet** — om ingen kategori är vald och man trycker "Lägg till vara" kommer ett `alert()`. Bättre: markera kategori-pickern visuellt som obligatorisk direkt (t.ex. `border: 1.5px solid #f97316` om inget är valt och formuläret berörts).
+- [x] **Kategori-picker-tydlighet** — om ingen kategori är vald och man trycker "Lägg till vara" kommer ett `alert()`. Bättre: markera kategori-pickern visuellt som obligatorisk direkt (t.ex. `border: 1.5px solid #f97316` om inget är valt och formuläret berörts).
 - [x] **Sökinputens synlighet** — sökan visas bara om >4 varor. Det är rimligt, men den dyker upp utan animation. Lägg till en kort `slide`-transition.
 
 ### Varuhus (`/varuhus`)
@@ -82,8 +82,8 @@ Inga Svelte-transitions används alls just nu — allt poppar in och ut.
 - [x] **Tom state** — om inga varuhus finns visas en tom lista utan förklaring. Lägg till en förklaringstext om vad varuhus gör och hur man använder funktionen.
 
 ### Mallar (`/mallar`)
-- [ ] **Mallkortet i listvyn** — templatekorten är fullbreddiga listrader, men inköpslistkortet är ett rutnät. Inkonsekvent. Överväg att göra mallarna till ett likadant grid.
-- [ ] **Editor-header trång på mobil** — "← Mallar" + mallnamn + "Byt namn" + "Ta bort mall" på en rad är för mycket på smal skärm. "Ta bort mall" kan flytta ner eller ligga i en expanderbar meny.
+- [x] **Mallkortet i listvyn** — templatekorten är fullbreddiga listrader, men inköpslistkortet är ett rutnät. Inkonsekvent. Överväg att göra mallarna till ett likadant grid.
+- [x] **Editor-header trång på mobil** — "← Mallar" + mallnamn + "Byt namn" + "Ta bort mall" på en rad är för mycket på smal skärm. "Ta bort mall" kan flytta ner eller ligga i en expanderbar meny.
 
 ### Inställningar (`/installningar`)
 - [x] **Kategori-ordning** — man kan lägga till och ta bort kategorier men inte sortera om dem. Drag-and-drop (eller upp/ned-knappar) vore naturligt här, speciellt eftersom ordningen i varuhusruttens editor beror på kategorierna.
