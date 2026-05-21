@@ -7,11 +7,14 @@
     import { settingContext } from '$lib/context/setting-context.svelte';
     import { templateContext } from '$lib/context/template-context.svelte';
     import Toast from '$lib/components/Toast.svelte';
+    import { themeContext } from '$lib/context/theme-context.svelte';
     import { goto } from '$app/navigation';
     import { page } from '$app/state';
     import "../app.css";
 
     let { data, children } = $props();
+
+    $effect(() => { themeContext.init(); });
 
     // Sync the server-side session user into the client-side auth context on every navigation.
     $effect(() => {
@@ -76,13 +79,15 @@
 {/if}
 
 {#if authContext.user}
-    <nav>
-        <a href="/inkopslista" class:active={path.startsWith('/inkopslista')}>Inköpslista</a>
-        <a href="/mallar" class:active={path.startsWith('/mallar')}>Mallar</a>
-        <a href="/varuhus" class:active={path.startsWith('/varuhus')}>Varuhus</a>
-        <a href="/installningar" class:active={path.startsWith('/installningar')}>Inställningar</a>
-        <a href="/om" class:active={path === '/om'}>Om</a>
-    </nav>
+    <div class="nav-wrapper">
+        <nav>
+            <a href="/inkopslista" class:active={path.startsWith('/inkopslista')}>Inköpslista</a>
+            <a href="/mallar" class:active={path.startsWith('/mallar')}>Mallar</a>
+            <a href="/varuhus" class:active={path.startsWith('/varuhus')}>Varuhus</a>
+            <a href="/installningar" class:active={path.startsWith('/installningar')}>Inställningar</a>
+            <a href="/om" class:active={path === '/om'}>Om</a>
+        </nav>
+    </div>
 {/if}
 
 {#if authContext.user && !shoppingContext.loaded}
@@ -100,8 +105,8 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        background: #fff;
-        border-bottom: 1px solid #e5e7eb;
+        background: var(--bg-surface);
+        border-bottom: 1px solid var(--border);
         padding: 0 1.25rem;
         height: 56px;
         box-shadow: 0 1px 4px rgba(0,0,0,0.06);
@@ -129,7 +134,7 @@
 
     .username {
         font-size: 0.9em;
-        color: #6b7280;
+        color: var(--text-muted);
         text-decoration: none;
         transition: color 0.15s;
     }
@@ -138,17 +143,17 @@
 
     .btn-logout {
         padding: 0.45rem 1rem;
-        border: 1px solid #e5e7eb;
+        border: 1px solid var(--border);
         border-radius: 6px;
-        background: #fff;
+        background: var(--bg-surface);
         font-size: 0.88em;
         cursor: pointer;
-        color: #374151;
+        color: var(--text-secondary);
         min-height: unset;
         white-space: nowrap;
     }
 
-    .btn-logout:hover { background: #f9fafb; }
+    .btn-logout:hover { background: var(--bg-elevated); }
 
     .loading-screen {
         display: flex;
@@ -160,7 +165,7 @@
     .spinner {
         width: 32px;
         height: 32px;
-        border: 3px solid #e5e7eb;
+        border: 3px solid var(--border);
         border-top-color: #f97316;
         border-radius: 50%;
         animation: spin 0.7s linear infinite;
@@ -172,23 +177,23 @@
 
     .btn-about {
         padding: 0.3rem 0.75rem;
-        border: 1px solid #e5e7eb;
+        border: 1px solid var(--border);
         border-radius: 6px;
-        background: #fff;
+        background: var(--bg-surface);
         font-size: 0.85em;
-        color: #374151;
+        color: var(--text-secondary);
         text-decoration: none;
         transition: background 0.15s;
     }
 
-    .btn-about:hover { background: #f9fafb; }
+    .btn-about:hover { background: var(--bg-elevated); }
 
     .verify-banner {
-        background: #fefce8;
-        border-bottom: 1px solid #fde047;
+        background: var(--verify-bg);
+        border-bottom: 1px solid var(--verify-border);
         padding: 0.55rem 1.25rem;
         font-size: 0.85em;
-        color: #713f12;
+        color: var(--verify-text);
         text-align: center;
     }
 
@@ -196,7 +201,7 @@
         background: none;
         border: none;
         padding: 0;
-        color: #713f12;
+        color: var(--verify-text);
         font-weight: 600;
         text-decoration: underline;
         cursor: pointer;
@@ -204,13 +209,30 @@
         min-height: unset;
     }
 
-    .verify-link:hover { color: #431407; }
+    .verify-link:hover { opacity: 0.75; }
+
+    .nav-wrapper {
+        position: relative;
+    }
+
+    @media (max-width: 600px) {
+        .nav-wrapper::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 1px;
+            width: 2.5rem;
+            background: linear-gradient(to right, transparent, var(--bg-surface));
+            pointer-events: none;
+        }
+    }
 
     nav {
         display: flex;
         gap: 0;
-        background: #fff;
-        border-bottom: 1px solid #e5e7eb;
+        background: var(--bg-surface);
+        border-bottom: 1px solid var(--border);
         padding: 0 1rem;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
@@ -222,7 +244,7 @@
     nav a {
         display: inline-block;
         padding: 0.7rem 1rem;
-        color: #6b7280;
+        color: var(--text-muted);
         text-decoration: none;
         font-size: 0.9em;
         font-weight: 500;
@@ -232,8 +254,8 @@
     }
 
     nav a:hover {
-        color: #111827;
-        border-bottom-color: #e5e7eb;
+        color: var(--text-primary);
+        border-bottom-color: var(--border);
     }
 
     nav a.active {

@@ -280,15 +280,15 @@
 
     .subtitle {
         margin: 0;
-        color: #6b7280;
+        color: var(--text-muted);
         font-size: 0.9em;
     }
 
     .card {
-        background: #fff;
-        border: 1px solid #e5e7eb;
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
         border-radius: 12px;
-        box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+        box-shadow: var(--shadow-card);
         padding: 1.25rem;
     }
 
@@ -303,11 +303,13 @@
     .create-row input {
         flex: 1;
         padding: 0.55rem 0.8rem;
-        border: 1px solid #d1d5db;
+        border: 1px solid var(--border-input);
         border-radius: 8px;
         font-size: 0.95em;
         outline: none;
         transition: border-color 0.15s;
+        background: var(--bg-surface);
+        color: var(--text-primary);
     }
 
     .create-row input:focus { border-color: #f97316; }
@@ -329,43 +331,43 @@
     .btn-create:disabled { opacity: 0.5; cursor: not-allowed; }
 
     .template-list {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 1rem;
+        margin-top: 0.5rem;
     }
 
     .template-card {
         display: flex;
+        flex-direction: column;
         align-items: center;
-        justify-content: space-between;
-        background: #fff;
-        border: 1px solid #e5e7eb;
-        border-radius: 10px;
-        padding: 1rem 1.25rem;
+        justify-content: center;
+        gap: 0.4rem;
+        min-height: 100px;
+        background: var(--bg-surface);
+        border: 2px solid var(--border);
+        border-radius: 12px;
+        padding: 1rem;
         cursor: pointer;
-        text-align: left;
-        transition: background 0.15s, box-shadow 0.15s;
-        min-height: unset;
+        text-align: center;
+        transition: border-color 0.15s, box-shadow 0.15s;
         font-size: 1rem;
     }
 
-    .template-card:hover { background: #fafafa; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+    .template-card:hover { border-color: var(--text-faint); box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
 
-    .template-name { font-weight: 600; color: #111827; }
+    .template-name { font-weight: 600; color: var(--text-primary); font-size: 1.05em; }
 
     .template-count {
-        font-size: 0.82em;
-        color: #9ca3af;
-        background: #f3f4f6;
-        padding: 0.2rem 0.6rem;
-        border-radius: 999px;
+        font-size: 0.8em;
+        color: var(--text-faint);
     }
 
     .empty-card { padding: 2rem 1.25rem; }
 
     .empty {
         text-align: center;
-        color: #9ca3af;
+        color: var(--text-faint);
         font-size: 0.9em;
         margin: 0;
     }
@@ -381,7 +383,7 @@
     .back {
         background: none;
         border: none;
-        color: #6b7280;
+        color: var(--text-muted);
         font-size: 0.95em;
         cursor: pointer;
         padding: 0;
@@ -390,7 +392,7 @@
         text-decoration: none;
     }
 
-    .back:hover { color: #111; }
+    .back:hover { color: var(--text-primary); }
 
     .editor-title {
         display: flex;
@@ -410,34 +412,36 @@
     .rename-input {
         flex: 1;
         padding: 0.4rem 0.7rem;
-        border: 1px solid #d1d5db;
+        border: 1px solid var(--border-input);
         border-radius: 8px;
         font-size: 1.1em;
         font-weight: 700;
         outline: none;
         transition: border-color 0.15s;
+        background: var(--bg-surface);
+        color: var(--text-primary);
     }
 
     .rename-input:focus { border-color: #f97316; }
 
     .btn-rename {
         background: none;
-        border: 1px solid #e5e7eb;
+        border: 1px solid var(--border);
         border-radius: 6px;
         cursor: pointer;
         font-size: 0.8em;
         padding: 0.2rem 0.5rem;
         min-height: unset;
-        color: #6b7280;
+        color: var(--text-muted);
     }
 
-    .btn-rename:hover { background: #f3f4f6; color: #374151; }
+    .btn-rename:hover { background: var(--bg-elevated); color: var(--text-secondary); }
 
     .btn-delete-template {
         font-size: 0.8em;
-        color: #dc2626;
+        color: var(--danger-text);
         background: none;
-        border: 1px solid #fca5a5;
+        border: 1px solid var(--danger-border);
         border-radius: 6px;
         padding: 0.25rem 0.6rem;
         cursor: pointer;
@@ -446,7 +450,7 @@
         min-height: unset;
     }
 
-    .btn-delete-template:hover { background: #fef2f2; }
+    .btn-delete-template:hover { background: var(--danger-bg); }
 
     .confirm-delete {
         display: flex;
@@ -454,12 +458,21 @@
         gap: 0.4rem;
         margin-left: auto;
         font-size: 0.82em;
-        color: #dc2626;
+        color: var(--danger-text);
+    }
+
+    @media (max-width: 480px) {
+        .btn-delete-template, .confirm-delete {
+            margin-left: 0;
+            flex-basis: 100%;
+            justify-content: flex-end;
+        }
+        .btn-delete-template { align-self: flex-end; }
     }
 
     .btn-confirm-delete {
         padding: 0.25rem 0.6rem;
-        background: #dc2626;
+        background: var(--danger-text);
         color: #fff;
         border: none;
         border-radius: 6px;
@@ -469,7 +482,7 @@
         min-height: unset;
     }
 
-    .btn-confirm-delete:hover { background: #b91c1c; }
+    .btn-confirm-delete:hover { background: var(--danger-text-hover); }
 
     /* Items card */
     .items-card { padding: 0; overflow: hidden; }
@@ -486,7 +499,7 @@
         justify-content: space-between;
         gap: 0.5rem;
         padding: 0.7rem 1.25rem;
-        border-bottom: 1px solid #f9fafb;
+        border-bottom: 1px solid var(--border-faint);
         font-size: 0.95em;
         flex-wrap: wrap;
     }
@@ -502,7 +515,7 @@
     }
 
     .item-name {
-        color: #111827;
+        color: var(--text-primary);
         word-break: break-word;
         font-weight: 500;
     }
@@ -516,8 +529,8 @@
 
     .item-qty {
         font-size: 0.8em;
-        color: #6b7280;
-        background: #f3f4f6;
+        color: var(--text-muted);
+        background: var(--bg-elevated);
         padding: 0.1rem 0.4rem;
         border-radius: 4px;
     }
@@ -529,7 +542,7 @@
         background: var(--chip-color, #e2e8f0);
         color: #374151;
         font-weight: 500;
-        border: 1px solid color-mix(in srgb, var(--chip-color, #e2e8f0) 60%, #9ca3af);
+        border: 1px solid color-mix(in srgb, var(--chip-color, #e2e8f0) 60%, var(--text-faint));
     }
 
     .item-actions {
@@ -539,8 +552,9 @@
     }
 
     .btn-edit-item, .btn-remove-item {
-        border: 1px solid #e5e7eb;
-        background: #fff;
+        border: 1px solid var(--border);
+        background: var(--bg-surface);
+        color: var(--text-secondary);
         border-radius: 6px;
         padding: 0.2rem 0.6rem;
         cursor: pointer;
@@ -548,8 +562,9 @@
         min-height: unset;
     }
 
-    .btn-edit-item:hover { background: #f3f4f6; }
-    .btn-remove-item:hover { background: #fef2f2; border-color: #fca5a5; }
+    .btn-edit-item:hover { background: var(--bg-elevated); }
+    .btn-remove-item { color: var(--danger-text); border-color: var(--danger-border); }
+    .btn-remove-item:hover { background: var(--danger-bg); }
 
     /* Inline edit form */
     .edit-form {
@@ -562,11 +577,13 @@
 
     .edit-input {
         padding: 0.4rem 0.6rem;
-        border: 1px solid #d1d5db;
+        border: 1px solid var(--border-input);
         border-radius: 6px;
         font-size: 0.9em;
         outline: none;
         transition: border-color 0.15s;
+        background: var(--bg-surface);
+        color: var(--text-primary);
     }
 
     .edit-input:focus { border-color: #f97316; }
@@ -587,18 +604,20 @@
         margin: 0;
         font-size: 0.85em;
         font-weight: 600;
-        color: #6b7280;
+        color: var(--text-muted);
         text-transform: uppercase;
         letter-spacing: 0.04em;
     }
 
     .add-card input {
         padding: 0.6rem 0.8rem;
-        border: 1px solid #d1d5db;
+        border: 1px solid var(--border-input);
         border-radius: 8px;
         font-size: 0.95em;
         outline: none;
         transition: border-color 0.15s;
+        background: var(--bg-surface);
+        color: var(--text-primary);
     }
 
     .add-card input:focus { border-color: #f97316; }
@@ -608,15 +627,15 @@
         align-items: center;
         gap: 0.5rem;
         font-size: 0.9em;
-        color: #374151;
+        color: var(--text-secondary);
     }
 
     .qty-btn {
         width: 32px;
         height: 32px;
-        border: 1px solid #d1d5db;
+        border: 1px solid var(--border-input);
         border-radius: 6px;
-        background: #fff;
+        background: var(--bg-surface);
         cursor: pointer;
         font-size: 1em;
         display: flex;
@@ -626,7 +645,7 @@
         min-width: unset;
     }
 
-    .qty-btn:hover { background: #f3f4f6; }
+    .qty-btn:hover { background: var(--bg-elevated); }
 
     .qty-value {
         min-width: 1.8rem;
@@ -636,14 +655,19 @@
 
     .category-picker {
         display: flex;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
         gap: 0.4rem;
+        overflow-x: auto;
+        padding: 3px 2px;
+        scrollbar-width: none;
     }
+
+    .category-picker::-webkit-scrollbar { display: none; }
 
     .category-chip {
         padding: 0.3rem 0.7rem;
         border-radius: 999px;
-        border: 1.5px solid color-mix(in srgb, var(--chip-color, #e5e7eb) 60%, #9ca3af);
+        border: 1.5px solid color-mix(in srgb, var(--chip-color, #e5e7eb) 60%, var(--text-faint));
         background: var(--chip-color, #f3f4f6);
         cursor: pointer;
         font-size: 0.82em;
@@ -658,7 +682,7 @@
 
     .category-chip.selected {
         opacity: 1;
-        box-shadow: 0 0 0 2px #374151;
+        box-shadow: 0 0 0 2px var(--text-secondary);
         font-weight: 700;
     }
 

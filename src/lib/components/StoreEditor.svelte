@@ -249,8 +249,8 @@
     .editor {
         margin-top: 0.75rem;
         padding: 0.875rem;
-        background: #f9fafb;
-        border: 1px solid #e5e7eb;
+        background: var(--bg-elevated);
+        border: 1px solid var(--border);
         border-radius: 8px;
         display: flex;
         flex-direction: column;
@@ -261,8 +261,8 @@
         display: flex;
         flex-direction: column;
         gap: 0.5rem;
-        background: #fff;
-        border: 1px solid #e5e7eb;
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
         border-radius: 7px;
         padding: 0.65rem;
     }
@@ -281,20 +281,20 @@
         align-items: center;
         gap: 0.35rem;
         padding: 0.3rem 0.6rem 0.3rem 0.45rem;
-        border: 1px solid #e5e7eb;
+        border: 1px solid var(--border);
         border-radius: 999px;
         cursor: pointer;
         font-size: 0.88em;
-        background: #f9fafb;
+        background: var(--bg-elevated);
         transition: background 0.12s, border-color 0.12s;
         user-select: none;
     }
 
-    .picker-item:hover { background: #f3f4f6; border-color: #d1d5db; }
+    .picker-item:hover { background: var(--bg-hover); border-color: var(--border-input); }
 
     .picker-item.is-checked {
-        background: #fff7ed;
-        border-color: #fdba74;
+        background: var(--warning-bg);
+        border-color: var(--warning-border);
     }
 
     .picker-item input[type="checkbox"] {
@@ -314,7 +314,7 @@
     }
 
     .picker-name {
-        color: #374151;
+        color: var(--text-secondary);
         font-weight: 500;
     }
 
@@ -326,29 +326,29 @@
 
     .picker-actions button {
         padding: 0.35rem 0.8rem;
-        border: 1px solid #d1d5db;
+        border: 1px solid var(--border-input);
         border-radius: 6px;
-        background: #fff;
+        background: var(--bg-surface);
         cursor: pointer;
         font-size: 0.88em;
         white-space: nowrap;
         transition: background 0.12s;
     }
 
-    .picker-actions button:hover:not(:disabled) { background: #f3f4f6; }
+    .picker-actions button:hover:not(:disabled) { background: var(--bg-elevated); }
     .picker-actions button:disabled { opacity: 0.4; cursor: not-allowed; }
 
     .btn-add-all {
-        border-color: #fdba74 !important;
-        color: #c2410c;
-        background: #fff7ed !important;
+        border-color: var(--warning-border) !important;
+        color: var(--warning-text);
+        background: var(--warning-bg) !important;
     }
 
-    .btn-add-all:hover:not(:disabled) { background: #ffedd5 !important; }
+    .btn-add-all:hover:not(:disabled) { opacity: 0.85; }
 
     .hint-all-added {
         font-size: 0.83em;
-        color: #6b7280;
+        color: var(--text-muted);
         margin: 0;
     }
 
@@ -366,8 +366,8 @@
         align-items: center;
         gap: 0.5rem;
         padding: 0.55rem 0.65rem;
-        background: #fff;
-        border: 1px solid #e5e7eb;
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
         border-left: 4px solid var(--cat-color, #e2e8f0);
         border-radius: 7px;
         cursor: grab;
@@ -383,15 +383,15 @@
     }
 
     .route-item.drag-over {
-        background: #fff7ed;
-        border-color: #fdba74;
+        background: var(--warning-bg);
+        border-color: var(--warning-border);
         border-left-color: var(--cat-color, #e2e8f0);
-        box-shadow: 0 0 0 2px #fed7aa;
+        box-shadow: 0 0 0 2px var(--warning-border);
     }
 
     .drag-handle {
         font-size: 1.1em;
-        color: #9ca3af;
+        color: var(--text-faint);
         cursor: grab;
         flex-shrink: 0;
         line-height: 1;
@@ -420,7 +420,7 @@
         flex: 1;
         font-size: 0.92em;
         font-weight: 500;
-        color: #1f2937;
+        color: var(--text-secondary);
         min-width: 0;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -442,25 +442,25 @@
     }
 
     .badge-start {
-        background: #dcfce7;
-        color: #15803d;
-        border: 1px solid #bbf7d0;
+        background: var(--success-bg);
+        color: var(--success-text);
+        border: 1px solid var(--success-border);
     }
 
     .badge-end {
-        background: #dbeafe;
-        color: #1d4ed8;
-        border: 1px solid #bfdbfe;
+        background: var(--violet-bg);
+        color: var(--violet-text);
+        border: 1px solid var(--violet-border);
     }
 
     .btn-item-remove {
         flex-shrink: 0;
         width: 22px;
         height: 22px;
-        border: 1px solid #e5e7eb;
+        border: 1px solid var(--border);
         border-radius: 50%;
-        background: #f9fafb;
-        color: #9ca3af;
+        background: var(--bg-elevated);
+        color: var(--text-faint);
         font-size: 1em;
         line-height: 1;
         cursor: pointer;
@@ -472,14 +472,14 @@
     }
 
     .btn-item-remove:hover {
-        background: #fef2f2;
-        color: #dc2626;
-        border-color: #fca5a5;
+        background: var(--danger-bg);
+        color: var(--danger-text);
+        border-color: var(--danger-border);
     }
 
     .empty-hint {
         font-size: 0.85em;
-        color: #9ca3af;
+        color: var(--text-faint);
         margin: 0;
         text-align: center;
         padding: 0.75rem 0;
@@ -506,5 +506,5 @@
     .btn-save:hover:not(:disabled) { opacity: 0.88; }
     .btn-save:disabled { opacity: 0.4; cursor: not-allowed; }
 
-    .btn-save.saved { background: #16a34a; }
+    .btn-save.saved { background: var(--success-text); }
 </style>

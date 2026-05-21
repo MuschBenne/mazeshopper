@@ -1,13 +1,158 @@
 :root {
+    /* Brand */
     --color-primary: #f97316;
     --color-primary-hover: #ea6c0a;
     --color-accent: #c026d3;
+
+    /* Radius */
     --radius-sm: 6px;
     --radius-md: 8px;
     --radius-lg: 12px;
-    --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.08);
-    --border-color: #e5e7eb;
-    --color-muted: #6b7280;
+
+    /* Shadows */
+    --shadow-card: 0 1px 4px rgba(0,0,0,0.05);
+    --shadow-modal: 0 4px 24px rgba(0,0,0,0.12);
+
+    /* Backgrounds */
+    --bg-page:     #f9fafb;
+    --bg-surface:  #ffffff;
+    --bg-elevated: #f3f4f6;
+    --bg-hover:    #fafafa;
+
+    /* Text */
+    --text-primary:   #111827;
+    --text-secondary: #374151;
+    --text-muted:     #6b7280;
+    --text-faint:     #9ca3af;
+
+    /* Borders */
+    --border:        #e5e7eb;
+    --border-input:  #d1d5db;
+    --border-subtle: #f3f4f6;
+    --border-faint:  #f9fafb;
+
+    /* Danger */
+    --danger-text:       #dc2626;
+    --danger-text-hover: #b91c1c;
+    --danger-bg:         #fef2f2;
+    --danger-border:     #fca5a5;
+
+    /* Success */
+    --success-text:       #16a34a;
+    --success-text-hover: #15803d;
+    --success-bg:         #f0fdf4;
+    --success-border:     #86efac;
+
+    /* Warning */
+    --warning-text:   #92400e;
+    --warning-bg:     #fef3c7;
+    --warning-border: #fcd34d;
+
+    /* Violet (SharePanel, inbjudningar) */
+    --violet-text:       #7c3aed;
+    --violet-text-hover: #6d28d9;
+    --violet-bg:         #ede9fe;
+    --violet-border:     #c4b5fd;
+    --violet-light:      #f5f3ff;
+
+    /* Verify-banner */
+    --verify-text:   #713f12;
+    --verify-bg:     #fefce8;
+    --verify-border: #fde047;
+
+    /* Legacy aliases */
+    --border-color: var(--border);
+    --color-muted:  var(--text-muted);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not(.theme-light) {
+        --shadow-card:  0 1px 4px rgba(0,0,0,0.25);
+        --shadow-modal: 0 4px 24px rgba(0,0,0,0.5);
+
+        --bg-page:     #0f172a;
+        --bg-surface:  #1e293b;
+        --bg-elevated: #2d3748;
+        --bg-hover:    #334155;
+
+        --text-primary:   #f1f5f9;
+        --text-secondary: #cbd5e1;
+        --text-muted:     #94a3b8;
+        --text-faint:     #64748b;
+
+        --border:        #334155;
+        --border-input:  #475569;
+        --border-subtle: #1e293b;
+        --border-faint:  #0f172a;
+
+        --danger-text:       #f87171;
+        --danger-text-hover: #ef4444;
+        --danger-bg:         #1c0606;
+        --danger-border:     #7f1d1d;
+
+        --success-text:       #4ade80;
+        --success-text-hover: #22c55e;
+        --success-bg:         #052e16;
+        --success-border:     #166534;
+
+        --warning-text:   #fbbf24;
+        --warning-bg:     #1c0a00;
+        --warning-border: #78350f;
+
+        --violet-text:       #a78bfa;
+        --violet-text-hover: #c4b5fd;
+        --violet-bg:         #1e1035;
+        --violet-border:     #4c1d95;
+        --violet-light:      #2e1065;
+
+        --verify-text:   #fde68a;
+        --verify-bg:     #1c1000;
+        --verify-border: #78350f;
+    }
+}
+
+html.theme-dark {
+    --shadow-card:  0 1px 4px rgba(0,0,0,0.25);
+    --shadow-modal: 0 4px 24px rgba(0,0,0,0.5);
+
+    --bg-page:     #0f172a;
+    --bg-surface:  #1e293b;
+    --bg-elevated: #2d3748;
+    --bg-hover:    #334155;
+
+    --text-primary:   #f1f5f9;
+    --text-secondary: #cbd5e1;
+    --text-muted:     #94a3b8;
+    --text-faint:     #64748b;
+
+    --border:        #334155;
+    --border-input:  #475569;
+    --border-subtle: #1e293b;
+    --border-faint:  #0f172a;
+
+    --danger-text:       #f87171;
+    --danger-text-hover: #ef4444;
+    --danger-bg:         #1c0606;
+    --danger-border:     #7f1d1d;
+
+    --success-text:       #4ade80;
+    --success-text-hover: #22c55e;
+    --success-bg:         #052e16;
+    --success-border:     #166534;
+
+    --warning-text:   #fbbf24;
+    --warning-bg:     #1c0a00;
+    --warning-border: #78350f;
+
+    --violet-text:       #a78bfa;
+    --violet-text-hover: #c4b5fd;
+    --violet-bg:         #1e1035;
+    --violet-border:     #4c1d95;
+    --violet-light:      #2e1065;
+
+    --verify-text:   #fde68a;
+    --verify-bg:     #1c1000;
+    --verify-border: #78350f;
 }
 
 *, *::before, *::after {
@@ -22,8 +167,8 @@ body {
     margin: 0;
     font-family: system-ui, -apple-system, sans-serif;
     font-size: 16px;
-    color: #111827;
-    background: #f9fafb;
+    color: var(--text-primary);
+    background: var(--bg-page);
     min-height: 100dvh;
 }
 
@@ -82,5 +227,5 @@ select:focus-visible {
     min-height: unset;
     min-width: unset;
 }
-.btn-cancel:hover { background: #f3f4f6; }
+.btn-cancel:hover { background: var(--bg-elevated); }
 .btn-cancel:disabled { opacity: 0.5; cursor: default; }

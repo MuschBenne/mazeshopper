@@ -118,19 +118,20 @@
     }
 
     .back {
-        color: #6b7280;
+        color: var(--text-muted);
         text-decoration: none;
         font-size: 0.9em;
     }
 
-    .back:hover { color: #111; }
+    .back:hover { color: var(--text-primary); }
 
     .hero-text h1 {
         margin: 0;
         font-size: 2.2rem;
         font-weight: 800;
         letter-spacing: -0.5px;
-        background: linear-gradient(135deg, #f97316, #c026d3);
+        width: fit-content;
+        background: linear-gradient(90deg, #f97316, #c026d3);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
@@ -138,7 +139,7 @@
 
     .tagline {
         margin: 0.4rem 0 0;
-        color: #6b7280;
+        color: var(--text-muted);
         font-size: 1.05rem;
     }
 
@@ -152,12 +153,12 @@
         margin: 0;
         font-size: 1.1rem;
         font-weight: 700;
-        color: #111827;
+        color: var(--text-primary);
     }
 
     .section p {
         margin: 0;
-        color: #374151;
+        color: var(--text-secondary);
         line-height: 1.6;
         font-size: 0.95em;
     }
@@ -175,8 +176,8 @@
         display: flex;
         gap: 1rem;
         align-items: flex-start;
-        background: #fff;
-        border: 1px solid #e5e7eb;
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
         border-radius: 12px;
         padding: 0.9rem 1rem;
     }
@@ -198,14 +199,14 @@
     .steps strong {
         display: block;
         font-size: 0.92em;
-        color: #111827;
+        color: var(--text-primary);
         margin-bottom: 0.2rem;
     }
 
     .steps p {
         margin: 0;
         font-size: 0.84em;
-        color: #6b7280;
+        color: var(--text-muted);
         line-height: 1.45;
     }
 
@@ -219,8 +220,8 @@
         display: flex;
         gap: 0.85rem;
         align-items: flex-start;
-        background: #fff;
-        border: 1px solid #e5e7eb;
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
         border-radius: 12px;
         padding: 0.85rem 1rem;
     }
@@ -234,14 +235,14 @@
     .feature strong {
         display: block;
         font-size: 0.92em;
-        color: #111827;
+        color: var(--text-primary);
         margin-bottom: 0.15rem;
     }
 
     .feature p {
         margin: 0;
         font-size: 0.82em;
-        color: #6b7280;
+        color: var(--text-muted);
         line-height: 1.4;
     }
 
@@ -267,15 +268,15 @@
     .bug-link {
         display: inline-block;
         padding: 0.55rem 1.25rem;
-        border: 1px solid #e5e7eb;
+        border: 1px solid var(--border);
         border-radius: 8px;
         font-size: 0.9em;
-        color: #374151;
+        color: var(--text-secondary);
         text-decoration: none;
-        background: #fff;
+        background: var(--bg-surface);
         transition: background 0.15s;
         align-self: flex-start;
     }
 
-    .bug-link:hover { background: #f9fafb; }
+    .bug-link:hover { background: var(--bg-elevated); }
 </style>

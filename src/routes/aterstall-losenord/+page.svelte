@@ -107,10 +107,10 @@
     }
 
     .card {
-        background: #fff;
-        border: 1px solid #e5e7eb;
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
         border-radius: 16px;
-        box-shadow: 0 4px 24px rgba(0,0,0,0.07);
+        box-shadow: var(--shadow-modal);
         width: 100%;
         max-width: 360px;
         padding: 2rem 1.75rem;
@@ -122,13 +122,13 @@
     h1 {
         margin: 0;
         font-size: 1.3rem;
-        color: #111827;
+        color: var(--text-primary);
     }
 
     .desc {
         margin: 0;
         font-size: 0.85em;
-        color: #6b7280;
+        color: var(--text-muted);
     }
 
     .fields {
@@ -139,17 +139,19 @@
 
     .fields input {
         padding: 0.65rem 0.9rem;
-        border: 1px solid #d1d5db;
+        border: 1px solid var(--border-input);
         border-radius: 8px;
         font-size: 0.95em;
         outline: none;
         transition: border-color 0.15s;
         width: 100%;
         box-sizing: border-box;
+        background: var(--bg-surface);
+        color: var(--text-primary);
     }
 
     .fields input:focus { border-color: #f97316; }
-    .fields input:disabled { background: #f9fafb; }
+    .fields input:disabled { background: var(--bg-elevated); }
 
     .pw-wrap {
         position: relative;
@@ -168,18 +170,18 @@
         border: none;
         padding: 0;
         cursor: pointer;
-        color: #9ca3af;
+        color: var(--text-faint);
         display: flex;
         align-items: center;
         line-height: 1;
     }
 
-    .pw-toggle:hover { color: #6b7280; }
+    .pw-toggle:hover { color: var(--text-muted); }
 
     .error {
         margin: 0;
         font-size: 0.85em;
-        color: #dc2626;
+        color: var(--danger-text);
     }
 
     .btn-submit {
@@ -218,11 +220,11 @@
     }
 
     .success h2 { margin: 0; font-size: 1.2rem; }
-    .success p { margin: 0; font-size: 0.9em; color: #6b7280; }
+    .success p { margin: 0; font-size: 0.9em; color: var(--text-muted); }
 
     .invalid {
         font-size: 0.9em;
-        color: #dc2626;
+        color: var(--danger-text);
     }
 
     .invalid a { color: #f97316; }

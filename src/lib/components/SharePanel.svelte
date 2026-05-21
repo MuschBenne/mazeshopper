@@ -94,10 +94,10 @@
 
 <style>
     .card {
-        background: #fff;
-        border: 1px solid #e5e7eb;
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
         border-radius: 12px;
-        box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+        box-shadow: var(--shadow-card);
         padding: 1.25rem;
     }
 
@@ -124,13 +124,13 @@
         border: none;
         font-size: 1.3em;
         cursor: pointer;
-        color: #9ca3af;
+        color: var(--text-faint);
         line-height: 1;
         padding: 0 0.2rem;
         min-height: unset;
     }
 
-    .btn-close:hover { color: #374151; }
+    .btn-close:hover { color: var(--text-secondary); }
 
     .collaborators {
         display: flex;
@@ -141,15 +141,15 @@
 
     .collab-label {
         font-size: 0.85em;
-        color: #6b7280;
+        color: var(--text-muted);
     }
 
     .collab-chip {
         display: inline-flex;
         align-items: center;
         gap: 0.25rem;
-        background: #ede9fe;
-        color: #5b21b6;
+        background: var(--violet-bg);
+        color: var(--violet-text);
         border-radius: 999px;
         padding: 0.2rem 0.6rem;
         font-size: 0.82em;
@@ -160,26 +160,26 @@
         background: none;
         border: none;
         cursor: pointer;
-        color: #7c3aed;
+        color: var(--violet-text);
         font-size: 1em;
         line-height: 1;
         padding: 0 0.1rem;
         min-height: unset;
     }
 
-    .collab-remove:hover { color: #dc2626; }
+    .collab-remove:hover { color: var(--danger-text); }
 
     .no-collabs {
         font-size: 0.85em;
-        color: #9ca3af;
+        color: var(--text-faint);
         margin: 0;
     }
 
-    .pending-label { color: #d97706; }
+    .pending-label { color: var(--warning-text); }
 
     .pending-chip {
-        background: #fef3c7;
-        color: #92400e;
+        background: var(--warning-bg);
+        color: var(--warning-text);
         font-style: italic;
     }
 
@@ -191,17 +191,19 @@
     .share-input-row input {
         flex: 1;
         padding: 0.5rem 0.75rem;
-        border: 1px solid #d1d5db;
+        border: 1px solid var(--border-input);
         border-radius: 8px;
         font-size: 0.9em;
         outline: none;
+        background: var(--bg-surface);
+        color: var(--text-primary);
     }
 
-    .share-input-row input:focus { border-color: #a78bfa; }
+    .share-input-row input:focus { border-color: var(--violet-text); }
 
     .btn-add-share {
         padding: 0.5rem 1rem;
-        background: #7c3aed;
+        background: var(--violet-text);
         color: #fff;
         border: none;
         border-radius: 8px;
@@ -210,7 +212,7 @@
         cursor: pointer;
     }
 
-    .btn-add-share:hover { background: #6d28d9; }
+    .btn-add-share:hover { background: var(--violet-text-hover); }
 
     .share-msg {
         font-size: 0.85em;
@@ -219,6 +221,6 @@
         border-radius: 6px;
     }
 
-    .share-msg.error { color: #dc2626; background: #fef2f2; }
-    .share-msg.success { color: #16a34a; background: #f0fdf4; }
+    .share-msg.error { color: var(--danger-text); background: var(--danger-bg); }
+    .share-msg.success { color: var(--success-text); background: var(--success-bg); }
 </style>

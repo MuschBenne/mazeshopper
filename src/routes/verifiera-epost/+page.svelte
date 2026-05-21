@@ -70,10 +70,10 @@
     }
 
     .card {
-        background: #fff;
-        border: 1px solid #e5e7eb;
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
         border-radius: 16px;
-        box-shadow: 0 4px 24px rgba(0,0,0,0.07);
+        box-shadow: var(--shadow-modal);
         padding: 2.5rem 2rem;
         max-width: 380px;
         width: 100%;
@@ -84,32 +84,32 @@
         gap: 0.75rem;
     }
 
-    .card.success { border-color: #bbf7d0; }
-    .card.error   { border-color: #fecaca; }
+    .card.success { border-color: var(--success-border); }
+    .card.error   { border-color: var(--danger-border); }
 
     h1 {
         margin: 0;
         font-size: 1.25rem;
         font-weight: 700;
-        color: #111827;
+        color: var(--text-primary);
     }
 
     p {
         margin: 0;
         font-size: 0.9em;
-        color: #6b7280;
+        color: var(--text-muted);
         line-height: 1.5;
     }
 
     .icon {
         font-size: 2.5rem;
-        color: #16a34a;
+        color: var(--success-text);
     }
 
     .spinner {
         width: 36px;
         height: 36px;
-        border: 3px solid #e5e7eb;
+        border: 3px solid var(--border);
         border-top-color: #f97316;
         border-radius: 50%;
         animation: spin 0.8s linear infinite;
