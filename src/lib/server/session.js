@@ -9,7 +9,7 @@ export async function hashToken(token) {
 }
 
 /**
- * Returns the username for the current session token, or null if invalid.
+ * Returns the username for the current session token, or null if invalid/missing.
  * @param {import('@sveltejs/kit').Cookies} cookies
  * @returns {Promise<string | null>}
  */
@@ -20,6 +20,31 @@ export async function getSessionUser(cookies) {
     const db = await getDb();
     const session = await db.collection('sessions').findOne({ tokenHash, expiresAt: { $gt: new Date() } });
     return session ? session.username : null;
+}
+
+/**
+ * Returns the full user object for the current session, or null if invalid/missing.
+ * Fetches session + user data in a single aggregation to avoid two sequential round-trips.
+ * @param {import('@sveltejs/kit').Cookies} cookies
+ * @returns {Promise<{ username: string, email: string | null, emailVerified: boolean } | null>}
+ */
+export async function getSessionUserFull(cookies) {
+    const token = cookies.get('session');
+    if (!token) return null;
+    const tokenHash = await hashToken(token);
+    const db = await getDb();
+    const result = await db.collection('sessions').aggregate([
+        { $match: { tokenHash, expiresAt: { $gt: new Date() } } },
+        { $lookup: { from: 'users', localField: 'username', foreignField: 'username', as: 'u' } },
+        { $unwind: '$u' },
+        { $limit: 1 }
+    ]).next();
+    if (!result) return null;
+    return {
+        username: result.u.username,
+        email: result.u.email ?? null,
+        emailVerified: result.u.emailVerified ?? true
+    };
 }
 
 function generateSessionToken() {

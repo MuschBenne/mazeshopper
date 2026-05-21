@@ -44,14 +44,6 @@ export async function closeClient() {
 }
 
 export async function getDb() {
-    if (client) {
-        try {
-            // Ping to verify connection is still alive
-            await client.db('admin').command({ ping: 1 });
-        } catch {
-            client = null;
-        }
-    }
     if (!client) {
         client = new MongoClient(MONGODB_URI);
         try {
