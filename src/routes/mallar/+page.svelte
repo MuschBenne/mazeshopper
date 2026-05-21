@@ -329,36 +329,37 @@
     .btn-create:disabled { opacity: 0.5; cursor: not-allowed; }
 
     .template-list {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 1rem;
+        margin-top: 0.5rem;
     }
 
     .template-card {
         display: flex;
+        flex-direction: column;
         align-items: center;
-        justify-content: space-between;
+        justify-content: center;
+        gap: 0.4rem;
+        min-height: 100px;
         background: #fff;
-        border: 1px solid #e5e7eb;
-        border-radius: 10px;
-        padding: 1rem 1.25rem;
+        border: 2px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 1rem;
         cursor: pointer;
-        text-align: left;
-        transition: background 0.15s, box-shadow 0.15s;
-        min-height: unset;
+        text-align: center;
+        transition: border-color 0.15s, box-shadow 0.15s;
+        min-height: 100px;
         font-size: 1rem;
     }
 
-    .template-card:hover { background: #fafafa; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+    .template-card:hover { border-color: #9ca3af; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
 
-    .template-name { font-weight: 600; color: #111827; }
+    .template-name { font-weight: 600; color: #111827; font-size: 1.05em; }
 
     .template-count {
-        font-size: 0.82em;
+        font-size: 0.8em;
         color: #9ca3af;
-        background: #f3f4f6;
-        padding: 0.2rem 0.6rem;
-        border-radius: 999px;
     }
 
     .empty-card { padding: 2rem 1.25rem; }
@@ -455,6 +456,15 @@
         margin-left: auto;
         font-size: 0.82em;
         color: #dc2626;
+    }
+
+    @media (max-width: 480px) {
+        .btn-delete-template, .confirm-delete {
+            margin-left: 0;
+            flex-basis: 100%;
+            justify-content: flex-end;
+        }
+        .btn-delete-template { align-self: flex-end; }
     }
 
     .btn-confirm-delete {
@@ -636,9 +646,14 @@
 
     .category-picker {
         display: flex;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
         gap: 0.4rem;
+        overflow-x: auto;
+        padding: 3px 2px;
+        scrollbar-width: none;
     }
+
+    .category-picker::-webkit-scrollbar { display: none; }
 
     .category-chip {
         padding: 0.3rem 0.7rem;
