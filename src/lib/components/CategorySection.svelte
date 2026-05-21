@@ -134,17 +134,17 @@
         width: 100%;
         background: none;
         border: none;
-        border-bottom: 1px solid #f3f4f6;
+        border-bottom: 1px solid var(--border-subtle);
         padding: 0.7rem 1.25rem;
         font-size: 0.95em;
         font-weight: 600;
         cursor: pointer;
         text-align: left;
-        color: #374151;
+        color: var(--text-secondary);
         min-height: unset;
     }
 
-    .category-header:hover { background: #fafafa; }
+    .category-header:hover { background: var(--bg-hover); }
 
     .category-dot {
         width: 13px;
@@ -156,13 +156,13 @@
 
     .category-arrow {
         font-size: 0.65em;
-        color: #9ca3af;
+        color: var(--text-faint);
     }
 
     .category-count {
         font-weight: 400;
         font-size: 0.85em;
-        color: #9ca3af;
+        color: var(--text-faint);
         margin-left: auto;
     }
 
@@ -178,7 +178,7 @@
         justify-content: space-between;
         gap: 0.5rem;
         padding: 0.65rem 1.25rem;
-        border-bottom: 1px solid #f9fafb;
+        border-bottom: 1px solid var(--border-faint);
         font-size: 0.95em;
         flex-wrap: wrap;
     }
@@ -186,7 +186,7 @@
     li:last-child { border-bottom: none; }
 
     .item-name {
-        color: #111827;
+        color: var(--text-primary);
         flex: 1;
         min-width: 0;
         word-break: break-word;
@@ -195,12 +195,12 @@
     .item-spec {
         display: block;
         font-size: 0.82em;
-        color: #9ca3af;
+        color: var(--text-faint);
         font-weight: 400;
         margin-top: 0.1rem;
     }
 
-    li.bought .item-name { color: #9ca3af; }
+    li.bought .item-name { color: var(--text-faint); }
 
     .quantity-controls {
         display: flex;
@@ -216,28 +216,28 @@
     }
 
     .quantity-controls button {
-        border: 1px solid #e5e7eb;
-        background: #fff;
+        border: 1px solid var(--border);
+        background: var(--bg-surface);
         border-radius: 6px;
         padding: 0.2rem 0.5rem;
         cursor: pointer;
         font-size: 0.9em;
-        color: #374151;
+        color: var(--text-secondary);
         min-height: 36px;
         min-width: 36px;
     }
 
-    .quantity-controls button:hover { background: #f9fafb; }
+    .quantity-controls button:hover { background: var(--bg-elevated); }
 
     .btn-bought {
         width: 36px;
         height: 36px;
         border-radius: 50%;
-        border: 2px solid #d1d5db;
-        background: #fff;
+        border: 2px solid var(--border-input);
+        background: var(--bg-surface);
         cursor: pointer;
         font-size: 1.1em;
-        color: #16a34a;
+        color: var(--success-text);
         font-weight: 700;
         display: flex;
         align-items: center;
@@ -248,15 +248,15 @@
         min-width: unset;
     }
 
-    .btn-bought:hover { border-color: #16a34a; background: #f0fdf4; }
+    .btn-bought:hover { border-color: var(--success-text); background: var(--success-bg); }
 
     .btn-bought.bought {
-        background: #16a34a;
-        border-color: #16a34a;
+        background: var(--success-text);
+        border-color: var(--success-text);
         color: #fff;
     }
 
-    .btn-bought.bought:hover { background: #16a34a; border-color: #16a34a; }
+    .btn-bought.bought:hover { background: var(--success-text); border-color: var(--success-text); }
 
     .edit-form {
         display: flex;
@@ -268,11 +268,13 @@
 
     .edit-input {
         padding: 0.4rem 0.6rem;
-        border: 1px solid #d1d5db;
+        border: 1px solid var(--border-input);
         border-radius: 6px;
         font-size: 0.9em;
         outline: none;
         transition: border-color 0.15s;
+        background: var(--bg-surface);
+        color: var(--text-primary);
     }
 
     .edit-input:focus { border-color: #f97316; }
@@ -298,7 +300,7 @@
     .category-chip {
         padding: 0.25rem 0.65rem;
         border-radius: 999px;
-        border: 1.5px solid color-mix(in srgb, var(--chip-color, #e5e7eb) 60%, #9ca3af);
+        border: 1.5px solid color-mix(in srgb, var(--chip-color, #e5e7eb) 60%, var(--text-faint));
         background: var(--chip-color, #f3f4f6);
         cursor: pointer;
         font-size: 0.8em;
@@ -314,7 +316,7 @@
 
     .category-chip.selected {
         opacity: 1;
-        box-shadow: 0 0 0 2px #374151;
+        box-shadow: 0 0 0 2px var(--text-secondary);
         font-weight: 700;
     }
 
@@ -322,7 +324,7 @@
     :global(.shopping-mode) .category-header {
         padding: 0.85rem 1.25rem;
         font-size: 1em;
-        background: #fafafa;
+        background: var(--bg-hover);
     }
 
     :global(.shopping-mode) li {

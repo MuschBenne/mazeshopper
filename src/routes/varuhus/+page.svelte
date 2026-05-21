@@ -110,7 +110,7 @@
 
     .subtitle {
         margin: 0;
-        color: #6b7280;
+        color: var(--text-muted);
         font-size: 0.9em;
     }
 
@@ -118,8 +118,8 @@
     .new-store-card {
         display: flex;
         gap: 0.5rem;
-        background: #fff;
-        border: 1px solid #e5e7eb;
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
         border-radius: 12px;
         padding: 1rem;
     }
@@ -127,11 +127,13 @@
     .new-store-card input {
         flex: 1;
         padding: 0.55rem 0.8rem;
-        border: 1px solid #d1d5db;
+        border: 1px solid var(--border-input);
         border-radius: 8px;
         font-size: 0.95em;
         outline: none;
         transition: border-color 0.15s;
+        background: var(--bg-surface);
+        color: var(--text-primary);
     }
 
     .new-store-card input:focus { border-color: #f97316; }
@@ -153,7 +155,7 @@
 
     .empty-hint {
         font-size: 0.88em;
-        color: #9ca3af;
+        color: var(--text-faint);
         margin: 0;
         line-height: 1.6;
     }
@@ -170,8 +172,8 @@
         justify-content: center;
         min-height: 120px;
         border-radius: 12px;
-        border: 2px solid #e5e7eb;
-        background: #fff;
+        border: 2px solid var(--border);
+        background: var(--bg-surface);
         padding: 1rem;
         cursor: pointer;
         text-align: center;
@@ -180,14 +182,14 @@
     }
 
     .store-card:hover {
-        border-color: #9ca3af;
+        border-color: var(--text-faint);
         box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     }
 
     .store-name {
         font-size: 1.05em;
         font-weight: 600;
-        color: #111827;
+        color: var(--text-primary);
         word-break: break-word;
     }
 
@@ -210,7 +212,7 @@
     .back {
         background: none;
         border: none;
-        color: #6b7280;
+        color: var(--text-muted);
         font-size: 0.95em;
         cursor: pointer;
         padding: 0;
@@ -218,13 +220,13 @@
         white-space: nowrap;
     }
 
-    .back:hover { color: #111; }
+    .back:hover { color: var(--text-primary); }
 
     .btn-delete {
         font-size: 0.8em;
-        color: #dc2626;
+        color: var(--danger-text);
         background: none;
-        border: 1px solid #fca5a5;
+        border: 1px solid var(--danger-border);
         border-radius: 6px;
         padding: 0.25rem 0.6rem;
         cursor: pointer;
@@ -232,20 +234,20 @@
         min-height: unset;
     }
 
-    .btn-delete:hover { background: #fef2f2; }
+    .btn-delete:hover { background: var(--danger-bg); }
 
     .confirm-inline {
         display: flex;
         align-items: center;
         gap: 0.35rem;
         font-size: 0.82em;
-        color: #dc2626;
+        color: var(--danger-text);
         font-weight: 600;
     }
 
     .btn-confirm-danger {
         padding: 0.2rem 0.55rem;
-        background: #dc2626;
+        background: var(--danger-text);
         color: #fff;
         border: none;
         border-radius: 6px;
@@ -255,25 +257,25 @@
         min-height: unset;
     }
 
-    .btn-confirm-danger:hover { background: #b91c1c; }
+    .btn-confirm-danger:hover { background: var(--danger-text-hover); }
 
     .btn-cancel {
         padding: 0.2rem 0.55rem;
-        background: #fff;
-        border: 1px solid #d1d5db;
+        background: var(--bg-surface);
+        border: 1px solid var(--border-input);
         border-radius: 6px;
         font-size: 0.85em;
         cursor: pointer;
         min-height: unset;
     }
 
-    .btn-cancel:hover { background: #f3f4f6; }
+    .btn-cancel:hover { background: var(--bg-elevated); }
 
     .editor-card {
-        background: #fff;
-        border: 1px solid #e5e7eb;
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
         border-radius: 12px;
-        box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+        box-shadow: var(--shadow-card);
         padding: 1.25rem;
     }
 </style>

@@ -167,7 +167,7 @@
 
     .app-tagline {
         margin: 0.4rem 0 0;
-        color: #6b7280;
+        color: var(--text-muted);
         font-size: 1.1rem;
     }
 
@@ -183,11 +183,11 @@
         display: flex;
         align-items: flex-start;
         gap: 0.85rem;
-        background: #fff;
-        border: 1px solid #e5e7eb;
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
         border-radius: 12px;
         padding: 0.9rem 1rem;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        box-shadow: var(--shadow-card);
     }
 
     .feature-icon {
@@ -200,22 +200,22 @@
     .feature strong {
         display: block;
         font-size: 0.92em;
-        color: #111827;
+        color: var(--text-primary);
         margin-bottom: 0.15rem;
     }
 
     .feature p {
         margin: 0;
         font-size: 0.82em;
-        color: #6b7280;
+        color: var(--text-muted);
         line-height: 1.4;
     }
 
     .auth-card {
-        background: #fff;
-        border: 1px solid #e5e7eb;
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
         border-radius: 16px;
-        box-shadow: 0 4px 24px rgba(0,0,0,0.07);
+        box-shadow: var(--shadow-modal);
         width: 100%;
         max-width: 360px;
         overflow: hidden;
@@ -223,7 +223,7 @@
 
     .tabs {
         display: flex;
-        border-bottom: 1px solid #e5e7eb;
+        border-bottom: 1px solid var(--border);
     }
 
     .tabs button {
@@ -233,13 +233,13 @@
         border: none;
         font-size: 0.95em;
         font-weight: 500;
-        color: #9ca3af;
+        color: var(--text-faint);
         cursor: pointer;
         transition: color 0.15s;
     }
 
     .tabs button.active {
-        color: #111;
+        color: var(--text-primary);
         border-bottom: 2px solid #f97316;
         margin-bottom: -1px;
     }
@@ -253,13 +253,15 @@
 
     .fields input {
         padding: 0.65rem 0.9rem;
-        border: 1px solid #d1d5db;
+        border: 1px solid var(--border-input);
         border-radius: 8px;
         font-size: 0.95em;
         outline: none;
         transition: border-color 0.15s;
         width: 100%;
         box-sizing: border-box;
+        background: var(--bg-surface);
+        color: var(--text-primary);
     }
 
     .fields input:focus {
@@ -283,20 +285,20 @@
         border: none;
         padding: 0;
         cursor: pointer;
-        color: #9ca3af;
+        color: var(--text-faint);
         display: flex;
         align-items: center;
         line-height: 1;
     }
 
     .pw-toggle:hover {
-        color: #6b7280;
+        color: var(--text-muted);
     }
 
     .error {
         margin: 0;
         font-size: 0.85em;
-        color: #dc2626;
+        color: var(--danger-text);
     }
 
     .btn-submit {
@@ -345,7 +347,7 @@
     .forgot-link {
         text-align: center;
         font-size: 0.82em;
-        color: #6b7280;
+        color: var(--text-muted);
         text-decoration: none;
     }
 
@@ -358,23 +360,23 @@
         margin: 0;
         text-align: center;
         font-size: 0.78em;
-        color: #9ca3af;
+        color: var(--text-faint);
         line-height: 1.4;
     }
 
     .policy-note a {
-        color: #9ca3af;
+        color: var(--text-faint);
         text-decoration: underline;
     }
 
-    .policy-note a:hover { color: #6b7280; }
+    .policy-note a:hover { color: var(--text-muted); }
 
     .age-check {
         display: flex;
         align-items: center;
         gap: 0.5rem;
         font-size: 0.88em;
-        color: #374151;
+        color: var(--text-secondary);
         cursor: pointer;
         user-select: none;
     }

@@ -96,7 +96,7 @@
 
     .subtitle {
         margin: 0;
-        color: #6b7280;
+        color: var(--text-muted);
         font-size: 0.9em;
     }
 
@@ -114,8 +114,8 @@
         gap: 0.4rem;
         min-height: 120px;
         border-radius: 12px;
-        border: 2px solid #e5e7eb;
-        background: #fff;
+        border: 2px solid var(--border);
+        background: var(--bg-surface);
         text-decoration: none;
         color: inherit;
         padding: 1rem;
@@ -124,7 +124,7 @@
     }
 
     .list-card:hover {
-        border-color: #9ca3af;
+        border-color: var(--text-faint);
         box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     }
 
@@ -136,13 +136,13 @@
 
     .list-count {
         font-size: 0.8em;
-        color: #9ca3af;
+        color: var(--text-faint);
     }
 
     .shared-badge {
         font-size: 0.72em;
-        color: #7c3aed;
-        background: #f5f3ff;
+        color: var(--violet-text);
+        background: var(--violet-light);
         border-radius: 999px;
         padding: 0.15rem 0.55rem;
         text-align: center;
@@ -151,8 +151,8 @@
     .new-list-card {
         display: flex;
         gap: 0.5rem;
-        background: #fff;
-        border: 1px solid #e5e7eb;
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
         border-radius: 12px;
         padding: 1rem;
     }
@@ -160,11 +160,13 @@
     .new-list-card input {
         flex: 1;
         padding: 0.55rem 0.8rem;
-        border: 1px solid #d1d5db;
+        border: 1px solid var(--border-input);
         border-radius: 8px;
         font-size: 0.95em;
         outline: none;
         transition: border-color 0.15s;
+        background: var(--bg-surface);
+        color: var(--text-primary);
     }
 
     .new-list-card input:focus { border-color: #f97316; }
@@ -193,7 +195,7 @@
     .inv-title {
         font-size: 0.95rem;
         font-weight: 600;
-        color: #6b7280;
+        color: var(--text-muted);
         margin: 0 0 0.25rem;
         text-transform: uppercase;
         letter-spacing: 0.04em;
@@ -204,8 +206,8 @@
         align-items: center;
         justify-content: space-between;
         gap: 1rem;
-        background: #fff;
-        border: 1px solid #c4b5fd;
+        background: var(--bg-surface);
+        border: 1px solid var(--violet-border);
         border-radius: 10px;
         padding: 0.75rem 1rem;
         flex-wrap: wrap;
@@ -224,7 +226,7 @@
 
     .inv-from {
         font-size: 0.8em;
-        color: #7c3aed;
+        color: var(--violet-text);
     }
 
     .inv-actions {
@@ -235,7 +237,7 @@
 
     .btn-accept {
         padding: 0.35rem 0.85rem;
-        background: #16a34a;
+        background: var(--success-text);
         color: #fff;
         border: none;
         border-radius: 6px;
@@ -244,20 +246,20 @@
         cursor: pointer;
     }
 
-    .btn-accept:hover { background: #15803d; }
+    .btn-accept:hover { background: var(--success-text-hover); }
 
     .btn-decline {
         padding: 0.35rem 0.85rem;
-        background: #fff;
-        color: #dc2626;
-        border: 1px solid #fca5a5;
+        background: var(--bg-surface);
+        color: var(--danger-text);
+        border: 1px solid var(--danger-border);
         border-radius: 6px;
         font-size: 0.85em;
         font-weight: 600;
         cursor: pointer;
     }
 
-    .btn-decline:hover { background: #fef2f2; }
+    .btn-decline:hover { background: var(--danger-bg); }
 
     .empty-state {
         text-align: center;
@@ -267,13 +269,13 @@
     .empty-title {
         font-size: 1.05em;
         font-weight: 600;
-        color: #374151;
+        color: var(--text-secondary);
         margin: 0 0 0.35rem;
     }
 
     .empty-hint {
         font-size: 0.88em;
-        color: #9ca3af;
+        color: var(--text-faint);
         margin: 0;
     }
 </style>

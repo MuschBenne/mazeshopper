@@ -198,15 +198,15 @@
 
     .subtitle {
         margin: 0;
-        color: #6b7280;
+        color: var(--text-muted);
         font-size: 0.9em;
     }
 
     .card {
-        background: #fff;
-        border: 1px solid #e5e7eb;
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
         border-radius: 12px;
-        box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+        box-shadow: var(--shadow-card);
         padding: 1.25rem;
     }
 
@@ -226,16 +226,16 @@
     .btn-edit {
         padding: 0.35rem 0.9rem;
         border-radius: 6px;
-        border: 1px solid #d1d5db;
-        background: #fff;
+        border: 1px solid var(--border-input);
+        background: var(--bg-surface);
         cursor: pointer;
         font-size: 0.9em;
         white-space: nowrap;
     }
 
     .btn-edit.active {
-        background: #f3f4f6;
-        border-color: #9ca3af;
+        background: var(--bg-elevated);
+        border-color: var(--text-faint);
     }
 
     ul {
@@ -249,7 +249,7 @@
         align-items: center;
         gap: 0.6rem;
         padding: 0.55rem 0;
-        border-bottom: 1px solid #f3f4f6;
+        border-bottom: 1px solid var(--border-subtle);
         font-size: 0.95em;
     }
 
@@ -267,9 +267,9 @@
         width: 1.9rem;
         height: 1.9rem;
         border-radius: 6px;
-        border: 1px solid #d1d5db;
-        background: #fff;
-        color: #374151;
+        border: 1px solid var(--border-input);
+        background: var(--bg-surface);
+        color: var(--text-secondary);
         font-size: 0.9em;
         cursor: pointer;
         display: flex;
@@ -279,7 +279,7 @@
         min-height: unset;
     }
 
-    .btn-move:hover:not(:disabled) { background: #f3f4f6; border-color: #9ca3af; }
+    .btn-move:hover:not(:disabled) { background: var(--bg-elevated); border-color: var(--text-faint); }
     .btn-move:disabled { opacity: 0.3; cursor: default; }
 
     .dot {
@@ -294,21 +294,21 @@
         width: 28px;
         height: 28px;
         border-radius: 6px;
-        border: 1px solid #d1d5db;
+        border: 1px solid var(--border-input);
         padding: 1px;
         cursor: pointer;
         flex-shrink: 0;
         background: none;
     }
 
-    .color-input:hover { border-color: #9ca3af; }
+    .color-input:hover { border-color: var(--text-faint); }
 
     .btn-remove {
         width: 1.6rem;
         height: 1.6rem;
         border-radius: 50%;
         border: none;
-        background: #dc2626;
+        background: var(--danger-text);
         color: #fff;
         font-size: 1.1em;
         line-height: 1;
@@ -320,7 +320,7 @@
         min-height: unset;
     }
 
-    .btn-remove:hover { background: #b91c1c; }
+    .btn-remove:hover { background: var(--danger-text-hover); }
 
     .add-row {
         display: flex;
@@ -333,16 +333,16 @@
 
     .add-row button {
         padding: 0.4rem 0.9rem;
-        border: 1px solid #d1d5db;
+        border: 1px solid var(--border-input);
         border-radius: 6px;
-        background: #f9fafb;
+        background: var(--bg-elevated);
         cursor: pointer;
         white-space: nowrap;
     }
 
     .btn-reset {
         font-size: 0.85em;
-        color: #6b7280;
+        color: var(--text-muted);
         background: none;
         border: none;
         cursor: pointer;
@@ -351,7 +351,7 @@
         min-height: unset;
     }
 
-    .btn-reset:hover { color: #374151; }
+    .btn-reset:hover { color: var(--text-secondary); }
 
     .card h2 { margin: 0 0 0.75rem; font-size: 1.1rem; }
 
@@ -359,7 +359,7 @@
         margin: 0 0 0.75rem;
         font-size: 0.9em;
     }
-    .email-missing { color: #b45309; }
+    .email-missing { color: var(--warning-text); }
 
     .email-row {
         display: flex;
@@ -369,10 +369,12 @@
     .email-row input {
         flex: 1;
         padding: 0.6rem 0.9rem;
-        border: 1px solid #d1d5db;
+        border: 1px solid var(--border-input);
         border-radius: 8px;
         font-size: 0.95em;
         outline: none;
+        background: var(--bg-surface);
+        color: var(--text-primary);
     }
     .email-row input:focus { border-color: #f97316; }
 
@@ -388,61 +390,61 @@
     }
     .email-row button:disabled { opacity: 0.5; cursor: default; }
 
-    .email-ok { margin: 0.5rem 0 0; font-size: 0.9em; color: #16a34a; }
-    .email-err { margin: 0.5rem 0 0; font-size: 0.9em; color: #dc2626; }
+    .email-ok { margin: 0.5rem 0 0; font-size: 0.9em; color: var(--success-text); }
+    .email-err { margin: 0.5rem 0 0; font-size: 0.9em; color: var(--danger-text); }
 
     .export-desc {
         margin: 0 0 0.9rem;
         font-size: 0.88em;
-        color: #6b7280;
+        color: var(--text-muted);
         line-height: 1.5;
     }
 
     .btn-export {
         display: inline-block;
         padding: 0.5rem 1.1rem;
-        background: #fff;
-        border: 1px solid #d1d5db;
+        background: var(--bg-surface);
+        border: 1px solid var(--border-input);
         border-radius: 8px;
         font-size: 0.9em;
         font-weight: 500;
-        color: #374151;
+        color: var(--text-secondary);
         text-decoration: none;
         transition: background 0.15s;
     }
 
-    .btn-export:hover { background: #f9fafb; }
+    .btn-export:hover { background: var(--bg-elevated); }
 
     .danger-card {
-        border-color: #fecaca;
+        border-color: var(--danger-border);
         margin-top: 0;
     }
 
     .danger-card h2 {
         margin: 0 0 0.5rem;
         font-size: 1.1rem;
-        color: #dc2626;
+        color: var(--danger-text);
     }
 
     .danger-desc {
         margin: 0 0 1rem;
         font-size: 0.88em;
-        color: #6b7280;
+        color: var(--text-muted);
         line-height: 1.5;
     }
 
     .btn-danger {
         padding: 0.5rem 1.1rem;
-        background: #fff;
-        border: 1px solid #dc2626;
-        color: #dc2626;
+        background: var(--bg-surface);
+        border: 1px solid var(--danger-text);
+        color: var(--danger-text);
         border-radius: 8px;
         font-size: 0.9em;
         font-weight: 600;
         cursor: pointer;
     }
 
-    .btn-danger:hover { background: #fef2f2; }
+    .btn-danger:hover { background: var(--danger-bg); }
 
     .confirm-box {
         display: flex;
@@ -454,7 +456,7 @@
         margin: 0;
         font-size: 0.9em;
         font-weight: 600;
-        color: #dc2626;
+        color: var(--danger-text);
     }
 
     .confirm-row {
@@ -465,20 +467,20 @@
 
     .btn-cancel {
         padding: 0.5rem 1rem;
-        border: 1px solid #d1d5db;
-        background: #fff;
+        border: 1px solid var(--border-input);
+        background: var(--bg-surface);
         border-radius: 8px;
         font-size: 0.9em;
         cursor: pointer;
-        color: #374151;
+        color: var(--text-secondary);
     }
 
-    .btn-cancel:hover { background: #f9fafb; }
+    .btn-cancel:hover { background: var(--bg-elevated); }
     .btn-cancel:disabled { opacity: 0.5; cursor: default; }
 
     .btn-danger-confirm {
         padding: 0.5rem 1.1rem;
-        background: #dc2626;
+        background: var(--danger-text);
         color: #fff;
         border: none;
         border-radius: 8px;
@@ -487,21 +489,21 @@
         cursor: pointer;
     }
 
-    .btn-danger-confirm:hover { background: #b91c1c; }
+    .btn-danger-confirm:hover { background: var(--danger-text-hover); }
     .btn-danger-confirm:disabled { opacity: 0.6; cursor: default; }
 
-    .delete-err { margin: 0; font-size: 0.85em; color: #dc2626; }
+    .delete-err { margin: 0; font-size: 0.85em; color: var(--danger-text); }
 
     .privacy-link-note {
         margin: 0.9rem 0 0;
         font-size: 0.8em;
-        color: #9ca3af;
+        color: var(--text-faint);
     }
 
     .privacy-link-note a {
-        color: #9ca3af;
+        color: var(--text-faint);
         text-decoration: underline;
     }
 
-    .privacy-link-note a:hover { color: #6b7280; }
+    .privacy-link-note a:hover { color: var(--text-muted); }
 </style>

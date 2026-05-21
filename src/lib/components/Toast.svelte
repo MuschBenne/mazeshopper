@@ -44,6 +44,9 @@
         min-width: 220px;
         max-width: 360px;
         white-space: nowrap;
+        background: var(--bg-surface);
+        color: var(--text-primary);
+        border: 1px solid var(--border);
     }
 
     .toast span {
@@ -66,14 +69,14 @@
     .toast button:hover { opacity: 1; }
 
     .toast.error {
-        background: #fef2f2;
-        color: #dc2626;
-        border: 1px solid #fca5a5;
+        background: var(--danger-bg);
+        color: var(--danger-text);
+        border: 1px solid var(--danger-border);
     }
 
     .toast.success {
-        background: #f0fdf4;
-        color: #16a34a;
-        border: 1px solid #86efac;
+        background: var(--success-bg);
+        color: var(--success-text);
+        border: 1px solid var(--success-border);
     }
 </style>
