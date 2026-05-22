@@ -27,7 +27,8 @@ export function serializeList(doc) {
             spec: item.spec,
             quantity: item.quantity,
             bought: item.bought,
-            category: item.category
+            category: item.category,
+            addedBy: item.addedBy ?? ''
         }))
     };
 }
