@@ -24,7 +24,8 @@ export async function POST({ params, request, cookies }) {
         spec: String(i.spec ?? '').trim().slice(0, 500),
         quantity: Number.isInteger(i.quantity) && /** @type {number} */ (i.quantity) > 0 && /** @type {number} */ (i.quantity) <= 9999 ? i.quantity : 1,
         bought: false,
-        category: String(i.category ?? '').trim().slice(0, 50)
+        category: String(i.category ?? '').trim().slice(0, 50),
+        addedBy: username
     })).filter(/** @param {{ name: string }} i */ i => i.name);
 
     if (items.length === 0) return json({ ok: true, count: 0, items: [] });

@@ -34,7 +34,8 @@ export async function POST({ params, request, cookies }) {
         spec: String(body.spec ?? '').trim().slice(0, 500),
         quantity: Number.isInteger(body.quantity) && body.quantity > 0 && body.quantity <= 9999 ? body.quantity : 1,
         bought: false,
-        category: String(body.category ?? '').trim().slice(0, 50)
+        category: String(body.category ?? '').trim().slice(0, 50),
+        addedBy: username
     };
     if (!item.name) return json({ error: 'invalid_item' }, { status: 400 });
 
