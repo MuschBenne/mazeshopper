@@ -18,6 +18,7 @@
     const username = $derived(authContext.user?.username ?? '');
     // Only the owner can delete the list or share it with others.
     const isOwner = $derived(list?.owner === username);
+    const isShared = $derived((list?.sharedWith?.length ?? 0) > 0);
 
     let newItem = $state('');
     let spec = $state('');
@@ -35,6 +36,7 @@
     let categoryError = $state(false);
     let confirmDeleteList = $state(false);
     let confirmClearAll = $state(false);
+    let showAddedBy = $state(false);
 
     // Persist the last-used category per list in sessionStorage so it's
     // pre-selected when the user navigates back to the same list.
@@ -43,6 +45,17 @@
         const saved = sessionStorage.getItem(`lastCategory_${id}`);
         if (saved) selectedCategory = saved;
         else selectedCategory = '';
+    });
+
+    $effect(() => {
+        if (!browser) return;
+        const saved = localStorage.getItem(`mazeshopper_showAddedBy_${id}`);
+        if (saved === 'true') showAddedBy = true;
+    });
+
+    $effect(() => {
+        if (!browser) return;
+        localStorage.setItem(`mazeshopper_showAddedBy_${id}`, String(showAddedBy));
     });
 
     $effect(() => {
@@ -108,7 +121,7 @@
         categoryError = false;
         if (newItem.trim().length === 0) return;
         adding = true;
-        const ok = await shoppingContext.addItem(id, newItem, spec, selectedCategory);
+        const ok = await shoppingContext.addItem(id, newItem, spec, selectedCategory, username);
         adding = false;
         if (ok) {
             newItem = '';
@@ -160,6 +173,14 @@
                     {:else}
                         <button class="btn-delete-list" onclick={() => confirmDeleteList = true}>Ta bort</button>
                     {/if}
+                {/if}
+                {#if isShared}
+                    <button
+                        class="btn-added-by"
+                        class:active={showAddedBy}
+                        onclick={() => (showAddedBy = !showAddedBy)}
+                        title="Visa vem som lade till varorna"
+                    >Tillagd av</button>
                 {/if}
                 <button
                     class="btn-shopping-mode"
@@ -309,7 +330,7 @@
                 {#each sortedCategories as category}
                     {@const categoryItems = filteredItems.filter(i => i.category === category.name)}
                     {#if categoryItems.length > 0}
-                        <CategorySection {category} items={categoryItems} {shoppingMode} listId={id} />
+                        <CategorySection {category} items={categoryItems} {shoppingMode} listId={id} {showAddedBy} />
                     {/if}
                 {/each}
             {/if}
@@ -416,6 +437,26 @@
     }
 
     .btn-delete-list:hover { background: var(--danger-bg); }
+
+    .btn-added-by {
+        font-size: 0.8em;
+        color: var(--text-secondary);
+        background: none;
+        border: 1px solid var(--border-input);
+        border-radius: 6px;
+        padding: 0.25rem 0.6rem;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+
+    .btn-added-by:hover { background: var(--bg-elevated); border-color: var(--text-muted); }
+
+    .btn-added-by.active {
+        color: var(--violet-text);
+        border-color: var(--violet-border);
+        background: var(--violet-light);
+    }
 
     .btn-shopping-mode {
         font-size: 0.85rem;

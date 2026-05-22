@@ -2,7 +2,7 @@ import { browser } from '$app/environment';
 import { notificationContext } from './notification-context.svelte';
 
 /**
- * @typedef {{ itemId: string, name: string, spec: string, quantity: number, bought: boolean, category: string }} ShoppingItem
+ * @typedef {{ itemId: string, name: string, spec: string, quantity: number, bought: boolean, category: string, addedBy?: string }} ShoppingItem
  * @typedef {{ id: string, name: string, owner: string, sharedWith: string[], pendingInvites: string[], items: ShoppingItem[] }} ShoppingList
  * @typedef {{ id: string, listId: string, listName: string, fromUser: string, createdAt: string }} Invitation
  * @typedef {{ clearedAt: string, items: ShoppingItem[] }} BoughtEntry
@@ -220,13 +220,14 @@ class ShoppingContext {
      * @param {string} name
      * @param {string} spec
      * @param {string} category
+     * @param {string} [addedBy]
      * @returns {Promise<boolean>}
      */
-    async addItem(listId, name, spec, category) {
+    async addItem(listId, name, spec, category, addedBy = '') {
         const list = this.getList(listId);
         if (!list) return false;
         const itemId = crypto.randomUUID();
-        const item = { itemId, name, spec, quantity: 1, bought: false, category };
+        const item = { itemId, name, spec, quantity: 1, bought: false, category, addedBy };
         // Optimistic update — show the item immediately before the server confirms.
         list.items = [...list.items, item];
         try {

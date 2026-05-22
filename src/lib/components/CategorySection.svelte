@@ -10,10 +10,11 @@
      *   category: { name: string, color: string },
      *   items: import('$lib/context/shopping-context.svelte').ShoppingItem[],
      *   shoppingMode: boolean,
-     *   listId: string
+     *   listId: string,
+     *   showAddedBy?: boolean
      * }}
      */
-    let { category, items, shoppingMode, listId } = $props();
+    let { category, items, shoppingMode, listId, showAddedBy = false } = $props();
 
     let collapsed = $state(false);
 
@@ -99,6 +100,7 @@
                     <span class="item-name" style:text-decoration={item.bought ? 'line-through' : 'none'}>
                         {item.name}
                         {#if item.spec}<span class="item-spec">{item.spec}</span>{/if}
+                        {#if showAddedBy && item.addedBy}<span class="item-added-by">{item.addedBy}</span>{/if}
                     </span>
                     <div class="quantity-controls">
                         {#if !shoppingMode}
@@ -198,6 +200,15 @@
         color: var(--text-faint);
         font-weight: 400;
         margin-top: 0.1rem;
+    }
+
+    .item-added-by {
+        display: block;
+        font-size: 0.75em;
+        color: var(--violet-text);
+        font-weight: 400;
+        margin-top: 0.1rem;
+        opacity: 0.8;
     }
 
     li.bought .item-name { color: var(--text-faint); }
