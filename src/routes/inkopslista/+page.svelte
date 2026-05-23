@@ -186,6 +186,15 @@
 
     .new-list-card button:hover { opacity: 0.9; }
 
+    @media (max-width: 420px) {
+        .new-list-card {
+            flex-direction: column;
+        }
+        .new-list-card button {
+            width: 100%;
+        }
+    }
+
     .invitations-section {
         display: flex;
         flex-direction: column;
