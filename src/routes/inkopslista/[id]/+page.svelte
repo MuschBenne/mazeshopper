@@ -36,6 +36,7 @@
     let categoryError = $state(false);
     let confirmDeleteList = $state(false);
     let confirmClearAll = $state(false);
+    let confirmLeaveList = $state(false);
     let showAddedBy = $state(false);
 
     // Persist the last-used category per list in sessionStorage so it's
@@ -135,6 +136,11 @@
         goto('/inkopslista');
     }
 
+    async function leaveList() {
+        await shoppingContext.leaveList(id, username);
+        goto('/inkopslista');
+    }
+
     /** @param {string} dateStr */
     function formatDate(dateStr) {
         const d = new Date(dateStr);
@@ -193,7 +199,18 @@
         </div>
 
         {#if !isOwner && !shoppingMode}
-            <p class="shared-notice">Delad lista av <strong>{list.owner}</strong></p>
+            <div class="shared-notice-row">
+                <p class="shared-notice">Delad lista av <strong>{list.owner}</strong></p>
+                {#if confirmLeaveList}
+                    <span class="confirm-inline">
+                        <span>Lämna listan?</span>
+                        <button class="btn-confirm-sm btn-confirm-sm--danger" onclick={leaveList}>Ja</button>
+                        <button class="btn-cancel" onclick={() => confirmLeaveList = false}>Nej</button>
+                    </span>
+                {:else}
+                    <button class="btn-leave-list" onclick={() => confirmLeaveList = true}>Lämna lista</button>
+                {/if}
+            </div>
         {/if}
 
         <!-- Share panel -->
@@ -481,6 +498,13 @@
         font-weight: 700;
     }
 
+    .shared-notice-row {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+
     .shared-notice {
         font-size: 0.85em;
         color: var(--violet-text);
@@ -488,6 +512,21 @@
         border-radius: 8px;
         padding: 0.5rem 0.9rem;
         margin: 0;
+    }
+
+    .btn-leave-list {
+        font-size: 0.82em;
+        padding: 0.35rem 0.75rem;
+        background: none;
+        border: 1px solid var(--danger-text);
+        color: var(--danger-text);
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 500;
+    }
+
+    .btn-leave-list:hover {
+        background: var(--danger-bg);
     }
 
     .offline-badge {

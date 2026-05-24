@@ -189,6 +189,19 @@ class ShoppingContext {
         }
     }
 
+    /**
+     * @param {string} listId
+     * @param {string} username
+     */
+    async leaveList(listId, username) {
+        await fetch(`/api/lists/${listId}/share`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username })
+        });
+        this.lists = this.lists.filter(l => l.id !== listId);
+    }
+
     /** @param {string} invId */
     async acceptInvitation(invId) {
         await fetch(`/api/invitations/${invId}`, {

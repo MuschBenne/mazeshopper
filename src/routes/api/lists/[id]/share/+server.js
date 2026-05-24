@@ -53,17 +53,23 @@ export async function POST({ params, request, cookies }) {
 }
 
 // Removes a user's access to the list and cancels any pending invitation they may have.
-// Only the list owner can unshare.
+// The list owner can remove anyone; a shared user can remove only themselves (leave).
 export async function DELETE({ params, request, cookies }) {
     const username = await getSessionUser(cookies);
     if (!username) return json({ error: 'unauthorized' }, { status: 401 });
     if (!ObjectId.isValid(params.id)) return json({ error: 'not_found' }, { status: 404 });
 
     const db = await getDb();
-    const ownedList = await db.collection('lists').findOne({ _id: new ObjectId(params.id), owner: username });
-    if (!ownedList) return json({ error: 'forbidden' }, { status: 403 });
-
     const { username: target } = await request.json();
+
+    const list = await db.collection('lists').findOne({ _id: new ObjectId(params.id) });
+    if (!list) return json({ error: 'not_found' }, { status: 404 });
+
+    const isOwner = list.owner === username;
+    const isSelfLeave = target.toLowerCase() === username.toLowerCase() &&
+        (list.sharedWith ?? []).some(/** @param {string} u */ u => u.toLowerCase() === username.toLowerCase());
+
+    if (!isOwner && !isSelfLeave) return json({ error: 'forbidden' }, { status: 403 });
 
     // Remove from both sharedWith and pendingInvites using case-insensitive regex.
     await db.collection('lists').updateOne(
