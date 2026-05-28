@@ -63,11 +63,14 @@ src/
 │   │   ├── notification-context.svelte.js  # Toast-kö
 │   │   ├── setting-context.svelte.js       # Kategorier (localStorage)
 │   │   ├── shopping-context.svelte.js      # Listor + inbjudningar
-│   │   └── store-context.svelte.js         # Varuhus + layout
+│   │   ├── store-context.svelte.js         # Varuhus + layout
+│   │   ├── template-context.svelte.js      # Listmallar (CRUD + import till lista)
+│   │   └── theme-context.svelte.js         # Tema (system/ljust/mörkt, localStorage)
 │   └── server/
 │       ├── db.js       # MongoClient singleton + ensureIndexes()
 │       ├── email.js    # sendPasswordReset(), sendEmailVerification()
-│       └── session.js  # createSession(), getSessionUser(), deleteSession()
+│       ├── session.js  # createSession(), getSessionUser(), deleteSession()
+│       └── utils.js    # serializeList(), isValidPassword(), isValidEmail(), escapeRegex()
 ├── routes/
 │   ├── +layout.server.js   # Laddar session → skickar user till layout
 │   ├── +layout.svelte      # Navbar, Toast, bootstrappar alla context:ar
@@ -81,11 +84,14 @@ src/
 │   │   ├── invitations/    # GET inbjudningar, POST accept/decline
 │   │   ├── lists/          # GET/POST listor
 │   │   │   └── [id]/       # DELETE lista, GET enskild lista
+│   │   │       ├── import/ # POST importera varor från mall (addedBy sätts)
 │   │   │       ├── items/  # POST item, DELETE alla/bought
 │   │   │       │   └── [itemId]/  # DELETE/PATCH enskild vara
-│   │   │       └── share/  # POST/DELETE dela lista
+│   │   │       ├── share/  # POST/DELETE dela lista; delare kan ta bort sig själva (lämna)
+│   │   │       └── stream/ # GET SSE-ström för realtidsuppdateringar (maxDuration 300s)
 │   │   ├── stores/         # GET/POST varuhus
 │   │   │   └── [storeId]/  # PATCH layout, DELETE varuhus
+│   │   ├── templates/      # GET/POST/DELETE/PATCH listmallar
 │   │   └── user/export/    # GET — returnerar all användardata som JSON
 │   ├── inkopslista/
 │   │   ├── +page.svelte         # Lista-översikt + skapa lista
@@ -140,7 +146,8 @@ Max 10 försök per IP per 15 minuter, spåras i `login_attempts`-collection med
 |---|---|
 | `users` | username (unik), email (sparse), password (bcrypt), emailVerified |
 | `sessions` | token (unik), username, expiresAt (TTL) |
-| `lists` | owner, sharedWith[], pendingInvites[], items[] |
+| `lists` | owner, sharedWith[], pendingInvites[], items[] (inkl. addedBy per vara) |
+| `templates` | owner, name, items[] (itemId, name, spec, quantity, category) |
 | `stores` | owner, name, categoryOrder{}, positions{} |
 | `categories` | owner, name, color |
 | `password_resets` | email, tokenHash, expiresAt (TTL 15 min) |
@@ -150,9 +157,13 @@ Max 10 försök per IP per 15 minuter, spåras i `login_attempts`-collection med
 
 Indexes skapas av `ensureIndexes()` i `db.js`, körs vid serverstart via `hooks.server.js`.
 
+## Tema
+
+Manuell temainställning (system/ljust/mörkt) via `theme-context.svelte.js`. Sparas i `localStorage` under nyckeln `theme`. Inställningen finns på `/installningar`.
+
 ## Handelsläge
 
-I `inkopslista/[id]/+page.svelte` aktiveras handelsläge via `shoppingMode`-state. Pollning sker var 15:e sekund via `shoppingContext.refreshList(id)`. Efter 2+ på varandra följande misslyckade polls visas ett gult offline-banner (`pollFailures >= 2`).
+I `inkopslista/[id]/+page.svelte` aktiveras handelsläge via `shoppingMode`-state. Pollning sker var 15:e sekund via `shoppingContext.refreshList(id)`. Efter 2+ på varandra följande misslyckade polls visas ett gult offline-banner (`pollFailures >= 2`). SSE-ström finns som alternativ via `GET /api/lists/[id]/stream`.
 
 ## GDPR
 
