@@ -38,26 +38,6 @@ export async function ensureIndexes() {
     indexesEnsured = true;
 }
 
-// Ensures every "Generisk lista" profile has the locked Övrigt category.
-// Idempotent: only touches profiles that lack a locked category — safe to run on every startup.
-export async function ensureGenericProfileLockedCategory() {
-    try {
-        const db = await getDb();
-        const profiles = await db.collection('listprofiles').find({
-            name: 'Generisk lista',
-            'categories.locked': { $ne: true }
-        }).toArray();
-        for (const profile of profiles) {
-            await db.collection('listprofiles').updateOne(
-                { _id: profile._id },
-                /** @type {any} */ ({ $push: { categories: { id: crypto.randomUUID(), name: 'Övrigt', color: '#e2e8f0', locked: true } } })
-            );
-        }
-    } catch (err) {
-        console.error('ensureGenericProfileLockedCategory failed:', err);
-    }
-}
-
 export async function runMigration() {
     if (migrationRan) return;
     migrationRan = true;
