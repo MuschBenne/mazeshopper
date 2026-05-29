@@ -44,6 +44,8 @@ export const DEFAULT_PROFILES = [
     },
     {
         name: 'Generisk lista',
-        categories: []
+        categories: [
+            { name: 'Övrigt', color: '#e2e8f0', locked: true }
+        ]
     }
 ];

@@ -6,7 +6,7 @@ const fallbackColors = [
 ];
 
 /**
- * @typedef {{ id: string, name: string, color: string }} ProfileCategory
+ * @typedef {{ id: string, name: string, color: string, locked?: boolean }} ProfileCategory
  * @typedef {{ id: string, name: string, categories: ProfileCategory[] }} ListProfile
  */
 

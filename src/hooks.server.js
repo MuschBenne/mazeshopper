@@ -1,7 +1,8 @@
-import { ensureIndexes, runMigration } from '$lib/server/db';
+import { ensureIndexes, runMigration, ensureGenericProfileLockedCategory } from '$lib/server/db';
 
 ensureIndexes()
     .then(() => runMigration())
+    .then(() => ensureGenericProfileLockedCategory())
     .catch(err => console.error('Failed to ensure indexes / run migration:', err));
 
 /** @type {import('@sveltejs/kit').Handle} */

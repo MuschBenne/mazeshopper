@@ -5,10 +5,24 @@ import { ObjectId } from 'mongodb';
 
 const validHex = /^#[0-9a-fA-F]{6}$/;
 
+/** @param {import('mongodb').Db} db @param {string} profileId @param {string} owner @param {string} catId */
+async function findCategory(db, profileId, owner, catId) {
+    const profile = await db.collection('listprofiles').findOne(
+        { _id: new ObjectId(profileId), owner },
+        { projection: { 'categories': { $elemMatch: { id: catId } } } }
+    );
+    return profile?.categories?.[0] ?? null;
+}
+
 export async function PATCH({ params, request, cookies }) {
     const username = await getSessionUser(cookies);
     if (!username) return json({ error: 'unauthorized' }, { status: 401 });
     if (!ObjectId.isValid(params.id)) return json({ error: 'not_found' }, { status: 404 });
+
+    const db = await getDb();
+    const cat = await findCategory(db, params.id, username, params.catId);
+    if (!cat) return json({ error: 'not_found' }, { status: 404 });
+    if (cat.locked) return json({ error: 'locked' }, { status: 403 });
 
     const { name, color } = await request.json();
     /** @type {Record<string, string>} */
@@ -24,7 +38,6 @@ export async function PATCH({ params, request, cookies }) {
     }
     if (Object.keys(updates).length === 0) return json({ error: 'nothing_to_update' }, { status: 400 });
 
-    const db = await getDb();
     const result = await db.collection('listprofiles').updateOne(
         { _id: new ObjectId(params.id), owner: username, 'categories.id': params.catId },
         { $set: updates }
@@ -39,6 +52,10 @@ export async function DELETE({ params, cookies }) {
     if (!ObjectId.isValid(params.id)) return json({ error: 'not_found' }, { status: 404 });
 
     const db = await getDb();
+    const cat = await findCategory(db, params.id, username, params.catId);
+    if (!cat) return json({ error: 'not_found' }, { status: 404 });
+    if (cat.locked) return json({ error: 'locked' }, { status: 403 });
+
     const result = await db.collection('listprofiles').updateOne(
         { _id: new ObjectId(params.id), owner: username },
         // @ts-ignore — MongoDB $pull with object match is valid at runtime

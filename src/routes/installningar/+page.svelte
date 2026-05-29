@@ -169,7 +169,7 @@
                                 <ul class="cat-list">
                                     {#each profile.categories as cat}
                                         <li class="cat-item">
-                                            {#if categoryEditMode}
+                                            {#if categoryEditMode && !cat.locked}
                                                 <button class="btn-remove" onclick={() => listprofileContext.removeCategory(profile.id, cat.id)} aria-label="Ta bort {cat.name}">−</button>
                                                 <input
                                                     type="color"
@@ -182,6 +182,9 @@
                                                 <span class="dot" style:background={cat.color}></span>
                                             {/if}
                                             <span class="category-name">{cat.name}</span>
+                                            {#if cat.locked}
+                                                <span class="cat-locked-badge">inbyggd</span>
+                                            {/if}
                                         </li>
                                     {/each}
                                 </ul>
@@ -476,6 +479,17 @@
         color: var(--text-faint);
         margin: 0 0 0.5rem;
         font-style: italic;
+    }
+
+    .cat-locked-badge {
+        font-size: 0.72em;
+        color: var(--text-faint);
+        background: var(--bg-elevated);
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 0.1rem 0.45rem;
+        white-space: nowrap;
+        flex-shrink: 0;
     }
 
     .new-profile-row {
