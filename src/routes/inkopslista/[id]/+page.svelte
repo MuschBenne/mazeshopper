@@ -42,11 +42,17 @@
 
     // Persist the last-used category per list in sessionStorage so it's
     // pre-selected when the user navigates back to the same list.
+    // If the profile only has one category (e.g. Generisk lista), auto-select it.
     $effect(() => {
         if (!browser) return;
         const saved = sessionStorage.getItem(`lastCategory_${id}`);
-        if (saved) selectedCategory = saved;
-        else selectedCategory = '';
+        if (saved) {
+            selectedCategory = saved;
+        } else if (profileCategories.length === 1) {
+            selectedCategory = profileCategories[0].name;
+        } else {
+            selectedCategory = '';
+        }
     });
 
     $effect(() => {
