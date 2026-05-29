@@ -16,49 +16,55 @@
 
     // Profile management state
     /** @type {string | null} */
-    let expandedProfileId = $state(null);
-    /** @type {string | null} */
-    let renamingProfileId = $state(null);
+    let selectedProfileId = $state(null);
+    let renaming = $state(false);
     let renameValue = $state('');
+    let confirmDeleteProfile = $state(false);
     let newProfileName = $state('');
     let showNewProfileForm = $state(false);
 
-    // Per-expanded-profile category editing
+    // Per-selected-profile category editing
     let categoryEditMode = $state(false);
     let newCatName = $state('');
     let newCatColor = $state('#e2e8f0');
 
+    const selectedProfile = $derived(
+        selectedProfileId ? listprofileContext.getProfile(selectedProfileId) : null
+    );
+
     $effect(() => {
-        // Read expandedProfileId so this effect re-runs when it changes.
-        // eslint-disable-next-line no-unused-expressions
-        expandedProfileId;
+        // Reset editing state when navigating between profiles.
+        selectedProfileId;
         categoryEditMode = false;
         newCatName = '';
         newCatColor = '#e2e8f0';
+        renaming = false;
+        confirmDeleteProfile = false;
     });
 
     /** @param {string} id */
-    function toggleExpand(id) {
-        if (expandedProfileId === id) {
-            expandedProfileId = null;
-        } else {
-            expandedProfileId = id;
-            renamingProfileId = null;
-        }
+    function openProfile(id) {
+        selectedProfileId = id;
+        const profile = listprofileContext.getProfile(id);
+        if (profile) renameValue = profile.name;
     }
 
-    /** @param {string} id */
-    function startRename(id) {
-        const profile = listprofileContext.getProfile(id);
-        if (!profile) return;
-        renamingProfileId = id;
-        renameValue = profile.name;
+    function goBack() {
+        selectedProfileId = null;
+        showNewProfileForm = false;
     }
 
     async function confirmRename() {
-        if (!renamingProfileId || !renameValue.trim()) return;
-        await listprofileContext.renameProfile(renamingProfileId, renameValue.trim());
-        renamingProfileId = null;
+        if (!selectedProfileId || !renameValue.trim()) return;
+        await listprofileContext.renameProfile(selectedProfileId, renameValue.trim());
+        renaming = false;
+    }
+
+    async function deleteSelectedProfile() {
+        if (!selectedProfileId) return;
+        const ok = await listprofileContext.deleteProfile(selectedProfileId);
+        if (ok) selectedProfileId = null;
+        confirmDeleteProfile = false;
     }
 
     async function createProfile() {
@@ -67,13 +73,13 @@
         if (profile) {
             newProfileName = '';
             showNewProfileForm = false;
-            expandedProfileId = profile.id;
+            openProfile(profile.id);
         }
     }
 
     async function addCategoryToProfile() {
-        if (!expandedProfileId || !newCatName.trim()) return;
-        await listprofileContext.addCategory(expandedProfileId, newCatName, newCatColor);
+        if (!selectedProfileId || !newCatName.trim()) return;
+        await listprofileContext.addCategory(selectedProfileId, newCatName, newCatColor);
         newCatName = '';
         newCatColor = '#e2e8f0';
     }
@@ -107,113 +113,116 @@
     <p class="subtitle">Hantera listprofiler, e-postadress och ditt konto.</p>
 
     <div class="card">
-        <div class="section-header">
-            <h2>Listprofiler</h2>
-            <button class="btn-edit" onclick={() => { showNewProfileForm = !showNewProfileForm; }}>
-                {showNewProfileForm ? 'Avbryt' : '+ Ny profil'}
-            </button>
-        </div>
-
-        {#if showNewProfileForm}
-            <div class="add-row new-profile-row">
-                <input
-                    type="text"
-                    placeholder="Profilnamn"
-                    bind:value={newProfileName}
-                    onkeydown={(e) => e.key === 'Enter' && createProfile()}
-                />
-                <button onclick={createProfile}>Skapa</button>
+        {#if selectedProfile}
+            <!-- Detail view -->
+            <div class="detail-header">
+                <button class="back" onclick={goBack}>← Profiler</button>
+                {#if renaming}
+                    <input
+                        class="rename-input"
+                        bind:value={renameValue}
+                        onkeydown={(e) => { if (e.key === 'Enter') confirmRename(); else if (e.key === 'Escape') renaming = false; }}
+                    />
+                {:else}
+                    <h2 class="detail-title">{selectedProfile.name}</h2>
+                {/if}
+                <div class="detail-actions">
+                    {#if renaming}
+                        <button class="btn-sm btn-sm--primary" onclick={confirmRename}>Spara</button>
+                        <button class="btn-sm" onclick={() => renaming = false}>Avbryt</button>
+                    {:else if confirmDeleteProfile}
+                        <span class="confirm-inline-sm">Ta bort?</span>
+                        <button class="btn-sm btn-sm--danger" onclick={deleteSelectedProfile}>Ja</button>
+                        <button class="btn-sm" onclick={() => confirmDeleteProfile = false}>Nej</button>
+                    {:else}
+                        <button class="btn-sm" onclick={() => renaming = true}>Byt namn</button>
+                        <button class="btn-sm btn-sm--danger" onclick={() => confirmDeleteProfile = true}>Ta bort</button>
+                    {/if}
+                </div>
             </div>
-        {/if}
 
-        <ul class="profile-list">
-            {#each listprofileContext.profiles as profile}
-                {@const isExpanded = expandedProfileId === profile.id}
-                <li class="profile-item">
-                    <div class="profile-header">
-                        <button class="profile-toggle" onclick={() => toggleExpand(profile.id)}>
-                            <span class="toggle-arrow">{isExpanded ? '▼' : '▶'}</span>
-                            {#if renamingProfileId === profile.id}
+            <div class="cat-section-header">
+                <span class="cat-section-title">Kategorier</span>
+                <button class="btn-edit" class:active={categoryEditMode} onclick={() => categoryEditMode = !categoryEditMode}>
+                    {categoryEditMode ? 'Klar' : 'Ändra'}
+                </button>
+            </div>
+
+            {#if selectedProfile.categories.length > 0}
+                <ul class="cat-list">
+                    {#each selectedProfile.categories as cat}
+                        <li class="cat-item">
+                            {#if categoryEditMode && !cat.locked}
+                                <button class="btn-remove" onclick={() => listprofileContext.removeCategory(selectedProfile.id, cat.id)} aria-label="Ta bort {cat.name}">−</button>
                                 <input
-                                    class="rename-input"
-                                    bind:value={renameValue}
-                                    onkeydown={(e) => { if (e.key === 'Enter') confirmRename(); else if (e.key === 'Escape') renamingProfileId = null; }}
-                                    onclick={(e) => e.stopPropagation()}
+                                    type="color"
+                                    class="color-input"
+                                    value={cat.color}
+                                    oninput={(e) => listprofileContext.updateCategory(selectedProfile.id, cat.id, { color: /** @type {HTMLInputElement} */ (e.target).value })}
+                                    title="Välj färg"
                                 />
                             {:else}
-                                <span class="profile-name">{profile.name}</span>
-                                <span class="profile-count">{profile.categories.length} kat.</span>
+                                <span class="dot" style:background={cat.color}></span>
                             {/if}
-                        </button>
-                        <div class="profile-actions">
-                            {#if renamingProfileId === profile.id}
-                                <button class="btn-sm btn-sm--primary" onclick={confirmRename}>Spara</button>
-                                <button class="btn-sm" onclick={() => renamingProfileId = null}>Avbryt</button>
-                            {:else}
-                                <button class="btn-sm" onclick={() => startRename(profile.id)}>Byt namn</button>
-                                <button class="btn-sm btn-sm--danger" onclick={() => listprofileContext.deleteProfile(profile.id)}>Ta bort</button>
+                            <span class="category-name">{cat.name}</span>
+                            {#if cat.locked}
+                                <span class="cat-locked-badge">inbyggd</span>
                             {/if}
-                        </div>
-                    </div>
+                        </li>
+                    {/each}
+                </ul>
+            {:else}
+                <p class="cat-empty">Inga kategorier än — lägg till en nedan.</p>
+            {/if}
 
-                    {#if isExpanded}
-                        <div class="profile-body">
-                            <div class="cat-section-header">
-                                <span class="cat-section-title">Kategorier</span>
-                                <button class="btn-edit" class:active={categoryEditMode} onclick={() => categoryEditMode = !categoryEditMode}>
-                                    {categoryEditMode ? 'Klar' : 'Ändra'}
-                                </button>
-                            </div>
+            {#if categoryEditMode}
+                <div class="add-row">
+                    <input
+                        type="color"
+                        class="color-input"
+                        bind:value={newCatColor}
+                        title="Välj färg för ny kategori"
+                    />
+                    <input
+                        type="text"
+                        placeholder="Ny kategori"
+                        bind:value={newCatName}
+                        onkeydown={(e) => e.key === 'Enter' && addCategoryToProfile()}
+                    />
+                    <button onclick={addCategoryToProfile}>Lägg till</button>
+                </div>
+            {/if}
 
-                            {#if profile.categories.length > 0}
-                                <ul class="cat-list">
-                                    {#each profile.categories as cat}
-                                        <li class="cat-item">
-                                            {#if categoryEditMode && !cat.locked}
-                                                <button class="btn-remove" onclick={() => listprofileContext.removeCategory(profile.id, cat.id)} aria-label="Ta bort {cat.name}">−</button>
-                                                <input
-                                                    type="color"
-                                                    class="color-input"
-                                                    value={cat.color}
-                                                    oninput={(e) => listprofileContext.updateCategory(profile.id, cat.id, { color: /** @type {HTMLInputElement} */ (e.target).value })}
-                                                    title="Välj färg"
-                                                />
-                                            {:else}
-                                                <span class="dot" style:background={cat.color}></span>
-                                            {/if}
-                                            <span class="category-name">{cat.name}</span>
-                                            {#if cat.locked}
-                                                <span class="cat-locked-badge">inbyggd</span>
-                                            {/if}
-                                        </li>
-                                    {/each}
-                                </ul>
-                            {:else}
-                                <p class="cat-empty">Inga kategorier än.</p>
-                            {/if}
+        {:else}
+            <!-- List view -->
+            <div class="section-header">
+                <h2>Listprofiler</h2>
+                <button class="btn-edit" onclick={() => { showNewProfileForm = !showNewProfileForm; newProfileName = ''; }}>
+                    {showNewProfileForm ? 'Avbryt' : '+ Ny profil'}
+                </button>
+            </div>
 
-                            {#if categoryEditMode}
-                                <div class="add-row">
-                                    <input
-                                        type="color"
-                                        class="color-input"
-                                        bind:value={newCatColor}
-                                        title="Välj färg för ny kategori"
-                                    />
-                                    <input
-                                        type="text"
-                                        placeholder="Ny kategori"
-                                        bind:value={newCatName}
-                                        onkeydown={(e) => e.key === 'Enter' && addCategoryToProfile()}
-                                    />
-                                    <button onclick={addCategoryToProfile}>Lägg till</button>
-                                </div>
-                            {/if}
-                        </div>
-                    {/if}
-                </li>
-            {/each}
-        </ul>
+            {#if showNewProfileForm}
+                <div class="add-row new-profile-row">
+                    <input
+                        type="text"
+                        placeholder="Profilnamn"
+                        bind:value={newProfileName}
+                        onkeydown={(e) => e.key === 'Enter' && createProfile()}
+                    />
+                    <button onclick={createProfile}>Skapa</button>
+                </div>
+            {/if}
+
+            <div class="profiles-grid">
+                {#each listprofileContext.profiles as profile}
+                    <button class="profile-card" onclick={() => openProfile(profile.id)}>
+                        <span class="profile-card-name">{profile.name}</span>
+                        <span class="profile-card-count">{profile.categories.length} kategorier</span>
+                    </button>
+                {/each}
+            </div>
+        {/if}
     </div>
 
     <div class="card">
@@ -335,67 +344,91 @@
         font-size: 1.1rem;
     }
 
-    /* Profile list */
-    .profile-list {
-        list-style: none;
-        padding: 0;
-        margin: 0;
+    /* Profile grid (list view) */
+    .profiles-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 0.75rem;
+    }
+
+    .profile-card {
         display: flex;
         flex-direction: column;
-        gap: 0.5rem;
-    }
-
-    .profile-item {
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        overflow: hidden;
-    }
-
-    .profile-header {
-        display: flex;
         align-items: center;
-        justify-content: space-between;
-        gap: 0.5rem;
-        padding: 0.6rem 0.75rem;
+        justify-content: center;
+        gap: 0.35rem;
+        min-height: 100px;
+        border-radius: 10px;
+        border: 2px solid var(--border);
         background: var(--bg-elevated);
+        padding: 1rem 0.75rem;
+        cursor: pointer;
+        text-align: center;
+        transition: border-color 0.15s, box-shadow 0.15s;
+        font-size: 1rem;
     }
 
-    .profile-toggle {
-        display: flex;
-        align-items: center;
-        gap: 0.45rem;
-        flex: 1;
-        background: none;
-        border: none;
-        text-align: left;
-        cursor: pointer;
-        padding: 0;
+    .profile-card:hover {
+        border-color: var(--text-faint);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+    }
+
+    .profile-card-name {
         font-size: 0.95em;
         font-weight: 600;
         color: var(--text-primary);
-        min-height: unset;
+        word-break: break-word;
     }
 
-    .toggle-arrow {
-        font-size: 0.6em;
-        color: var(--text-faint);
-        flex-shrink: 0;
-    }
-
-    .profile-name { flex: 1; min-width: 0; }
-
-    .profile-count {
+    .profile-card-count {
         font-size: 0.78em;
-        font-weight: 400;
         color: var(--text-faint);
+    }
+
+    /* Profile detail view */
+    .detail-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .detail-title {
+        flex: 1;
+        margin: 0;
+        font-size: 1.1rem;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
         white-space: nowrap;
     }
 
-    .profile-actions {
+    .detail-actions {
         display: flex;
         gap: 0.3rem;
         flex-shrink: 0;
+        align-items: center;
     }
+
+    .confirm-inline-sm {
+        font-size: 0.82em;
+        color: var(--danger-text);
+        font-weight: 600;
+    }
+
+    .back {
+        background: none;
+        border: none;
+        color: var(--text-muted);
+        font-size: 0.9em;
+        cursor: pointer;
+        padding: 0;
+        min-height: unset;
+        white-space: nowrap;
+    }
+
+    .back:hover { color: var(--text-primary); }
 
     .btn-sm {
         padding: 0.2rem 0.55rem;
@@ -435,12 +468,6 @@
     }
 
     .rename-input:focus { border-color: #f97316; }
-
-    .profile-body {
-        padding: 0.75rem;
-        border-top: 1px solid var(--border-subtle);
-        background: var(--bg-surface);
-    }
 
     .cat-section-header {
         display: flex;
@@ -495,6 +522,8 @@
     .new-profile-row {
         margin-bottom: 0.75rem;
     }
+
+    .cat-section-header { margin-bottom: 0.5rem; margin-top: 0.25rem; }
 
     .btn-edit {
         padding: 0.35rem 0.9rem;
