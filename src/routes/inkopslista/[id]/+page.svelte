@@ -3,7 +3,6 @@
     // Supports two modes: edit mode (add/remove/edit items) and shopping mode (check off items).
     import { shoppingContext } from "$lib/context/shopping-context.svelte";
     import { authContext } from "$lib/context/auth-context.svelte";
-    import { settingContext } from "$lib/context/setting-context.svelte";
     import { storeContext } from "$lib/context/store-context.svelte";
     import SharePanel from "$lib/components/SharePanel.svelte";
     import CategorySection from "$lib/components/CategorySection.svelte";
@@ -12,6 +11,8 @@
     import { goto } from '$app/navigation';
     import { browser } from '$app/environment';
     import { fade, slide, fly } from 'svelte/transition';
+
+    let { data } = $props();
 
     const id = $derived(page.params.id ?? '');
     const list = $derived(shoppingContext.getList(id));
@@ -80,24 +81,30 @@
         return () => es.close();
     });
 
+    // Profile categories come from the server load — covers both owned and shared lists.
+    const profileCategories = $derived(
+        /** @type {{ id: string, name: string, color: string }[]} */ (data.profileCategories ?? [])
+    );
+
     const sortedCategories = $derived.by(() => {
         const store = storeContext.selectedStore;
-        // If a store with a saved layout is selected, sort categories by aisle order.
-        const base = (!store || Object.keys(store.categoryOrder).length === 0)
-            ? settingContext.categories
-            : [...settingContext.categories].sort((a, b) => {
+        // Only use the store's layout if it belongs to the same profile as the list.
+        const storeMatches = store && store.profileId === list?.profileId;
+        const base = (!storeMatches || Object.keys(store.categoryOrder).length === 0)
+            ? profileCategories
+            : [...profileCategories].sort((a, b) => {
                 const pa = store.categoryOrder[a.name] ?? Infinity;
                 const pb = store.categoryOrder[b.name] ?? Infinity;
                 return pa - pb;
             });
 
         if (!list) return base;
-        // A shared list may contain items with categories the current user hasn't defined.
+        // A shared list may contain items with categories not in the profile.
         // Append any unknown categories so those items are still visible.
         const knownNames = new Set(base.map(c => c.name));
         const extraNames = [...new Set(list.items.map(i => i.category))].filter(n => n && !knownNames.has(n));
         if (extraNames.length === 0) return base;
-        const extras = extraNames.map(name => ({ name, color: '#e2e8f0' }));
+        const extras = extraNames.map(name => ({ id: name, name, color: '#e2e8f0' }));
         return [...base, ...extras];
     });
 
@@ -293,7 +300,7 @@
                     onkeydown={(e) => e.key === 'Enter' && addItem()}
                 />
                 <div class="category-picker" class:picker-error={categoryError} class:picker-hint={newItem.trim().length > 0 && !selectedCategory && !categoryError}>
-                    {#each settingContext.categories as category}
+                    {#each profileCategories as category}
                         <button
                             class="category-chip"
                             class:selected={selectedCategory === category.name}
@@ -347,7 +354,7 @@
                 {#each sortedCategories as category}
                     {@const categoryItems = filteredItems.filter(i => i.category === category.name)}
                     {#if categoryItems.length > 0}
-                        <CategorySection {category} items={categoryItems} {shoppingMode} listId={id} {showAddedBy} />
+                        <CategorySection {category} categories={profileCategories} items={categoryItems} {shoppingMode} listId={id} {showAddedBy} />
                     {/if}
                 {/each}
             {/if}

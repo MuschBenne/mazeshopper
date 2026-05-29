@@ -1,10 +1,12 @@
 import { MongoClient } from 'mongodb';
 import { MONGODB_URI } from '$env/static/private';
+import { DEFAULT_PROFILES } from './listprofile-defaults.js';
 
 /** @type {MongoClient | null} */
 let client = null;
 
 let indexesEnsured = false;
+let migrationRan = false;
 
 export async function ensureIndexes() {
     if (indexesEnsured) return;
@@ -31,8 +33,57 @@ export async function ensureIndexes() {
         db.collection('login_attempts').createIndex({ key: 1 }),
         db.collection('login_attempts').createIndex({ at: 1 }, { expireAfterSeconds: 900 }),
         db.collection('templates').createIndex({ owner: 1 }),
+        db.collection('listprofiles').createIndex({ owner: 1 }),
     ]);
     indexesEnsured = true;
+}
+
+export async function runMigration() {
+    if (migrationRan) return;
+    migrationRan = true;
+    try {
+        const db = await getDb();
+        const users = await db.collection('users').find({ listprofilesMigrated: { $ne: true } }).toArray();
+        for (const user of users) {
+            const username = user.username;
+            const settings = await db.collection('user_settings').findOne({ owner: username });
+            const existingCats = settings?.categories ?? [];
+            const livsmedelCats = existingCats.length > 0
+                ? existingCats.map(/** @param {any} c */ c => ({ id: crypto.randomUUID(), name: c.name, color: c.color }))
+                : DEFAULT_PROFILES[0].categories.map(c => ({ id: crypto.randomUUID(), ...c }));
+
+            const livsmedelResult = await db.collection('listprofiles').insertOne({
+                owner: username,
+                name: 'Livsmedel',
+                categories: livsmedelCats,
+                createdAt: new Date()
+            });
+            const profileId = livsmedelResult.insertedId.toString();
+
+            await db.collection('lists').updateMany(
+                { owner: username, profileId: { $exists: false } },
+                { $set: { profileId } }
+            );
+            await db.collection('stores').updateMany(
+                { owner: username, profileId: { $exists: false } },
+                { $set: { profileId } }
+            );
+
+            for (const def of DEFAULT_PROFILES.slice(1)) {
+                await db.collection('listprofiles').insertOne({
+                    owner: username,
+                    name: def.name,
+                    categories: def.categories.map(c => ({ id: crypto.randomUUID(), ...c })),
+                    createdAt: new Date()
+                });
+            }
+
+            await db.collection('users').updateOne({ username }, { $set: { listprofilesMigrated: true } });
+        }
+    } catch (err) {
+        console.error('listprofiles migration failed:', err);
+        migrationRan = false; // allow retry on next startup
+    }
 }
 
 export async function closeClient() {

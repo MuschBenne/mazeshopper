@@ -3,7 +3,7 @@ import { notificationContext } from './notification-context.svelte';
 
 /**
  * @typedef {{ itemId: string, name: string, spec: string, quantity: number, bought: boolean, category: string, addedBy?: string }} ShoppingItem
- * @typedef {{ id: string, name: string, owner: string, sharedWith: string[], pendingInvites: string[], items: ShoppingItem[] }} ShoppingList
+ * @typedef {{ id: string, name: string, owner: string, profileId: string | null, sharedWith: string[], pendingInvites: string[], items: ShoppingItem[] }} ShoppingList
  * @typedef {{ id: string, listId: string, listName: string, fromUser: string, createdAt: string }} Invitation
  * @typedef {{ clearedAt: string, items: ShoppingItem[] }} BoughtEntry
  */
@@ -88,13 +88,14 @@ class ShoppingContext {
     /**
      * @param {string} name
      * @param {string} owner
+     * @param {string} profileId
      */
-    async createList(name, owner) {
+    async createList(name, owner, profileId) {
         try {
             const res = await fetch('/api/lists', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, owner })
+                body: JSON.stringify({ name, owner, profileId })
             });
             if (!res.ok) throw new Error();
             const { list } = await res.json();

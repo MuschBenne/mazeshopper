@@ -5,7 +5,7 @@ import { browser } from '$app/environment';
 // Storing by ID (not array index) prevents the selection from drifting when
 // stores are added or deleted between sessions.
 class StoreContext {
-    /** @type {{id: string, name: string, categoryOrder: {[category: string]: number}, positions: {[category: string]: {x: number, y: number}}}[]} */
+    /** @type {{id: string, name: string, profileId: string | null, categoryOrder: {[category: string]: number}, positions: {[category: string]: {x: number, y: number}}}[]} */
     stores = $state([]);
 
     /** @type {string | null} */
@@ -44,13 +44,16 @@ class StoreContext {
         return i === null ? null : this.stores[i];
     }
 
-    /** @param {string} name */
-    async addStore(name) {
+    /**
+     * @param {string} name
+     * @param {string} profileId
+     */
+    async addStore(name, profileId) {
         if (name.trim().length === 0) return;
         const res = await fetch('/api/stores', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name })
+            body: JSON.stringify({ name, profileId })
         });
         const { store } = await res.json();
         this.stores = [...this.stores, store];

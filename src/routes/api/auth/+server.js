@@ -3,6 +3,7 @@ import { getDb } from '$lib/server/db';
 import { createSession, deleteSession, getSessionUser, hashToken } from '$lib/server/session';
 import { sendPasswordReset, sendEmailVerification } from '$lib/server/email';
 import { escapeRegex, isValidEmail, isValidPassword } from '$lib/server/utils';
+import { DEFAULT_PROFILES } from '$lib/server/listprofile-defaults.js';
 import bcrypt from 'bcryptjs';
 import { dev } from '$app/environment';
 
@@ -85,8 +86,17 @@ export async function POST(event) {
 
         const hash = await bcrypt.hash(password, SALT_ROUNDS);
         const name = username.trim().toLowerCase();
-        await users.insertOne({ username: name, password: hash, email: emailNorm, emailVerified: false });
+        await users.insertOne({ username: name, password: hash, email: emailNorm, emailVerified: false, listprofilesMigrated: true });
         await createSession(cookies, name);
+
+        for (const def of DEFAULT_PROFILES) {
+            await db.collection('listprofiles').insertOne({
+                owner: name,
+                name: def.name,
+                categories: def.categories.map(c => ({ id: crypto.randomUUID(), ...c })),
+                createdAt: new Date()
+            });
+        }
 
         const verifyToken = generateToken();
         const verifyTokenHash = await hashToken(verifyToken);
@@ -297,6 +307,7 @@ export async function POST(event) {
         await db.collection('stores').deleteMany({ owner: username });
         await db.collection('templates').deleteMany({ owner: username });
         await db.collection('user_settings').deleteMany({ owner: username });
+        await db.collection('listprofiles').deleteMany({ owner: username });
 
         cookies.delete('session', { path: '/' });
         return json({ ok: true });

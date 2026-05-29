@@ -19,6 +19,7 @@ export function serializeList(doc) {
         id: doc._id.toString(),
         name: doc.name,
         owner: doc.owner,
+        profileId: doc.profileId ?? null,
         sharedWith: doc.sharedWith ?? [],
         pendingInvites: doc.pendingInvites ?? [],
         items: (doc.items ?? []).map(/** @param {any} item */ item => ({

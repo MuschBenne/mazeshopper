@@ -1,20 +1,20 @@
 <script>
     // Renders all items belonging to a single category, with collapse, edit, and shopping-mode support.
     import { shoppingContext } from '$lib/context/shopping-context.svelte';
-    import { settingContext } from '$lib/context/setting-context.svelte';
     import { slide } from 'svelte/transition';
     import { flip } from 'svelte/animate';
 
     /**
      * @type {{
      *   category: { name: string, color: string },
+     *   categories: { id: string, name: string, color: string }[],
      *   items: import('$lib/context/shopping-context.svelte').ShoppingItem[],
      *   shoppingMode: boolean,
      *   listId: string,
      *   showAddedBy?: boolean
      * }}
      */
-    let { category, items, shoppingMode, listId, showAddedBy = false } = $props();
+    let { category, categories, items, shoppingMode, listId, showAddedBy = false } = $props();
 
     let collapsed = $state(false);
 
@@ -78,9 +78,9 @@
                             placeholder="Specifikation (valfritt)"
                             onkeydown={(e) => { if (e.key === 'Enter') saveEdit(); else if (e.key === 'Escape') cancelEdit(); }}
                         />
-                        {#if settingContext.categories.length > 0}
+                        {#if categories.length > 0}
                             <div class="category-picker">
-                                {#each settingContext.categories as cat (cat.name)}
+                                {#each categories as cat (cat.name)}
                                     <button
                                         type="button"
                                         class="category-chip"

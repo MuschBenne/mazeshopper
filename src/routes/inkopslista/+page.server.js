@@ -19,6 +19,7 @@ export async function load({ cookies }) {
             id: doc._id.toString(),
             name: doc.name,
             owner: doc.owner,
+            profileId: doc.profileId ?? null,
             sharedWith: doc.sharedWith ?? [],
             pendingInvites: doc.pendingInvites ?? [],
             items: (doc.items ?? []).map(/** @param {any} item */ item => ({
@@ -27,7 +28,8 @@ export async function load({ cookies }) {
                 spec: item.spec,
                 quantity: item.quantity,
                 bought: item.bought,
-                category: item.category
+                category: item.category,
+                addedBy: item.addedBy ?? ''
             }))
         }))
     };

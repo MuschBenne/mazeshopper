@@ -1,16 +1,11 @@
 <svelte:head><title>Inställningar – MazeShopper</title></svelte:head>
 
 <script>
-    // Settings page — lets the user manage their personal categories and email address.
-    import { settingContext } from "$lib/context/setting-context.svelte";
+    // Settings page — lets the user manage list profiles, email address and account.
+    import { listprofileContext } from "$lib/context/listprofile-context.svelte";
     import { authContext } from "$lib/context/auth-context.svelte";
     import { themeContext } from "$lib/context/theme-context.svelte";
     import { goto } from '$app/navigation';
-
-    let newCategory = $state('');
-    let newColor = $state('#e2e8f0');
-    // Edit mode toggles the category list between view-only and edit (remove + recolor).
-    let editMode = $state(false);
 
     let emailInput = $state('');
     let emailStatus = $state(/** @type {'idle'|'saving'|'ok'|'error'} */ ('idle'));
@@ -19,9 +14,68 @@
     let deleteConfirm = $state(false);
     let deleteStatus = $state(/** @type {'idle'|'deleting'|'error'} */ ('idle'));
 
-    async function addCategory() {
-        await settingContext.addCategory(newCategory, newColor);
-        newCategory = '';
+    // Profile management state
+    /** @type {string | null} */
+    let expandedProfileId = $state(null);
+    /** @type {string | null} */
+    let renamingProfileId = $state(null);
+    let renameValue = $state('');
+    let newProfileName = $state('');
+    let showNewProfileForm = $state(false);
+
+    // Per-expanded-profile category editing
+    let categoryEditMode = $state(false);
+    let newCatName = $state('');
+    let newCatColor = $state('#e2e8f0');
+
+    $effect(() => {
+        // Read expandedProfileId so this effect re-runs when it changes.
+        // eslint-disable-next-line no-unused-expressions
+        expandedProfileId;
+        categoryEditMode = false;
+        newCatName = '';
+        newCatColor = '#e2e8f0';
+    });
+
+    /** @param {string} id */
+    function toggleExpand(id) {
+        if (expandedProfileId === id) {
+            expandedProfileId = null;
+        } else {
+            expandedProfileId = id;
+            renamingProfileId = null;
+        }
+    }
+
+    /** @param {string} id */
+    function startRename(id) {
+        const profile = listprofileContext.getProfile(id);
+        if (!profile) return;
+        renamingProfileId = id;
+        renameValue = profile.name;
+    }
+
+    async function confirmRename() {
+        if (!renamingProfileId || !renameValue.trim()) return;
+        await listprofileContext.renameProfile(renamingProfileId, renameValue.trim());
+        renamingProfileId = null;
+    }
+
+    async function createProfile() {
+        if (!newProfileName.trim()) return;
+        const profile = await listprofileContext.createProfile(newProfileName.trim());
+        if (profile) {
+            newProfileName = '';
+            showNewProfileForm = false;
+            expandedProfileId = profile.id;
+        }
+    }
+
+    async function addCategoryToProfile() {
+        if (!expandedProfileId || !newCatName.trim()) return;
+        await listprofileContext.addCategory(expandedProfileId, newCatName, newCatColor);
+        newCatName = '';
+        newCatColor = '#e2e8f0';
     }
 
     async function deleteAccount() {
@@ -43,7 +97,6 @@
             emailInput = '';
         } else {
             emailStatus = 'error';
-            // Map server error codes to user-friendly Swedish messages.
             emailError = result === 'email_taken' ? 'E-postadressen används redan av ett annat konto.' : 'Ogiltig e-postadress.';
         }
     }
@@ -51,72 +104,113 @@
 
 <div class="page">
     <h1>Inställningar</h1>
-    <p class="subtitle">Hantera kategorier, e-postadress och ditt konto.</p>
+    <p class="subtitle">Hantera listprofiler, e-postadress och ditt konto.</p>
 
     <div class="card">
         <div class="section-header">
-            <h2>Kategorier</h2>
-            <button class="btn-edit" class:active={editMode} onclick={() => editMode = !editMode}>
-                {editMode ? 'Klar' : 'Ändra kategorier'}
+            <h2>Listprofiler</h2>
+            <button class="btn-edit" onclick={() => { showNewProfileForm = !showNewProfileForm; }}>
+                {showNewProfileForm ? 'Avbryt' : '+ Ny profil'}
             </button>
         </div>
 
-        <ul>
-            {#each settingContext.categories as category, index}
-                <li>
-                    {#if editMode}
-                        <button class="btn-remove" onclick={() => settingContext.removeCategory(index)} aria-label="Ta bort {category.name}">−</button>
-                    {/if}
-                    {#if editMode}
-                        <input
-                            type="color"
-                            class="color-input"
-                            value={category.color}
-                            oninput={(e) => settingContext.updateCategoryColor(index, /** @type {HTMLInputElement} */ (e.target).value)}
-                            title="Välj färg"
-                        />
-                    {:else}
-                        <span class="dot" style:background={category.color}></span>
-                    {/if}
-                    <span class="category-name">{category.name}</span>
-                    {#if editMode}
-                        <div class="move-buttons">
-                            <button
-                                class="btn-move"
-                                onclick={() => settingContext.moveCategory(index, -1)}
-                                disabled={index === 0}
-                                aria-label="Flytta {category.name} uppåt"
-                            >↑</button>
-                            <button
-                                class="btn-move"
-                                onclick={() => settingContext.moveCategory(index, 1)}
-                                disabled={index === settingContext.categories.length - 1}
-                                aria-label="Flytta {category.name} nedåt"
-                            >↓</button>
+        {#if showNewProfileForm}
+            <div class="add-row new-profile-row">
+                <input
+                    type="text"
+                    placeholder="Profilnamn"
+                    bind:value={newProfileName}
+                    onkeydown={(e) => e.key === 'Enter' && createProfile()}
+                />
+                <button onclick={createProfile}>Skapa</button>
+            </div>
+        {/if}
+
+        <ul class="profile-list">
+            {#each listprofileContext.profiles as profile}
+                {@const isExpanded = expandedProfileId === profile.id}
+                <li class="profile-item">
+                    <div class="profile-header">
+                        <button class="profile-toggle" onclick={() => toggleExpand(profile.id)}>
+                            <span class="toggle-arrow">{isExpanded ? '▼' : '▶'}</span>
+                            {#if renamingProfileId === profile.id}
+                                <input
+                                    class="rename-input"
+                                    bind:value={renameValue}
+                                    onkeydown={(e) => { if (e.key === 'Enter') confirmRename(); else if (e.key === 'Escape') renamingProfileId = null; }}
+                                    onclick={(e) => e.stopPropagation()}
+                                />
+                            {:else}
+                                <span class="profile-name">{profile.name}</span>
+                                <span class="profile-count">{profile.categories.length} kat.</span>
+                            {/if}
+                        </button>
+                        <div class="profile-actions">
+                            {#if renamingProfileId === profile.id}
+                                <button class="btn-sm btn-sm--primary" onclick={confirmRename}>Spara</button>
+                                <button class="btn-sm" onclick={() => renamingProfileId = null}>Avbryt</button>
+                            {:else}
+                                <button class="btn-sm" onclick={() => startRename(profile.id)}>Byt namn</button>
+                                <button class="btn-sm btn-sm--danger" onclick={() => listprofileContext.deleteProfile(profile.id)}>Ta bort</button>
+                            {/if}
+                        </div>
+                    </div>
+
+                    {#if isExpanded}
+                        <div class="profile-body">
+                            <div class="cat-section-header">
+                                <span class="cat-section-title">Kategorier</span>
+                                <button class="btn-edit" class:active={categoryEditMode} onclick={() => categoryEditMode = !categoryEditMode}>
+                                    {categoryEditMode ? 'Klar' : 'Ändra'}
+                                </button>
+                            </div>
+
+                            {#if profile.categories.length > 0}
+                                <ul class="cat-list">
+                                    {#each profile.categories as cat}
+                                        <li class="cat-item">
+                                            {#if categoryEditMode}
+                                                <button class="btn-remove" onclick={() => listprofileContext.removeCategory(profile.id, cat.id)} aria-label="Ta bort {cat.name}">−</button>
+                                                <input
+                                                    type="color"
+                                                    class="color-input"
+                                                    value={cat.color}
+                                                    oninput={(e) => listprofileContext.updateCategory(profile.id, cat.id, { color: /** @type {HTMLInputElement} */ (e.target).value })}
+                                                    title="Välj färg"
+                                                />
+                                            {:else}
+                                                <span class="dot" style:background={cat.color}></span>
+                                            {/if}
+                                            <span class="category-name">{cat.name}</span>
+                                        </li>
+                                    {/each}
+                                </ul>
+                            {:else}
+                                <p class="cat-empty">Inga kategorier än.</p>
+                            {/if}
+
+                            {#if categoryEditMode}
+                                <div class="add-row">
+                                    <input
+                                        type="color"
+                                        class="color-input"
+                                        bind:value={newCatColor}
+                                        title="Välj färg för ny kategori"
+                                    />
+                                    <input
+                                        type="text"
+                                        placeholder="Ny kategori"
+                                        bind:value={newCatName}
+                                        onkeydown={(e) => e.key === 'Enter' && addCategoryToProfile()}
+                                    />
+                                    <button onclick={addCategoryToProfile}>Lägg till</button>
+                                </div>
+                            {/if}
                         </div>
                     {/if}
                 </li>
             {/each}
         </ul>
-
-        {#if editMode}
-            <div class="add-row">
-                <input
-                    type="color"
-                    class="color-input"
-                    bind:value={newColor}
-                    title="Välj färg för ny kategori"
-                />
-                <input
-                    type="text"
-                    placeholder="Ny kategori"
-                    bind:value={newCategory}
-                    onkeydown={(e) => e.key === 'Enter' && addCategory()}
-                />
-                <button onclick={addCategory}>Lägg till</button>
-            </div>
-            <button class="btn-reset" onclick={() => settingContext.resetCategories()}>Återställ till standard</button>
-        {/if}
     </div>
 
     <div class="card">
@@ -238,6 +332,156 @@
         font-size: 1.1rem;
     }
 
+    /* Profile list */
+    .profile-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .profile-item {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .profile-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        padding: 0.6rem 0.75rem;
+        background: var(--bg-elevated);
+    }
+
+    .profile-toggle {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        flex: 1;
+        background: none;
+        border: none;
+        text-align: left;
+        cursor: pointer;
+        padding: 0;
+        font-size: 0.95em;
+        font-weight: 600;
+        color: var(--text-primary);
+        min-height: unset;
+    }
+
+    .toggle-arrow {
+        font-size: 0.6em;
+        color: var(--text-faint);
+        flex-shrink: 0;
+    }
+
+    .profile-name { flex: 1; min-width: 0; }
+
+    .profile-count {
+        font-size: 0.78em;
+        font-weight: 400;
+        color: var(--text-faint);
+        white-space: nowrap;
+    }
+
+    .profile-actions {
+        display: flex;
+        gap: 0.3rem;
+        flex-shrink: 0;
+    }
+
+    .btn-sm {
+        padding: 0.2rem 0.55rem;
+        border: 1px solid var(--border-input);
+        border-radius: 5px;
+        background: var(--bg-surface);
+        color: var(--text-secondary);
+        font-size: 0.8em;
+        cursor: pointer;
+        white-space: nowrap;
+        min-height: unset;
+    }
+
+    .btn-sm:hover { background: var(--bg-elevated); }
+
+    .btn-sm--primary {
+        background: linear-gradient(135deg, #f97316, #c026d3);
+        color: #fff;
+        border-color: transparent;
+    }
+
+    .btn-sm--primary:hover { opacity: 0.9; }
+
+    .btn-sm--danger { color: var(--danger-text); border-color: var(--danger-border); }
+    .btn-sm--danger:hover { background: var(--danger-bg); }
+
+    .rename-input {
+        flex: 1;
+        padding: 0.2rem 0.4rem;
+        border: 1px solid var(--border-input);
+        border-radius: 5px;
+        font-size: 0.95em;
+        background: var(--bg-surface);
+        color: var(--text-primary);
+        outline: none;
+        min-width: 0;
+    }
+
+    .rename-input:focus { border-color: #f97316; }
+
+    .profile-body {
+        padding: 0.75rem;
+        border-top: 1px solid var(--border-subtle);
+        background: var(--bg-surface);
+    }
+
+    .cat-section-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 0.5rem;
+    }
+
+    .cat-section-title {
+        font-size: 0.82em;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .cat-list {
+        list-style: none;
+        padding: 0;
+        margin: 0 0 0.5rem;
+    }
+
+    .cat-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.4rem 0;
+        border-bottom: 1px solid var(--border-faint);
+        font-size: 0.9em;
+    }
+
+    .cat-item:last-child { border-bottom: none; }
+
+    .cat-empty {
+        font-size: 0.85em;
+        color: var(--text-faint);
+        margin: 0 0 0.5rem;
+        font-style: italic;
+    }
+
+    .new-profile-row {
+        margin-bottom: 0.75rem;
+    }
+
     .btn-edit {
         padding: 0.35rem 0.9rem;
         border-radius: 6px;
@@ -272,31 +516,6 @@
     li:last-child { border-bottom: none; }
 
     .category-name { flex: 1; min-width: 0; }
-
-    .move-buttons {
-        display: flex;
-        gap: 0.25rem;
-        flex-shrink: 0;
-    }
-
-    .btn-move {
-        width: 1.9rem;
-        height: 1.9rem;
-        border-radius: 6px;
-        border: 1px solid var(--border-input);
-        background: var(--bg-surface);
-        color: var(--text-secondary);
-        font-size: 0.9em;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-        min-height: unset;
-    }
-
-    .btn-move:hover:not(:disabled) { background: var(--bg-elevated); border-color: var(--text-faint); }
-    .btn-move:disabled { opacity: 0.3; cursor: default; }
 
     .dot {
         width: 10px;
@@ -355,19 +574,6 @@
         cursor: pointer;
         white-space: nowrap;
     }
-
-    .btn-reset {
-        font-size: 0.85em;
-        color: var(--text-muted);
-        background: none;
-        border: none;
-        cursor: pointer;
-        padding: 0;
-        text-decoration: underline;
-        min-height: unset;
-    }
-
-    .btn-reset:hover { color: var(--text-secondary); }
 
     .card h2 { margin: 0 0 0.75rem; font-size: 1.1rem; }
 

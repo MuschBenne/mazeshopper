@@ -1,21 +1,26 @@
 <script>
-    import { settingContext } from "$lib/context/setting-context.svelte";
-
-    let { store, onSave } = $props();
+    /**
+     * @type {{
+     *   store: { categoryOrder: {[k: string]: number} },
+     *   categories: { id: string, name: string, color: string }[],
+     *   onSave: (layout: { positions: {[k: string]: {x: number, y: number}}, route: string[] }) => void
+     * }}
+     */
+    let { store, categories, onSave } = $props();
 
     /** @type {string[]} */
     let route = $state([]);
 
     $effect(() => {
         const storedOrder = store.categoryOrder ?? {};
-        route = settingContext.categories
+        route = categories
             .filter(c => c.name in storedOrder)
             .sort((a, b) => storedOrder[a.name] - storedOrder[b.name])
             .map(c => c.name);
     });
 
     const available = $derived(
-        settingContext.categories.filter(c => !route.includes(c.name))
+        categories.filter(c => !route.includes(c.name))
     );
 
     /** @type {Set<string>} */
@@ -159,7 +164,7 @@
 
     /** @param {string} name */
     function getCategoryColor(name) {
-        return settingContext.categories.find(c => c.name === name)?.color ?? '#e2e8f0';
+        return categories.find(c => c.name === name)?.color ?? '#e2e8f0';
     }
 </script>
 

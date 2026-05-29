@@ -4,8 +4,8 @@
     import { authContext } from '$lib/context/auth-context.svelte';
     import { shoppingContext } from '$lib/context/shopping-context.svelte';
     import { storeContext } from '$lib/context/store-context.svelte';
-    import { settingContext } from '$lib/context/setting-context.svelte';
     import { templateContext } from '$lib/context/template-context.svelte';
+    import { listprofileContext } from '$lib/context/listprofile-context.svelte';
     import Toast from '$lib/components/Toast.svelte';
     import { themeContext } from '$lib/context/theme-context.svelte';
     import { goto } from '$app/navigation';
@@ -27,13 +27,13 @@
         if (authContext.user) {
             shoppingContext.load();
             storeContext.load();
-            settingContext.load();
             templateContext.load();
+            listprofileContext.load();
         } else {
             shoppingContext.reset();
             storeContext.reset();
-            settingContext.reset();
             templateContext.reset();
+            listprofileContext.reset();
         }
     });
 

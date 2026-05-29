@@ -25,19 +25,24 @@ export async function POST({ request, cookies }) {
     const username = await getSessionUser(cookies);
     if (!username) return json({ error: 'unauthorized' }, { status: 401 });
 
-    const { name } = await request.json();
+    const { name, profileId } = await request.json();
     if (!name || typeof name !== 'string' || !name.trim() || name.trim().length > 100) {
         return json({ error: 'invalid_name' }, { status: 400 });
     }
+    if (!profileId || typeof profileId !== 'string') {
+        return json({ error: 'invalid_profile' }, { status: 400 });
+    }
+
     const db = await getDb();
     const result = await db.collection('lists').insertOne({
         name: name.trim(),
         owner: username,
+        profileId,
         sharedWith: [],
         pendingInvites: [],
         items: []
     });
 
-    const list = { id: result.insertedId.toString(), name: name.trim(), owner: username, sharedWith: [], pendingInvites: [], items: [] };
+    const list = { id: result.insertedId.toString(), name: name.trim(), owner: username, profileId, sharedWith: [], pendingInvites: [], items: [] };
     return json({ list });
 }

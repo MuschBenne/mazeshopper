@@ -2,19 +2,35 @@
 
 <script>
     import { storeContext } from "$lib/context/store-context.svelte";
+    import { listprofileContext } from "$lib/context/listprofile-context.svelte";
     import StoreEditor from "$lib/components/StoreEditor.svelte";
 
     let newStore = $state('');
+    let selectedProfileId = $state('');
     /** @type {number | null} */
     let selectedIndex = $state(null);
     let confirmDelete = $state(false);
 
     const selected = $derived(selectedIndex !== null ? storeContext.stores[selectedIndex] : null);
 
+    // Auto-select the first profile once profiles are loaded.
+    $effect(() => {
+        if (!selectedProfileId && listprofileContext.profiles.length > 0) {
+            selectedProfileId = listprofileContext.profiles[0].id;
+        }
+    });
+
+    // Categories for the currently selected store, derived from its profile.
+    const editorCategories = $derived(
+        selected?.profileId
+            ? (listprofileContext.getProfile(selected.profileId)?.categories ?? [])
+            : []
+    );
+
     async function addStore() {
         const name = newStore.trim();
-        if (!name) return;
-        await storeContext.addStore(name);
+        if (!name || !selectedProfileId) return;
+        await storeContext.addStore(name, selectedProfileId);
         newStore = '';
     }
 
@@ -60,6 +76,7 @@
     <div class="editor-card">
         <StoreEditor
             store={selected}
+            categories={editorCategories}
             onSave={(/** @type {Parameters<typeof onSave>[0]} */ layout) => onSave(layout)}
         />
     </div>
@@ -76,6 +93,13 @@
             bind:value={newStore}
             onkeydown={(e) => e.key === 'Enter' && addStore()}
         />
+        {#if listprofileContext.profiles.length > 1}
+            <select bind:value={selectedProfileId} class="profile-select">
+                {#each listprofileContext.profiles as profile}
+                    <option value={profile.id}>{profile.name}</option>
+                {/each}
+            </select>
+        {/if}
         <button onclick={addStore}>+ Lägg till</button>
     </div>
 
@@ -137,6 +161,17 @@
     }
 
     .new-store-card input:focus { border-color: #f97316; }
+
+    .profile-select {
+        padding: 0.55rem 0.8rem;
+        border: 1px solid var(--border-input);
+        border-radius: 8px;
+        font-size: 0.95em;
+        background: var(--bg-surface);
+        color: var(--text-primary);
+        outline: none;
+        cursor: pointer;
+    }
 
     .new-store-card button {
         padding: 0.55rem 1rem;
