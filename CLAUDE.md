@@ -27,7 +27,7 @@ npm run build        # Produktionsbygge
 npm run preview      # Förhandsgranska produktionsbygge lokalt
 ```
 
-**Baseline:** `svelte-check` rapporterar 37 pre-existing errors i 8 filer (MongoDB-typer, implicita any i StoreEditor/CategorySection, string|undefined i [id]-route). Introducera inga nya.
+**Baseline:** `svelte-check` rapporterar 0 errors. Introducera inga nya.
 
 ## Miljövariabler
 
@@ -59,18 +59,20 @@ src/
 │   │   ├── StoreEditor.svelte       # Drag-and-drop varuhusrutt
 │   │   └── Toast.svelte             # Toast-notifikationer
 │   ├── context/                     # Globala Svelte 5-singletons (module-exports)
-│   │   ├── auth-context.svelte.js   # Inloggningsstatus + auth-anrop
+│   │   ├── auth-context.svelte.js          # Inloggningsstatus + auth-anrop
+│   │   ├── listprofile-context.svelte.js   # Listprofiler + kategorier (CRUD)
 │   │   ├── notification-context.svelte.js  # Toast-kö
-│   │   ├── setting-context.svelte.js       # Kategorier (localStorage)
+│   │   ├── setting-context.svelte.js       # DEPRECATED — tas bort efter migration
 │   │   ├── shopping-context.svelte.js      # Listor + inbjudningar
 │   │   ├── store-context.svelte.js         # Varuhus + layout
 │   │   ├── template-context.svelte.js      # Listmallar (CRUD + import till lista)
 │   │   └── theme-context.svelte.js         # Tema (system/ljust/mörkt, localStorage)
 │   └── server/
-│       ├── db.js       # MongoClient singleton + ensureIndexes()
-│       ├── email.js    # sendPasswordReset(), sendEmailVerification()
-│       ├── session.js  # createSession(), getSessionUser(), deleteSession()
-│       └── utils.js    # serializeList(), isValidPassword(), isValidEmail(), escapeRegex()
+│       ├── db.js                    # MongoClient singleton + ensureIndexes() + runMigration()
+│       ├── email.js                 # sendPasswordReset(), sendEmailVerification()
+│       ├── listprofile-defaults.js  # De 4 standardprofilerna som skapas vid registrering
+│       ├── session.js               # createSession(), getSessionUser(), deleteSession()
+│       └── utils.js                 # serializeList(), isValidPassword(), isValidEmail(), escapeRegex()
 ├── routes/
 │   ├── +layout.server.js   # Laddar session → skickar user till layout
 │   ├── +layout.svelte      # Navbar, Toast, bootstrappar alla context:ar
@@ -80,31 +82,35 @@ src/
 │   │   │                   #       request_reset, reset_password, verify_email,
 │   │   │                   #       resend_verification, delete_account, exists
 │   │   │                   # GET: returnerar inloggad användare
-│   │   ├── categories/     # GET/POST/DELETE/PATCH kategorier
+│   │   ├── categories/     # DEPRECATED — tas bort efter migration
 │   │   ├── invitations/    # GET inbjudningar, POST accept/decline
-│   │   ├── lists/          # GET/POST listor
+│   │   ├── listprofiles/   # GET/POST listprofiler
+│   │   │   └── [id]/       # PATCH byt namn, DELETE (blockeras om listor/varuhus använder den)
+│   │   │       └── categories/        # POST lägg till kategori
+│   │   │           └── [catId]/       # PATCH redigera, DELETE ta bort (ej låsta)
+│   │   ├── lists/          # GET/POST listor (POST kräver profileId)
 │   │   │   └── [id]/       # DELETE lista, GET enskild lista
 │   │   │       ├── import/ # POST importera varor från mall (addedBy sätts)
 │   │   │       ├── items/  # POST item, DELETE alla/bought
 │   │   │       │   └── [itemId]/  # DELETE/PATCH enskild vara
 │   │   │       ├── share/  # POST/DELETE dela lista; delare kan ta bort sig själva (lämna)
 │   │   │       └── stream/ # GET SSE-ström för realtidsuppdateringar (maxDuration 300s)
-│   │   ├── stores/         # GET/POST varuhus
+│   │   ├── stores/         # GET/POST varuhus (POST kräver profileId)
 │   │   │   └── [storeId]/  # PATCH layout, DELETE varuhus
 │   │   ├── templates/      # GET/POST/DELETE/PATCH listmallar
 │   │   └── user/export/    # GET — returnerar all användardata som JSON
 │   ├── inkopslista/
-│   │   ├── +page.svelte         # Lista-översikt + skapa lista
+│   │   ├── +page.svelte         # Lista-översikt + skapa lista (med profilväljare)
 │   │   └── [id]/+page.svelte    # Listadetail — redigerings- och handelsläge
-│   ├── varuhus/            # Varuhushantering + StoreEditor
-│   ├── installningar/      # Kategorier, e-post, dataexport, kontoborttagning
+│   ├── varuhus/            # Varuhushantering + StoreEditor (med profilväljare)
+│   ├── installningar/      # Listprofiler, e-post, dataexport, kontoborttagning
 │   ├── integritetspolicy/  # GDPR-policy (Swedish)
 │   ├── anvandardvillkor/   # Användarvillkor
 │   ├── om/                 # Om-sida
 │   ├── glomt-losenord/     # Begär lösenordsåterställning
 │   ├── aterstall-losenord/ # Formulär för nytt lösenord (token i URL)
 │   └── verifiera-epost/    # Verifieringslänk via mejl
-└── hooks.server.js         # Kör ensureIndexes() vid serverstart
+└── hooks.server.js         # Kör ensureIndexes() + runMigration() vid serverstart
 ```
 
 ## Konventioner
@@ -144,18 +150,30 @@ Max 10 försök per IP per 15 minuter, spåras i `login_attempts`-collection med
 
 | Collection | Innehåll |
 |---|---|
-| `users` | username (unik), email (sparse), password (bcrypt), emailVerified |
+| `users` | username (unik), email (sparse), password (bcrypt), emailVerified, listprofilesMigrated |
 | `sessions` | token (unik), username, expiresAt (TTL) |
-| `lists` | owner, sharedWith[], pendingInvites[], items[] (inkl. addedBy per vara) |
+| `lists` | owner, profileId, sharedWith[], pendingInvites[], items[] (inkl. addedBy per vara) |
 | `templates` | owner, name, items[] (itemId, name, spec, quantity, category) |
-| `stores` | owner, name, categoryOrder{}, positions{} |
-| `categories` | owner, name, color |
+| `stores` | owner, profileId, name, categoryOrder{}, positions{} |
+| `listprofiles` | owner, name, categories[] ({id, name, color, locked?}), createdAt |
 | `password_resets` | email, tokenHash, expiresAt (TTL 15 min) |
 | `email_verifications` | username, tokenHash, expiresAt (TTL 24h) |
 | `login_attempts` | key (IP), at (TTL 900s) |
 | `invitations` | listId, listName, fromUser, toUser, createdAt |
+| `user_settings` | DEPRECATED — gamla globala kategorier, tas bort efter migration |
 
 Indexes skapas av `ensureIndexes()` i `db.js`, körs vid serverstart via `hooks.server.js`.
+
+## Listprofiler
+
+Kategorier är kopplade till **listprofiler** — namngivna samlingar av kategorier. Varje lista och varuhus tillhör en profil.
+
+- Vid registrering skapas 4 standardprofiler: Livsmedel, Bygg & Järnhandel, Hem & Inredning, Generisk lista.
+- Kategorier bäddas in i profildokumentet (`categories[]`), inte som egna dokument.
+- "Generisk lista" har en inbyggd låst "Övrigt"-kategori (`locked: true`) som inte kan tas bort.
+- Delade listor: delade användare ser ägarens profilkategorier (laddas server-side i `[id]/+page.server.js`).
+- En profil kan inte tas bort om aktiva listor eller varuhus refererar till den.
+- `runMigration()` i `db.js` hanterar befintliga användare: skapar profiler, sätter `profileId` på listor/varuhus.
 
 ## Tema
 
