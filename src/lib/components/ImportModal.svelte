@@ -1,16 +1,16 @@
 <script>
     import { templateContext } from '$lib/context/template-context.svelte';
-    import { settingContext } from '$lib/context/setting-context.svelte';
     import { fade } from 'svelte/transition';
     import { fly } from 'svelte/transition';
 
     /**
      * @type {{
      *   onImport: (items: import('$lib/context/template-context.svelte').TemplateItem[]) => Promise<boolean>,
-     *   onClose: () => void
+     *   onClose: () => void,
+     *   profileCategories: { id: string, name: string, color: string }[]
      * }}
      */
-    let { onImport, onClose } = $props();
+    let { onImport, onClose, profileCategories } = $props();
 
     /** @type {string | null} */
     let previewId = $state(null);
@@ -96,7 +96,7 @@
                 </div>
                 <ul class="item-list">
                     {#each previewTemplate.items as item (item.itemId)}
-                        {@const cat = settingContext.categories.find(c => c.name === item.category)}
+                        {@const cat = profileCategories.find(c => c.name === item.category)}
                         <li>
                             <label class="item-row">
                                 <input type="checkbox" checked={selectedItems.has(item.itemId)} onchange={() => toggleItem(item.itemId)} />

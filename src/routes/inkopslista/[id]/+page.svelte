@@ -333,6 +333,7 @@
             <ImportModal
                 onImport={(items) => shoppingContext.importItems(id, items)}
                 onClose={() => showImportModal = false}
+                {profileCategories}
             />
         {/if}
 

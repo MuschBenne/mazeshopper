@@ -188,6 +188,15 @@
 
     .new-store-card button:hover { opacity: 0.9; }
 
+    @media (max-width: 420px) {
+        .new-store-card {
+            flex-direction: column;
+        }
+        .new-store-card button {
+            width: 100%;
+        }
+    }
+
     .empty-hint {
         font-size: 0.88em;
         color: var(--text-faint);

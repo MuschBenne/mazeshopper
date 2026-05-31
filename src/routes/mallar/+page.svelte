@@ -2,7 +2,7 @@
 
 <script>
     import { templateContext } from '$lib/context/template-context.svelte';
-    import { settingContext } from '$lib/context/setting-context.svelte';
+    import { listprofileContext } from '$lib/context/listprofile-context.svelte';
     import { notificationContext } from '$lib/context/notification-context.svelte';
 
     // null = list view, string = editing a specific template
@@ -13,7 +13,14 @@
 
     // "Ny mall" form
     let newTemplateName = $state('');
+    let newTemplateProfileId = $state('');
     let creatingTemplate = $state(false);
+
+    $effect(() => {
+        if (!newTemplateProfileId && listprofileContext.profiles.length > 0) {
+            newTemplateProfileId = listprofileContext.profiles[0].id;
+        }
+    });
 
     // Add-item form (inside editor)
     let newItemName = $state('');
@@ -28,6 +35,21 @@
 
     let confirmDelete = $state(false);
 
+    // Profiltilldelning för mallar utan profileId
+    let assigningProfileId = $state('');
+
+    const editorCategories = $derived(
+        selected?.profileId
+            ? (listprofileContext.getProfile(selected.profileId)?.categories ?? [])
+            : []
+    );
+
+    async function assignProfile() {
+        if (!selectedId || !assigningProfileId) return;
+        await templateContext.assignProfile(selectedId, assigningProfileId);
+        assigningProfileId = '';
+    }
+
     // Inline item edit
     /** @type {string | null} */
     let editingItemId = $state(null);
@@ -40,7 +62,7 @@
         const name = newTemplateName.trim();
         if (!name) return;
         creatingTemplate = true;
-        const id = await templateContext.createTemplate(name);
+        const id = await templateContext.createTemplate(name, newTemplateProfileId || null);
         creatingTemplate = false;
         newTemplateName = '';
         if (id) selectedId = id;
@@ -161,7 +183,7 @@
                                         <button class="qty-btn" onclick={() => editItemQty = Math.min(9999, editItemQty + 1)}>+</button>
                                     </div>
                                     <div class="category-picker">
-                                        {#each settingContext.categories as cat}
+                                        {#each editorCategories as cat}
                                             <button
                                                 class="category-chip"
                                                 class:selected={editItemCategory === cat.name}
@@ -181,7 +203,7 @@
                                     <span class="item-meta">
                                         {#if item.quantity > 1}<span class="item-qty">×{item.quantity}</span>{/if}
                                         {#if item.category}
-                                            {@const cat = settingContext.categories.find(c => c.name === item.category)}
+                                            {@const cat = editorCategories.find(c => c.name === item.category)}
                                             <span class="item-cat-chip" style="--chip-color: {cat?.color ?? '#e2e8f0'}">{item.category}</span>
                                         {/if}
                                     </span>
@@ -200,35 +222,50 @@
         <!-- Add item form -->
         <div class="card add-card">
             <p class="add-card-label">Lägg till vara i mallen</p>
-            <input
-                bind:value={newItemName}
-                placeholder="Vara"
-                onkeydown={(e) => e.key === 'Enter' && addItem()}
-            />
-            <input
-                bind:value={newItemSpec}
-                placeholder="Specifikation (valfritt)"
-                onkeydown={(e) => e.key === 'Enter' && addItem()}
-            />
-            <div class="qty-row">
-                <label>Antal:</label>
-                <button class="qty-btn" onclick={() => newItemQty = Math.max(1, newItemQty - 1)}>−</button>
-                <span class="qty-value">{newItemQty}</span>
-                <button class="qty-btn" onclick={() => newItemQty = Math.min(9999, newItemQty + 1)}>+</button>
-            </div>
-            <div class="category-picker">
-                {#each settingContext.categories as cat}
-                    <button
-                        class="category-chip"
-                        class:selected={newItemCategory === cat.name}
-                        style="--chip-color: {cat.color}"
-                        onclick={() => newItemCategory = cat.name}
-                    >{cat.name}</button>
-                {/each}
-            </div>
-            <button class="btn-add" onclick={addItem} disabled={addingItem}>
-                {addingItem ? 'Lägger till…' : 'Lägg till vara'}
-            </button>
+            {#if !selected.profileId}
+                <div class="no-profile-notice">
+                    <p>Tilldela en profil för att välja kategorier.</p>
+                    <div class="assign-row">
+                        <select bind:value={assigningProfileId} class="profile-select-sm">
+                            <option value="">Välj profil…</option>
+                            {#each listprofileContext.profiles as profile}
+                                <option value={profile.id}>{profile.name}</option>
+                            {/each}
+                        </select>
+                        <button class="btn-assign" onclick={assignProfile} disabled={!assigningProfileId}>Tilldela</button>
+                    </div>
+                </div>
+            {:else}
+                <input
+                    bind:value={newItemName}
+                    placeholder="Vara"
+                    onkeydown={(e) => e.key === 'Enter' && addItem()}
+                />
+                <input
+                    bind:value={newItemSpec}
+                    placeholder="Specifikation (valfritt)"
+                    onkeydown={(e) => e.key === 'Enter' && addItem()}
+                />
+                <div class="qty-row">
+                    <label>Antal:</label>
+                    <button class="qty-btn" onclick={() => newItemQty = Math.max(1, newItemQty - 1)}>−</button>
+                    <span class="qty-value">{newItemQty}</span>
+                    <button class="qty-btn" onclick={() => newItemQty = Math.min(9999, newItemQty + 1)}>+</button>
+                </div>
+                <div class="category-picker">
+                    {#each editorCategories as cat}
+                        <button
+                            class="category-chip"
+                            class:selected={newItemCategory === cat.name}
+                            style="--chip-color: {cat.color}"
+                            onclick={() => newItemCategory = cat.name}
+                        >{cat.name}</button>
+                    {/each}
+                </div>
+                <button class="btn-add" onclick={addItem} disabled={addingItem}>
+                    {addingItem ? 'Lägger till…' : 'Lägg till vara'}
+                </button>
+            {/if}
         </div>
 
     {:else}
@@ -243,6 +280,13 @@
                     placeholder="Namn på ny mall"
                     onkeydown={(e) => e.key === 'Enter' && createTemplate()}
                 />
+                {#if listprofileContext.profiles.length > 1}
+                    <select bind:value={newTemplateProfileId} class="profile-select">
+                        {#each listprofileContext.profiles as profile}
+                            <option value={profile.id}>{profile.name}</option>
+                        {/each}
+                    </select>
+                {/if}
                 <button class="btn-create" onclick={createTemplate} disabled={creatingTemplate || !newTemplateName.trim()}>
                     {creatingTemplate ? '…' : 'Skapa mall'}
                 </button>
@@ -329,6 +373,17 @@
 
     .btn-create:hover:not(:disabled) { opacity: 0.9; }
     .btn-create:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .profile-select {
+        padding: 0.55rem 0.8rem;
+        border: 1px solid var(--border-input);
+        border-radius: 8px;
+        font-size: 0.95em;
+        background: var(--bg-surface);
+        color: var(--text-primary);
+        outline: none;
+        cursor: pointer;
+    }
 
     .template-list {
         display: grid;
@@ -459,6 +514,15 @@
         margin-left: auto;
         font-size: 0.82em;
         color: var(--danger-text);
+    }
+
+    @media (max-width: 420px) {
+        .create-row {
+            flex-direction: column;
+        }
+        .btn-create {
+            width: 100%;
+        }
     }
 
     @media (max-width: 480px) {
@@ -700,4 +764,49 @@
 
     .btn-add:hover:not(:disabled) { opacity: 0.9; }
     .btn-add:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .no-profile-notice {
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+    }
+
+    .no-profile-notice p {
+        margin: 0;
+        font-size: 0.88em;
+        color: var(--text-muted);
+    }
+
+    .assign-row {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .profile-select-sm {
+        flex: 1;
+        padding: 0.45rem 0.7rem;
+        border: 1px solid var(--border-input);
+        border-radius: 8px;
+        font-size: 0.9em;
+        background: var(--bg-surface);
+        color: var(--text-primary);
+        outline: none;
+        cursor: pointer;
+    }
+
+    .btn-assign {
+        padding: 0.45rem 0.9rem;
+        background: linear-gradient(135deg, #f97316, #c026d3);
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        font-size: 0.88em;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: opacity 0.15s;
+    }
+
+    .btn-assign:hover:not(:disabled) { opacity: 0.9; }
+    .btn-assign:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>
