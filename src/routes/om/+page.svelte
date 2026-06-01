@@ -80,10 +80,17 @@
                 </div>
             </div>
             <div class="feature">
+                <span>📋</span>
+                <div>
+                    <strong>Listprofiler</strong>
+                    <p>Skapa separata profiler för olika typer av handel — livsmedel, bygg, hem. Varje profil har egna kategorier, färger och varuhusrutter.</p>
+                </div>
+            </div>
+            <div class="feature">
                 <span>🏷️</span>
                 <div>
                     <strong>Kategorier</strong>
-                    <p>Anpassa kategorier och färger under Inställningar. Ger bättre överblick och gör ruttritningen mer exakt.</p>
+                    <p>Anpassa kategorier och färger per profil under Inställningar. Ger bättre överblick och gör ruttritningen mer exakt.</p>
                 </div>
             </div>
         </div>
