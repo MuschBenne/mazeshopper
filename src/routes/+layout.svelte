@@ -60,7 +60,7 @@
     <a class="brand" href="/">MazeShopper</a>
     {#if authContext.user}
         <div class="user-area">
-            <a class="username" href="/installningar">{authContext.user.username}</a>
+            <a class="username" href="/installningar" title="Inloggad som {authContext.user.username}">{authContext.user.username}</a>
             <button class="btn-logout" onclick={logout}>Logga ut</button>
         </div>
     {:else}
