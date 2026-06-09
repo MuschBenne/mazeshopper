@@ -175,6 +175,13 @@ export async function POST(event) {
         // Always return ok to avoid revealing whether email exists
         if (!email || !isValidEmail(email)) return json({ ok: true });
 
+        const ip = safeGetClientAddress(event);
+        const resetIpKey = `request_reset:${ip}`;
+        const resetIpSince = new Date(Date.now() - LOGIN_WINDOW_MS);
+        const resetIpCount = await db.collection('login_attempts').countDocuments({ key: resetIpKey, at: { $gt: resetIpSince } });
+        if (resetIpCount >= 10) return json({ ok: true });
+        await db.collection('login_attempts').insertOne({ key: resetIpKey, at: new Date() });
+
         const emailNorm = email.trim().toLowerCase();
         const user = await users.findOne({ email: emailNorm });
         if (!user) return json({ ok: true });
