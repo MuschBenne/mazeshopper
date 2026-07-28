@@ -6,7 +6,7 @@
 
     /**
      * @type {{
-     *   category: { name: string, color: string },
+     *   category: { id: string, name: string, color: string },
      *   categories: { id: string, name: string, color: string }[],
      *   items: import('$lib/context/shopping-context.svelte').ShoppingItem[],
      *   shoppingMode: boolean,
@@ -52,7 +52,7 @@
     class="category-header"
     onclick={() => (collapsed = !collapsed)}
     aria-expanded={!collapsed}
-    aria-controls="category-items-{category.name}"
+    aria-controls="category-items-{category.id}"
 >
     <span class="category-dot" style:background={category.color}></span>
     <span class="category-arrow">{collapsed ? '▶' : '▼'}</span>
@@ -61,7 +61,7 @@
 </button>
 
 {#if !collapsed}
-    <ul id="category-items-{category.name}" transition:slide={{ duration: 180 }}>
+    <ul id="category-items-{category.id}" transition:slide={{ duration: 180 }}>
         {#each displayItems as item (item.itemId)}
             <li class:bought={item.bought} animate:flip={{ duration: 220 }} transition:slide={{ duration: 180 }}>
                 {#if editingItemId === item.itemId}

@@ -7,6 +7,7 @@
     import SharePanel from "$lib/components/SharePanel.svelte";
     import CategorySection from "$lib/components/CategorySection.svelte";
     import ImportModal from "$lib/components/ImportModal.svelte";
+    import { untrack } from 'svelte';
     import { page } from '$app/state';
     import { goto } from '$app/navigation';
     import { browser } from '$app/environment';
@@ -15,7 +16,26 @@
     let { data } = $props();
 
     const id = $derived(page.params.id ?? '');
-    const list = $derived(shoppingContext.getList(id));
+
+    // Listan kommer med från server-load — seedas före första render så sidan
+    // visas direkt istället för att vänta på layoutens /api/lists-hämtning.
+    //
+    // seedList() läser lists för att hitta rätt plats. Utan untrack blir lists ett
+    // beroende för effekten, och då skulle varje senare ändring — en avbockning,
+    // en SSE-uppdatering — väcka effekten och skriva tillbaka server-snapshotten.
+    // Seedningen ska bara ske när server-datan faktiskt är ny.
+    $effect.pre(() => {
+        const seed = data.list;
+        if (seed) untrack(() => shoppingContext.seedList(seed));
+    });
+
+    // Faller tillbaka på server-datan: under SSR och fram till första flush efter
+    // hydrering är contexten tom, och utan fallback renderas "Listan hittades
+    // inte" trots att listan finns.
+    const seededList = $derived(
+        /** @type {import('$lib/context/shopping-context.svelte').ShoppingList | null} */ (data.list ?? null)
+    );
+    const list = $derived(shoppingContext.getList(id) ?? seededList);
     const username = $derived(authContext.user?.username ?? '');
     // Only the owner can delete the list or share it with others.
     const isOwner = $derived(list?.owner === username);
@@ -26,7 +46,6 @@
     /** @type {HTMLInputElement | null} */
     let itemInputEl = $state(null);
     let selectedCategory = $state('');
-    let adding = $state(false);
     let showImportModal = $state(false);
     let shoppingMode = $state(false);
     let showSharePanel = $state(false);
@@ -87,6 +106,19 @@
         return () => es.close();
     });
 
+    // Servern stänger strömmen med jämna mellanrum (funktioner har en maxlivslängd),
+    // så korta avbrott är normala och löser sig på ett ögonblick. Vänta därför in
+    // återanslutningen innan varningen visas — annars blinkar den mitt i handlingen.
+    let showOffline = $state(false);
+    $effect(() => {
+        if (!sseHasConnected || sseConnected) {
+            showOffline = false;
+            return;
+        }
+        const timer = setTimeout(() => { showOffline = true; }, 6000);
+        return () => clearTimeout(timer);
+    });
+
     // Profile categories come from the server load — covers both owned and shared lists.
     const profileCategories = $derived(
         /** @type {{ id: string, name: string, color: string }[]} */ (data.profileCategories ?? [])
@@ -110,9 +142,19 @@
         const knownNames = new Set(base.map(c => c.name));
         const extraNames = [...new Set(list.items.map(i => i.category))].filter(n => n && !knownNames.has(n));
         if (extraNames.length === 0) return base;
-        const extras = extraNames.map(name => ({ id: name, name, color: '#e2e8f0' }));
+        // Prefixas så ett kategorinamn aldrig kan krocka med pseudokategorins id.
+        const extras = extraNames.map(name => ({ id: `extra:${name}`, name, color: '#e2e8f0' }));
         return [...base, ...extras];
     });
+
+    // Varor kan sakna kategori — t.ex. importerade från en mall där kategori är
+    // valfritt. Utan en egen hink filtrerades de bort ur alla sektioner och blev
+    // osynliga, trots att de räknades i "X av Y varor köpta".
+    //
+    // Namnet får inte vara "Övrigt": samtliga standardprofiler har redan en
+    // riktig kategori med det namnet, och två likadana rubriker vore omöjliga
+    // att skilja åt.
+    const UNCATEGORIZED = { id: '__uncategorized__', name: 'Utan kategori', color: '#e2e8f0' };
 
     // Filters the item list by the search query, matching on both name and spec.
     const filteredItems = $derived.by(() => {
@@ -125,6 +167,28 @@
         );
     });
 
+    // Grupperar varorna i ett enda svep istället för en filtrering per kategori,
+    // som annars körs om vid varje bock-av.
+    const sections = $derived.by(() => {
+        /** @type {Map<string, typeof filteredItems>} */
+        const byCategory = new Map();
+        for (const item of filteredItems) {
+            const key = item.category || UNCATEGORIZED.id;
+            const bucket = byCategory.get(key);
+            if (bucket) bucket.push(item);
+            else byCategory.set(key, [item]);
+        }
+
+        const result = [];
+        for (const category of sortedCategories) {
+            const items = byCategory.get(category.name);
+            if (items?.length) result.push({ category, items });
+        }
+        const uncategorized = byCategory.get(UNCATEGORIZED.id);
+        if (uncategorized?.length) result.push({ category: UNCATEGORIZED, items: uncategorized });
+        return result;
+    });
+
     const listHistory = $derived(shoppingContext.recentlyBought[id] ?? []);
 
     async function addItem() {
@@ -133,25 +197,35 @@
             return;
         }
         categoryError = false;
-        if (newItem.trim().length === 0) return;
-        adding = true;
-        const ok = await shoppingContext.addItem(id, newItem, spec, selectedCategory, username);
-        adding = false;
-        if (ok) {
-            newItem = '';
-            spec = '';
-            itemInputEl?.focus();
+        const name = newItem.trim();
+        if (name.length === 0) return;
+
+        // Varan läggs in optimistiskt i listan, så fälten töms direkt istället för
+        // att låsas medan servern svarar. Det gör att flera varor kan matas in i
+        // följd utan att vänta. Vid fel rullas varan tillbaka och en toast visas.
+        const itemSpec = spec.trim();
+        newItem = '';
+        spec = '';
+        itemInputEl?.focus();
+        const ok = await shoppingContext.addItem(id, name, itemSpec, selectedCategory, username);
+        // Ge tillbaka inmatningen vid fel, annars ber toasten användaren försöka
+        // igen med tomma fält. Skriv bara över om inget nytt hunnit skrivas.
+        if (!ok && newItem === '' && spec === '') {
+            newItem = name;
+            spec = itemSpec;
         }
     }
 
     async function deleteList() {
-        await shoppingContext.deleteList(id);
-        goto('/inkopslista');
+        const ok = await shoppingContext.deleteList(id);
+        if (ok) goto('/inkopslista');
+        else confirmDeleteList = false;
     }
 
     async function leaveList() {
-        await shoppingContext.leaveList(id, username);
-        goto('/inkopslista');
+        const ok = await shoppingContext.leaveList(id, username);
+        if (ok) goto('/inkopslista');
+        else confirmLeaveList = false;
     }
 
     /** @param {string} dateStr */
@@ -234,7 +308,7 @@
         {/if}
 
         <!-- Offline indicator: shown after 2+ consecutive poll failures in shopping mode -->
-        {#if sseHasConnected && !sseConnected}
+        {#if showOffline}
             <div class="offline-badge" role="alert" transition:fade={{ duration: 250 }}>Ingen anslutning – listan uppdateras inte</div>
         {/if}
 
@@ -320,9 +394,7 @@
                 {#if categoryError}
                     <p class="field-error" role="alert">Välj en kategori innan du lägger till en vara.</p>
                 {/if}
-                <button class="btn-add" onclick={addItem} disabled={adding}>
-                    {adding ? 'Lägger till…' : 'Lägg till vara'}
-                </button>
+                <button class="btn-add" onclick={addItem}>Lägg till vara</button>
                 <button class="btn-import-template" onclick={() => showImportModal = true}>
                     Importera mall
                 </button>
@@ -358,11 +430,15 @@
             {:else if list.items.length === 0}
                 <p class="empty-list">Listan är tom. Lägg till varor ovan.</p>
             {:else}
-                {#each sortedCategories as category}
-                    {@const categoryItems = filteredItems.filter(i => i.category === category.name)}
-                    {#if categoryItems.length > 0}
-                        <CategorySection {category} categories={profileCategories} items={categoryItems} {shoppingMode} listId={id} {showAddedBy} />
-                    {/if}
+                {#each sections as section (section.category.id)}
+                    <CategorySection
+                        category={section.category}
+                        categories={profileCategories}
+                        items={section.items}
+                        {shoppingMode}
+                        listId={id}
+                        {showAddedBy}
+                    />
                 {/each}
             {/if}
         </div>
