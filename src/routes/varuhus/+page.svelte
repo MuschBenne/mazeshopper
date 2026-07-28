@@ -30,8 +30,8 @@
     async function addStore() {
         const name = newStore.trim();
         if (!name || !selectedProfileId) return;
-        await storeContext.addStore(name, selectedProfileId);
-        newStore = '';
+        // Behåll namnet i fältet om det misslyckades, så användaren kan försöka igen.
+        if (await storeContext.addStore(name, selectedProfileId)) newStore = '';
     }
 
     /**
@@ -44,8 +44,9 @@
 
     async function deleteStore() {
         if (selectedIndex === null) return;
-        await storeContext.removeStore(selectedIndex);
-        selectedIndex = null;
+        // Stanna kvar i editorn om borttagningen misslyckades — varuhuset finns
+        // fortfarande kvar och skulle annars dyka upp igen i listan bakom.
+        if (await storeContext.removeStore(selectedIndex)) selectedIndex = null;
         confirmDelete = false;
     }
 
@@ -104,9 +105,11 @@
     </div>
 
     {#if storeContext.stores.length === 0}
-        <p class="empty-hint">
-            Varuhus låter dig ange i vilken ordning hyllorna ligger — så att varulistan sorteras efter din rutt när du handlar.
-        </p>
+        {#if storeContext.loaded}
+            <p class="empty-hint">
+                Varuhus låter dig ange i vilken ordning hyllorna ligger — så att varulistan sorteras efter din rutt när du handlar.
+            </p>
+        {/if}
     {:else}
         <div class="stores-grid">
             {#each storeContext.stores as store, index}

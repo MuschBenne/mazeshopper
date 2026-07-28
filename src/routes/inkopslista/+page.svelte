@@ -13,12 +13,15 @@
     // Seed lists before first render so they appear immediately without waiting
     // for the background load() triggered by the layout effect.
     $effect.pre(() => {
-        shoppingContext.lists = data.lists;
+        shoppingContext.seedAll(data.lists);
     });
 
     const username = $derived(authContext.user?.username ?? '');
     // Includes both owned and shared lists for this user.
-    const myLists = $derived(shoppingContext.listsForUser(username));
+    // authContext.user sätts av layoutens effekt, som varken kör under SSR eller
+    // före första render — utan fallback filtrerar listsForUser('') bort allt och
+    // sidan visar "Inga listor än" trots att server-datan är fylld.
+    const myLists = $derived(username ? shoppingContext.listsForUser(username) : data.lists);
     const pendingInvitations = $derived(shoppingContext.invitations);
 
     let newListName = $state('');

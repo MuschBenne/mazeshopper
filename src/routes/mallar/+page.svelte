@@ -294,9 +294,11 @@
         </div>
 
         {#if templateContext.templates.length === 0}
-            <div class="card empty-card">
-                <p class="empty">Inga mallar än. Skapa din första mall ovan.</p>
-            </div>
+            {#if templateContext.loaded}
+                <div class="card empty-card">
+                    <p class="empty">Inga mallar än. Skapa din första mall ovan.</p>
+                </div>
+            {/if}
         {:else}
             <div class="template-list">
                 {#each templateContext.templates as t (t.id)}

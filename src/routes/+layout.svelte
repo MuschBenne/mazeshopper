@@ -90,13 +90,7 @@
     </div>
 {/if}
 
-{#if authContext.user && !shoppingContext.loaded}
-    <div class="loading-screen" aria-label="Laddar…">
-        <div class="spinner"></div>
-    </div>
-{:else}
-    {@render children()}
-{/if}
+{@render children()}
 
 <Toast />
 
@@ -154,26 +148,6 @@
     }
 
     .btn-logout:hover { background: var(--bg-elevated); }
-
-    .loading-screen {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        padding: 4rem 1rem;
-    }
-
-    .spinner {
-        width: 32px;
-        height: 32px;
-        border: 3px solid var(--border);
-        border-top-color: #f97316;
-        border-radius: 50%;
-        animation: spin 0.7s linear infinite;
-    }
-
-    @keyframes spin {
-        to { transform: rotate(360deg); }
-    }
 
     .btn-about {
         padding: 0.3rem 0.75rem;

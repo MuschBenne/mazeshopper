@@ -9,6 +9,10 @@ class TemplateContext {
     /** @type {Template[]} */
     templates = $state([]);
 
+    // Låter sidan skilja "inga mallar" från "inte hämtat än", så tomtillståndet
+    // inte flimrar förbi vid varje sidladdning.
+    loaded = $state(false);
+
     async load() {
         try {
             const res = await fetch('/api/templates');
@@ -18,11 +22,14 @@ class TemplateContext {
             }
         } catch {
             notificationContext.show('Kunde inte ladda mallar. Kontrollera din anslutning.');
+        } finally {
+            this.loaded = true;
         }
     }
 
     reset() {
         this.templates = [];
+        this.loaded = false;
     }
 
     /** @param {string} id */
