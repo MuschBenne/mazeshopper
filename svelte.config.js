@@ -4,7 +4,10 @@ import adapter from '@sveltejs/adapter-vercel';
 const config = {
 	kit: {
 		adapter: adapter({
-			runtime: 'nodejs22.x'
+			runtime: 'nodejs22.x',
+			// Samma region som MongoDB Atlas-klustret (Stockholm, aws eu-north-1).
+			// Utan detta kör funktionerna i iad1 och varje DB-anrop kostar ~90 ms extra.
+			regions: ['arn1']
 		}),
 		csp: {
 			mode: 'nonce',

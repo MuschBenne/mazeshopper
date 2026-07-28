@@ -10,6 +10,12 @@ export async function hashToken(token) {
 
 /**
  * Returns the username for the current session token, or null if invalid/missing.
+ *
+ * Slår alltid mot databasen. En in-memory-cache provades här, men efter att
+ * funktionerna flyttats till samma region som Atlas kostar uppslaget någon
+ * millisekund — för lite för att motivera att en raderad session kan leva
+ * vidare på en varm instans efter lösenordsbyte eller kontoborttagning.
+ *
  * @param {import('@sveltejs/kit').Cookies} cookies
  * @returns {Promise<string | null>}
  */

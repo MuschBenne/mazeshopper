@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
 import { getDb } from '$lib/server/db';
 import { getSessionUser } from '$lib/server/session';
+import { listAccessFilter } from '$lib/server/utils';
 import { ObjectId } from 'mongodb';
 
 export async function POST({ params, request, cookies }) {
@@ -11,7 +12,7 @@ export async function POST({ params, request, cookies }) {
     if (!ObjectId.isValid(params.id)) return json({ error: 'not_found' }, { status: 404 });
     const list = await db.collection('lists').findOne({
         _id: new ObjectId(params.id),
-        $or: [{ owner: username }, { sharedWith: username }]
+        ...listAccessFilter(username)
     });
     if (!list) return json({ error: 'forbidden' }, { status: 403 });
 

@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
 import { getDb } from '$lib/server/db';
 import { getSessionUser } from '$lib/server/session';
+import { listAccessFilter } from '$lib/server/utils';
 import { ObjectId } from 'mongodb';
 
 // Removes a single item from the list by its itemId.
@@ -13,7 +14,7 @@ export async function DELETE({ params, cookies }) {
     const result = await db.collection('lists').updateOne(
         {
             _id: new ObjectId(params.id),
-            $or: [{ owner: username }, { sharedWith: username }]
+            ...listAccessFilter(username)
         },
         // @ts-ignore — MongoDB driver types don't accept plain objects for $pull
         { $pull: { items: { itemId: params.itemId } } }
@@ -48,7 +49,7 @@ export async function PATCH({ params, request, cookies }) {
     const result = await db.collection('lists').updateOne(
         {
             _id: new ObjectId(params.id),
-            $or: [{ owner: username }, { sharedWith: username }]
+            ...listAccessFilter(username)
         },
         { $set: setFields },
         { arrayFilters: [{ 'el.itemId': params.itemId }] }

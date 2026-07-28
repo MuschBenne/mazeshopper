@@ -26,6 +26,11 @@ export async function ensureIndexes() {
         db.collection('sessions').createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
         db.collection('lists').createIndex({ owner: 1 }),
         db.collection('lists').createIndex({ sharedWith: 1 }),
+        db.collection('lists').createIndex({ profileId: 1 }),
+        db.collection('stores').createIndex({ owner: 1 }),
+        db.collection('invitations').createIndex({ toUser: 1, status: 1 }),
+        // Låter runMigration() slippa en full scan av users vid varje kallstart.
+        db.collection('users').createIndex({ listprofilesMigrated: 1 }),
         db.collection('password_resets').createIndex({ email: 1 }),
         db.collection('password_resets').createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
         db.collection('email_verifications').createIndex({ tokenHash: 1 }),

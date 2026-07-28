@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
 import { getDb } from '$lib/server/db';
 import { getSessionUser } from '$lib/server/session';
+import { listAccessFilter } from '$lib/server/utils';
 import { ObjectId } from 'mongodb';
 
 /**
@@ -12,7 +13,7 @@ async function getAccessibleList(db, listId, username) {
     if (!ObjectId.isValid(listId)) return null;
     return db.collection('lists').findOne({
         _id: new ObjectId(listId),
-        $or: [{ owner: username }, { sharedWith: username }]
+        ...listAccessFilter(username)
     });
 }
 

@@ -1,21 +1,15 @@
 import { json } from '@sveltejs/kit';
 import { getDb } from '$lib/server/db';
 import { getSessionUser } from '$lib/server/session';
-import { serializeList } from '$lib/server/utils';
+import { listAccessFilter, serializeList } from '$lib/server/utils';
 
 // Returns all lists where the current user is either the owner or in the sharedWith array.
-// The sharedWith lookup is case-insensitive so usernames match regardless of casing.
 export async function GET({ cookies }) {
     const username = await getSessionUser(cookies);
     if (!username) return json({ error: 'unauthorized' }, { status: 401 });
 
     const db = await getDb();
-    const lists = await db.collection('lists').find({
-        $or: [
-            { owner: username },
-            { sharedWith: { $elemMatch: { $regex: new RegExp(`^${username}$`, 'i') } } }
-        ]
-    }).toArray();
+    const lists = await db.collection('lists').find(listAccessFilter(username)).toArray();
 
     return json({ lists: lists.map(serializeList) });
 }

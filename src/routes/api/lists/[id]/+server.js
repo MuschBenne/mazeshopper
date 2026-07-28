@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import { getDb } from '$lib/server/db';
 import { getSessionUser } from '$lib/server/session';
-import { serializeList } from '$lib/server/utils';
+import { listAccessFilter, serializeList } from '$lib/server/utils';
 import { ObjectId } from 'mongodb';
 
 // Returns a single list by ID — only accessible to the owner or shared users.
@@ -13,7 +13,7 @@ export async function GET({ params, cookies }) {
     const db = await getDb();
     const doc = await db.collection('lists').findOne({
         _id: new ObjectId(params.id),
-        $or: [{ owner: username }, { sharedWith: username }]
+        ...listAccessFilter(username)
     });
     if (!doc) return json({ error: 'not_found' }, { status: 404 });
 
