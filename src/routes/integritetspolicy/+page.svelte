@@ -25,6 +25,7 @@
             <li><strong>Lösenord</strong> — lagras i krypterad form (bcrypt). Vi kan aldrig läsa ditt lösenord i klartext.</li>
             <li><strong>Inköpslistor och varor</strong> — innehåll du skapar i tjänsten.</li>
             <li><strong>Varuhusinformation och butiksrutter</strong> — butiker och rutter du konfigurerar.</li>
+            <li><strong>Listmallar</strong> — återkommande inköpslistor du sparar.</li>
             <li><strong>Kategoriinställningar</strong> — personliga kategorier och färger.</li>
             <li><strong>Inloggningsuppgifter (session)</strong> — en slumpmässig token lagras i en cookie för att hålla dig inloggad.</li>
         </ul>

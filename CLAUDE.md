@@ -158,7 +158,6 @@ Max 10 försök per IP per 15 minuter, spåras i `login_attempts`-collection med
 | `email_verifications` | username, tokenHash, expiresAt (TTL 24h) |
 | `login_attempts` | key (IP), at (TTL 900s) |
 | `invitations` | listId, listName, fromUser, toUser, createdAt |
-| `user_settings` | DEPRECATED — gamla globala kategorier, ska rensas i databasen |
 
 Indexes skapas av `ensureIndexes()` i `db.js`, körs vid serverstart via `hooks.server.js`.
 
@@ -185,6 +184,6 @@ I `inkopslista/[id]/+page.svelte` aktiveras handelsläge via `shoppingMode`-stat
 - Personuppgiftsansvarig: Benjamin Sjöstrand (benjamin@rosenbergab.com)
 - Laglig grund: avtal (Art. 6.1.b)
 - Åldersgräns: 16 år
-- Dataexport: `GET /api/user/export` returnerar JSON-fil
+- Dataexport: `GET /api/user/export` returnerar JSON-fil (konto, listor, varuhus, listprofiler, mallar)
 - Radering: `POST /api/auth` action `delete_account` tar bort allt
 - Policy: `/integritetspolicy`, villkor: `/anvandardvillkor`

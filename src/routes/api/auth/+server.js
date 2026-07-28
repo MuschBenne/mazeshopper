@@ -313,7 +313,6 @@ export async function POST(event) {
         await db.collection('invitations').deleteMany({ $or: [{ fromUser: username }, { toUser: username }] });
         await db.collection('stores').deleteMany({ owner: username });
         await db.collection('templates').deleteMany({ owner: username });
-        await db.collection('user_settings').deleteMany({ owner: username });
         await db.collection('listprofiles').deleteMany({ owner: username });
 
         cookies.delete('session', { path: '/' });
