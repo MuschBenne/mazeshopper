@@ -86,7 +86,7 @@ export async function POST(event) {
 
         const hash = await bcrypt.hash(password, SALT_ROUNDS);
         const name = username.trim().toLowerCase();
-        await users.insertOne({ username: name, password: hash, email: emailNorm, emailVerified: false, listprofilesMigrated: true });
+        await users.insertOne({ username: name, password: hash, email: emailNorm, emailVerified: false });
         await createSession(cookies, name);
 
         for (const def of DEFAULT_PROFILES) {

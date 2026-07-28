@@ -62,13 +62,12 @@ src/
 │   │   ├── auth-context.svelte.js          # Inloggningsstatus + auth-anrop
 │   │   ├── listprofile-context.svelte.js   # Listprofiler + kategorier (CRUD)
 │   │   ├── notification-context.svelte.js  # Toast-kö
-│   │   ├── setting-context.svelte.js       # DEPRECATED — tas bort efter migration
 │   │   ├── shopping-context.svelte.js      # Listor + inbjudningar
 │   │   ├── store-context.svelte.js         # Varuhus + layout
 │   │   ├── template-context.svelte.js      # Listmallar (CRUD + import till lista)
 │   │   └── theme-context.svelte.js         # Tema (system/ljust/mörkt, localStorage)
 │   └── server/
-│       ├── db.js                    # MongoClient singleton + ensureIndexes() + runMigration()
+│       ├── db.js                    # MongoClient singleton + ensureIndexes()
 │       ├── email.js                 # sendPasswordReset(), sendEmailVerification()
 │       ├── listprofile-defaults.js  # De 4 standardprofilerna som skapas vid registrering
 │       ├── session.js               # createSession(), getSessionUser(), deleteSession()
@@ -82,7 +81,6 @@ src/
 │   │   │                   #       request_reset, reset_password, verify_email,
 │   │   │                   #       resend_verification, delete_account, exists
 │   │   │                   # GET: returnerar inloggad användare
-│   │   ├── categories/     # DEPRECATED — tas bort efter migration
 │   │   ├── invitations/    # GET inbjudningar, POST accept/decline
 │   │   ├── listprofiles/   # GET/POST listprofiler
 │   │   │   └── [id]/       # PATCH byt namn, DELETE (blockeras om listor/varuhus använder den)
@@ -110,7 +108,7 @@ src/
 │   ├── glomt-losenord/     # Begär lösenordsåterställning
 │   ├── aterstall-losenord/ # Formulär för nytt lösenord (token i URL)
 │   └── verifiera-epost/    # Verifieringslänk via mejl
-└── hooks.server.js         # Kör ensureIndexes() + runMigration() vid serverstart
+└── hooks.server.js         # Kör ensureIndexes() vid serverstart
 ```
 
 ## Konventioner
@@ -150,7 +148,7 @@ Max 10 försök per IP per 15 minuter, spåras i `login_attempts`-collection med
 
 | Collection | Innehåll |
 |---|---|
-| `users` | username (unik), email (sparse), password (bcrypt), emailVerified, listprofilesMigrated |
+| `users` | username (unik, lowercase), email (sparse), password (bcrypt), emailVerified |
 | `sessions` | token (unik), username, expiresAt (TTL) |
 | `lists` | owner, profileId, sharedWith[], pendingInvites[], items[] (inkl. addedBy per vara) |
 | `templates` | owner, name, items[] (itemId, name, spec, quantity, category) |
@@ -160,7 +158,7 @@ Max 10 försök per IP per 15 minuter, spåras i `login_attempts`-collection med
 | `email_verifications` | username, tokenHash, expiresAt (TTL 24h) |
 | `login_attempts` | key (IP), at (TTL 900s) |
 | `invitations` | listId, listName, fromUser, toUser, createdAt |
-| `user_settings` | DEPRECATED — gamla globala kategorier, tas bort efter migration |
+| `user_settings` | DEPRECATED — gamla globala kategorier, ska rensas i databasen |
 
 Indexes skapas av `ensureIndexes()` i `db.js`, körs vid serverstart via `hooks.server.js`.
 
@@ -173,7 +171,6 @@ Kategorier är kopplade till **listprofiler** — namngivna samlingar av kategor
 - "Generisk lista" har en inbyggd låst "Övrigt"-kategori (`locked: true`) som inte kan tas bort.
 - Delade listor: delade användare ser ägarens profilkategorier (laddas server-side i `[id]/+page.server.js`).
 - En profil kan inte tas bort om aktiva listor eller varuhus refererar till den.
-- `runMigration()` i `db.js` hanterar befintliga användare: skapar profiler, sätter `profileId` på listor/varuhus.
 
 ## Tema
 

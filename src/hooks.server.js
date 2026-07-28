@@ -1,8 +1,7 @@
-import { ensureIndexes, runMigration } from '$lib/server/db';
+import { ensureIndexes } from '$lib/server/db';
 
 ensureIndexes()
-    .then(() => runMigration())
-    .catch(err => console.error('Failed to ensure indexes / run migration:', err));
+    .catch(err => console.error('Failed to ensure indexes:', err));
 
 /** @type {import('@sveltejs/kit').Handle} */
 export async function handle({ event, resolve }) {
