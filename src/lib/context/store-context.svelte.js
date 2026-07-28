@@ -1,4 +1,5 @@
 import { browser } from '$app/environment';
+import { notificationContext } from './notification-context.svelte';
 
 // Manages the list of grocery stores and which one is currently selected.
 // The selected store ID is persisted to localStorage so it survives page reloads.
@@ -7,6 +8,10 @@ import { browser } from '$app/environment';
 class StoreContext {
     /** @type {{id: string, name: string, profileId: string | null, categoryOrder: {[category: string]: number}, positions: {[category: string]: {x: number, y: number}}}[]} */
     stores = $state([]);
+
+    // Låter sidan skilja "inga varuhus" från "inte hämtat än", så tomtillståndet
+    // inte flimrar förbi vid varje sidladdning.
+    loaded = $state(false);
 
     /** @type {string | null} */
     #selectedStoreId = $state(null);
@@ -18,15 +23,22 @@ class StoreContext {
     }
 
     async load() {
-        const res = await fetch('/api/stores');
-        if (!res.ok) return;
-        const { stores } = await res.json();
-        this.stores = stores;
+        try {
+            const res = await fetch('/api/stores');
+            if (!res.ok) return;
+            const { stores } = await res.json();
+            this.stores = stores;
+        } catch {
+            notificationContext.show('Kunde inte ladda varuhus. Kontrollera din anslutning.');
+        } finally {
+            this.loaded = true;
+        }
     }
 
     // Clears all store data on logout so the next user starts with a clean state.
     reset() {
         this.stores = [];
+        this.loaded = false;
         this.#selectedStoreId = null;
         if (browser) localStorage.removeItem('selectedStoreId');
     }
@@ -49,24 +61,44 @@ class StoreContext {
      * @param {string} profileId
      */
     async addStore(name, profileId) {
-        if (name.trim().length === 0) return;
-        const res = await fetch('/api/stores', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, profileId })
-        });
-        const { store } = await res.json();
-        this.stores = [...this.stores, store];
+        if (name.trim().length === 0) return false;
+        try {
+            const res = await fetch('/api/stores', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, profileId })
+            });
+            if (!res.ok) throw new Error();
+            const { store } = await res.json();
+            this.stores = [...this.stores, store];
+            return true;
+        } catch {
+            notificationContext.show('Kunde inte skapa varuhus. Försök igen.');
+            return false;
+        }
     }
 
     /** @param {number} index */
     async removeStore(index) {
         const store = this.stores[index];
-        await fetch(`/api/stores/${store.id}`, { method: 'DELETE' });
+        if (!store) return false;
+        const prevStores = [...this.stores];
+        const prevSelected = this.#selectedStoreId;
         this.stores = this.stores.filter((_, i) => i !== index);
         if (this.#selectedStoreId === store.id) {
             this.#selectedStoreId = null;
             this.#saveSelection();
+        }
+        try {
+            const res = await fetch(`/api/stores/${store.id}`, { method: 'DELETE' });
+            if (!res.ok) throw new Error();
+            return true;
+        } catch {
+            this.stores = prevStores;
+            this.#selectedStoreId = prevSelected;
+            this.#saveSelection();
+            notificationContext.show('Kunde inte ta bort varuhus. Försök igen.');
+            return false;
         }
     }
 

@@ -33,16 +33,38 @@ class ShoppingContext {
         }
     }
 
+    // Räknas upp varje gång listorna seedas från en server-load. En pågående
+    // load() jämför mot värdet den startade med och kastar sitt svar om en
+    // nyare seed hunnit landa — annars kan ett långsamt /api/lists-svar skriva
+    // över både färsk server-data och optimistiska ändringar gjorda under tiden.
+    #seedGen = 0;
+
+    // Fyller listorna från data som redan hämtats server-side.
+    /** @param {ShoppingList[]} lists */
+    seedAll(lists) {
+        // Kopieras så att optimistiska mutationer inte skriver i SvelteKits
+        // cachade load-data.
+        this.lists = [...lists];
+        this.loaded = true;
+        this.#seedGen++;
+    }
+
     // Loads all lists the current user owns or has been shared with, plus pending invitations.
     async load() {
+        // Sidor som redan hämtat listorna server-side seedar dem före render.
+        // Att hämta om dem direkt efteråt vore samma fråga en gång till —
+        // /api/lists och sidornas server-load använder samma åtkomstfilter.
+        const gen = this.#seedGen;
+        const listsAreSeeded = this.loaded && gen > 0;
         try {
             const [listsRes, invRes] = await Promise.all([
-                fetch('/api/lists'),
+                listsAreSeeded ? null : fetch('/api/lists'),
                 fetch('/api/invitations')
             ]);
-            if (listsRes.ok) {
+            if (listsRes?.ok) {
                 const { lists } = await listsRes.json();
-                this.lists = lists;
+                // Släpp svaret om en seed hunnit landa medan det var i luften.
+                if (this.#seedGen === gen) this.lists = lists;
             }
             if (invRes.ok) {
                 const { invitations } = await invRes.json();
@@ -78,11 +100,21 @@ class ShoppingContext {
         if (idx !== -1) this.lists[idx] = list;
     }
 
+    // Lägger in en lista som redan hämtats server-side, så detaljsidan kan rendera
+    // direkt utan att invänta den bredare /api/lists-hämtningen.
+    /** @param {ShoppingList} list */
+    seedList(list) {
+        const idx = this.lists.findIndex(l => l.id === list.id);
+        if (idx === -1) this.lists = [...this.lists, list];
+        else this.lists[idx] = list;
+    }
+
     // Clears all data on logout so the next user starts with a clean state.
     reset() {
         this.lists = [];
         this.invitations = [];
         this.loaded = false;
+        this.#seedGen = 0;
     }
 
     /**
@@ -107,11 +139,24 @@ class ShoppingContext {
         }
     }
 
-    /** @param {string} id */
+    /**
+     * Tar bort listan. Returnerar false om servern nekade — anroparen ska då
+     * inte navigera bort, eftersom listan fortfarande finns kvar.
+     * @param {string} id
+     */
     async deleteList(id) {
-        await fetch(`/api/lists/${id}`, { method: 'DELETE' });
         const i = this.lists.findIndex(l => l.id === id);
+        const prev = i !== -1 ? this.lists[i] : null;
         if (i !== -1) this.lists.splice(i, 1);
+        try {
+            const res = await fetch(`/api/lists/${id}`, { method: 'DELETE' });
+            if (!res.ok) throw new Error();
+            return true;
+        } catch {
+            if (prev) this.lists.splice(i, 0, prev);
+            notificationContext.show('Kunde inte ta bort listan. Försök igen.');
+            return false;
+        }
     }
 
     /** @param {string} id */
@@ -159,12 +204,18 @@ class ShoppingContext {
      * @returns {Promise<'ok' | 'already_shared' | 'already_invited' | 'not_found' | 'user_not_found'>}
      */
     async shareList(listId, username) {
-        const res = await fetch(`/api/lists/${listId}/share`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username })
-        });
-        const data = await res.json();
+        let res, data;
+        try {
+            res = await fetch(`/api/lists/${listId}/share`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username })
+            });
+            data = await res.json();
+        } catch {
+            notificationContext.show('Kunde inte dela listan. Kontrollera din anslutning.');
+            return 'not_found';
+        }
         if (!res.ok) return data.error;
         // Reflect the pending invite in the UI before the target accepts.
         const list = this.getList(listId);
@@ -177,16 +228,29 @@ class ShoppingContext {
      * @param {string} username
      */
     async unshareList(listId, username) {
-        await fetch(`/api/lists/${listId}/share`, {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username })
-        });
         const list = this.getList(listId);
+        const prevShared = list ? [...list.sharedWith] : null;
+        const prevPending = list ? [...(list.pendingInvites ?? [])] : null;
         if (list) {
             // Remove from both arrays since the user may still be in pendingInvites.
             list.sharedWith = list.sharedWith.filter(u => u.toLowerCase() !== username.toLowerCase());
             list.pendingInvites = (list.pendingInvites ?? []).filter(u => u.toLowerCase() !== username.toLowerCase());
+        }
+        try {
+            const res = await fetch(`/api/lists/${listId}/share`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username })
+            });
+            if (!res.ok) throw new Error();
+            return true;
+        } catch {
+            if (list && prevShared && prevPending) {
+                list.sharedWith = prevShared;
+                list.pendingInvites = prevPending;
+            }
+            notificationContext.show('Kunde inte ta bort delningen. Försök igen.');
+            return false;
         }
     }
 
@@ -195,38 +259,65 @@ class ShoppingContext {
      * @param {string} username
      */
     async leaveList(listId, username) {
-        await fetch(`/api/lists/${listId}/share`, {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username })
-        });
+        const prev = [...this.lists];
         this.lists = this.lists.filter(l => l.id !== listId);
+        try {
+            const res = await fetch(`/api/lists/${listId}/share`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username })
+            });
+            if (!res.ok) throw new Error();
+            return true;
+        } catch {
+            this.lists = prev;
+            notificationContext.show('Kunde inte lämna listan. Försök igen.');
+            return false;
+        }
     }
 
     /** @param {string} invId */
     async acceptInvitation(invId) {
-        await fetch(`/api/invitations/${invId}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'accept' })
-        });
+        const prev = [...this.invitations];
         this.invitations = this.invitations.filter(i => i.id !== invId);
-        // Re-fetch the full list of lists so the newly shared list appears immediately.
-        const res = await fetch('/api/lists');
-        if (res.ok) {
-            const { lists } = await res.json();
-            this.lists = lists;
+        try {
+            const res = await fetch(`/api/invitations/${invId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'accept' })
+            });
+            if (!res.ok) throw new Error();
+            // Re-fetch the full list of lists so the newly shared list appears immediately.
+            const listsRes = await fetch('/api/lists');
+            if (listsRes.ok) {
+                const { lists } = await listsRes.json();
+                this.lists = lists;
+            }
+            return true;
+        } catch {
+            this.invitations = prev;
+            notificationContext.show('Kunde inte acceptera inbjudan. Försök igen.');
+            return false;
         }
     }
 
     /** @param {string} invId */
     async declineInvitation(invId) {
-        await fetch(`/api/invitations/${invId}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'decline' })
-        });
+        const prev = [...this.invitations];
         this.invitations = this.invitations.filter(i => i.id !== invId);
+        try {
+            const res = await fetch(`/api/invitations/${invId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'decline' })
+            });
+            if (!res.ok) throw new Error();
+            return true;
+        } catch {
+            this.invitations = prev;
+            notificationContext.show('Kunde inte neka inbjudan. Försök igen.');
+            return false;
+        }
     }
 
     /**
