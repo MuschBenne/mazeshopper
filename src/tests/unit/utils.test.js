@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { escapeRegex, isValidEmail, isValidPassword, serializeList } from '$lib/server/utils';
+import { escapeRegex, hasListAccess, isValidEmail, isValidPassword, listAccessFilter, serializeList } from '$lib/server/utils';
 
 describe('escapeRegex', () => {
     it('escapes all regex special characters', () => {
@@ -57,6 +57,56 @@ describe('isValidPassword', () => {
     });
 });
 
+describe('listAccessFilter', () => {
+    it('matches owner and shared user with exact values so the index can be used', () => {
+        const filter = listAccessFilter('alice');
+        expect(filter).toEqual({
+            $or: [
+                { owner: 'alice' },
+                { sharedWith: { $in: ['alice'] } }
+            ]
+        });
+    });
+
+    it('accepts the lowercase variant in sharedWith for accounts predating normalisation', () => {
+        const filter = listAccessFilter('Alice');
+        expect(filter.$or[1].sharedWith.$in).toEqual(['Alice', 'alice']);
+    });
+
+    it('never widens the owner clause — a case variant must not see your own lists', () => {
+        expect(listAccessFilter('Alice').$or[0]).toEqual({ owner: 'Alice' });
+    });
+
+    it('never produces a regex, which would defeat the sharedWith index', () => {
+        const serialised = JSON.stringify(listAccessFilter('alice'));
+        expect(serialised).not.toContain('$regex');
+    });
+});
+
+describe('hasListAccess', () => {
+    it('grants the owner access', () => {
+        expect(hasListAccess({ owner: 'alice', sharedWith: [] }, 'alice')).toBe(true);
+    });
+
+    it('grants a shared user access, including the lowercase variant', () => {
+        expect(hasListAccess({ owner: 'bob', sharedWith: ['alice'] }, 'alice')).toBe(true);
+        expect(hasListAccess({ owner: 'bob', sharedWith: ['alice'] }, 'Alice')).toBe(true);
+    });
+
+    it('denies a user who has been removed from sharedWith', () => {
+        expect(hasListAccess({ owner: 'bob', sharedWith: [] }, 'alice')).toBe(false);
+        expect(hasListAccess({ owner: 'bob', sharedWith: ['carol'] }, 'alice')).toBe(false);
+    });
+
+    it('denies a case variant of the owner, matching listAccessFilter', () => {
+        expect(hasListAccess({ owner: 'alice', sharedWith: [] }, 'Alice')).toBe(false);
+    });
+
+    it('tolerates a missing sharedWith array', () => {
+        expect(hasListAccess({ owner: 'bob' }, 'alice')).toBe(false);
+    });
+});
+
 describe('serializeList', () => {
     it('serializes a MongoDB document to a plain list object', () => {
         const doc = {
@@ -74,9 +124,10 @@ describe('serializeList', () => {
             id: 'abc123',
             name: 'Handla',
             owner: 'alice',
+            profileId: null,
             sharedWith: ['bob'],
             pendingInvites: [],
-            items: [{ itemId: '1', name: 'Mjölk', spec: '3%', quantity: 2, bought: false, category: 'Mejeri' }]
+            items: [{ itemId: '1', name: 'Mjölk', spec: '3%', quantity: 2, bought: false, category: 'Mejeri', addedBy: '' }]
         });
     });
 

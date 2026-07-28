@@ -72,7 +72,7 @@ describe('GET /api/lists', () => {
 describe('POST /api/lists', () => {
     it('creates a list and returns it', async () => {
         const { POST } = await getListsHandler();
-        const res = await POST(makePostEvent({ name: 'Handla' }));
+        const res = await POST(makePostEvent({ name: 'Handla', profileId: 'p1' }));
         const data = await res.json();
         expect(data.list.name).toBe('Handla');
         expect(data.list.owner).toBe(MOCK_USER);
@@ -81,8 +81,14 @@ describe('POST /api/lists', () => {
 
     it('trims whitespace from the list name', async () => {
         const { POST } = await getListsHandler();
-        const res = await POST(makePostEvent({ name: '  Handla  ' }));
+        const res = await POST(makePostEvent({ name: '  Handla  ', profileId: 'p1' }));
         expect((await res.json()).list.name).toBe('Handla');
+    });
+
+    it('rejects a list without a profileId', async () => {
+        const { POST } = await getListsHandler();
+        const res = await POST(makePostEvent({ name: 'Handla' }));
+        expect(res.status).toBe(400);
     });
 
     it('rejects an empty name', async () => {
