@@ -266,7 +266,7 @@
         padding: 0.875rem;
         background: var(--bg-elevated);
         border: 1px solid var(--border);
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         display: flex;
         flex-direction: column;
         gap: 0.75rem;
@@ -297,7 +297,7 @@
         gap: 0.35rem;
         padding: 0.3rem 0.6rem 0.3rem 0.45rem;
         border: 1px solid var(--border);
-        border-radius: 999px;
+        border-radius: var(--radius-pill);
         cursor: pointer;
         font-size: 0.88em;
         background: var(--bg-elevated);
@@ -315,7 +315,7 @@
     .picker-item input[type="checkbox"] {
         width: 14px;
         height: 14px;
-        accent-color: #f97316;
+        accent-color: var(--color-primary);
         cursor: pointer;
         flex-shrink: 0;
     }
@@ -342,7 +342,7 @@
     .picker-actions button {
         padding: 0.35rem 0.8rem;
         border: 1px solid var(--border-input);
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
         background: var(--bg-surface);
         cursor: pointer;
         font-size: 0.88em;
@@ -452,7 +452,7 @@
         font-size: 0.72em;
         font-weight: 600;
         padding: 0.15rem 0.45rem;
-        border-radius: 999px;
+        border-radius: var(--radius-pill);
         letter-spacing: 0.02em;
     }
 
@@ -508,8 +508,8 @@
     .btn-save {
         padding: 0.4rem 1.1rem;
         border: none;
-        border-radius: 6px;
-        background: linear-gradient(135deg, #f97316, #c026d3);
+        border-radius: var(--radius-sm);
+        background: var(--gradient-brand);
         color: #fff;
         font-size: 0.9em;
         font-weight: 600;

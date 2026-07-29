@@ -1,6 +1,6 @@
 <svelte:head><title>Användarvillkor – MazeShopper</title></svelte:head>
 
-<div class="page">
+<div class="page-doc">
     <a class="back" href="/">← Tillbaka</a>
 
     <h1>Användarvillkor</h1>
@@ -104,16 +104,6 @@
 </div>
 
 <style>
-    .page {
-        max-width: 680px;
-        margin: 0 auto;
-        padding: 2rem 1rem 4rem;
-        display: flex;
-        flex-direction: column;
-        gap: 1.75rem;
-        color: var(--text-primary);
-    }
-
     .back {
         color: var(--text-muted);
         text-decoration: none;
@@ -169,7 +159,7 @@
     }
 
     a {
-        color: #f97316;
+        color: var(--color-primary);
         text-decoration: none;
     }
 

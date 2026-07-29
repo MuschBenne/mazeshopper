@@ -124,15 +124,6 @@
 </div>
 
 <style>
-    .page {
-        max-width: 680px;
-        margin: 0 auto;
-        padding: 1.5rem 1rem;
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-    }
-
     h1 { margin: 0; font-size: 1.5rem; }
 
     .subtitle {
@@ -147,7 +138,7 @@
         gap: 0.5rem;
         background: var(--bg-surface);
         border: 1px solid var(--border);
-        border-radius: 12px;
+        border-radius: var(--radius-lg);
         padding: 1rem;
     }
 
@@ -155,7 +146,7 @@
         flex: 1;
         padding: 0.55rem 0.8rem;
         border: 1px solid var(--border-input);
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         font-size: 0.95em;
         outline: none;
         transition: border-color 0.15s;
@@ -163,12 +154,12 @@
         color: var(--text-primary);
     }
 
-    .new-store-card input:focus { border-color: #f97316; }
+    .new-store-card input:focus { border-color: var(--color-primary); }
 
     .profile-select {
         padding: 0.55rem 0.8rem;
         border: 1px solid var(--border-input);
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         font-size: 0.95em;
         background: var(--bg-surface);
         color: var(--text-primary);
@@ -178,10 +169,10 @@
 
     .new-store-card button {
         padding: 0.55rem 1rem;
-        background: linear-gradient(135deg, #f97316, #c026d3);
+        background: var(--gradient-brand);
         color: #fff;
         border: none;
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         font-size: 0.9em;
         font-weight: 600;
         cursor: pointer;
@@ -218,7 +209,7 @@
         align-items: center;
         justify-content: center;
         min-height: 120px;
-        border-radius: 12px;
+        border-radius: var(--radius-lg);
         border: 2px solid var(--border);
         background: var(--bg-surface);
         padding: 1rem;
@@ -274,7 +265,7 @@
         color: var(--danger-text);
         background: none;
         border: 1px solid var(--danger-border);
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
         padding: 0.25rem 0.6rem;
         cursor: pointer;
         white-space: nowrap;
@@ -297,7 +288,7 @@
         background: var(--danger-text);
         color: #fff;
         border: none;
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
         font-size: 0.85em;
         font-weight: 600;
         cursor: pointer;
@@ -310,7 +301,7 @@
         padding: 0.2rem 0.55rem;
         background: var(--bg-surface);
         border: 1px solid var(--border-input);
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
         font-size: 0.85em;
         cursor: pointer;
         min-height: unset;
@@ -321,7 +312,7 @@
     .editor-card {
         background: var(--bg-surface);
         border: 1px solid var(--border);
-        border-radius: 12px;
+        border-radius: var(--radius-lg);
         box-shadow: var(--shadow-card);
         padding: 1.25rem;
     }

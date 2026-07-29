@@ -33,7 +33,7 @@
     });
 </script>
 
-<div class="page">
+<div class="page-center">
     {#if status === 'verifying'}
         <div class="card">
             <div class="spinner"></div>
@@ -61,11 +61,7 @@
 </div>
 
 <style>
-    .page {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        min-height: calc(100vh - 56px);
+    .page-center {
         padding: 2rem 1rem;
     }
 
@@ -110,7 +106,7 @@
         width: 36px;
         height: 36px;
         border: 3px solid var(--border);
-        border-top-color: #f97316;
+        border-top-color: var(--color-primary);
         border-radius: 50%;
         animation: spin 0.8s linear infinite;
     }
@@ -121,9 +117,9 @@
         display: inline-block;
         margin-top: 0.5rem;
         padding: 0.6rem 1.5rem;
-        background: linear-gradient(135deg, #f97316, #c026d3);
+        background: var(--gradient-brand);
         color: #fff;
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         font-weight: 600;
         font-size: 0.9em;
         text-decoration: none;

@@ -16,7 +16,7 @@
     }
 </script>
 
-<div class="page">
+<div class="page-center">
     <div class="card">
         <a class="back" href="/">← Tillbaka till inloggning</a>
         <h1>Glömt lösenordet?</h1>
@@ -46,14 +46,6 @@
 </div>
 
 <style>
-    .page {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        min-height: calc(100vh - 56px);
-        padding: 1.5rem 1rem;
-    }
-
     .card {
         background: var(--bg-surface);
         border: 1px solid var(--border);
@@ -73,7 +65,7 @@
         text-decoration: none;
     }
 
-    .back:hover { color: #f97316; }
+    .back:hover { color: var(--color-primary); }
 
     h1 {
         margin: 0;
@@ -97,7 +89,7 @@
     .fields input {
         padding: 0.65rem 0.9rem;
         border: 1px solid var(--border-input);
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         font-size: 0.95em;
         outline: none;
         transition: border-color 0.15s;
@@ -105,15 +97,15 @@
         color: var(--text-primary);
     }
 
-    .fields input:focus { border-color: #f97316; }
+    .fields input:focus { border-color: var(--color-primary); }
     .fields input:disabled { background: var(--bg-elevated); }
 
     .btn-submit {
         padding: 0.7rem;
-        background: linear-gradient(135deg, #f97316, #c026d3);
+        background: var(--gradient-brand);
         color: #fff;
         border: none;
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         font-size: 1em;
         font-weight: 600;
         cursor: pointer;

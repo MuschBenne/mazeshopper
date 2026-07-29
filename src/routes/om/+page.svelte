@@ -138,7 +138,7 @@
         font-weight: 800;
         letter-spacing: -0.5px;
         width: fit-content;
-        background: linear-gradient(90deg, #f97316, #c026d3);
+        background: linear-gradient(90deg, var(--color-primary), var(--color-accent));
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
@@ -185,7 +185,7 @@
         align-items: flex-start;
         background: var(--bg-surface);
         border: 1px solid var(--border);
-        border-radius: 12px;
+        border-radius: var(--radius-lg);
         padding: 0.9rem 1rem;
     }
 
@@ -193,7 +193,7 @@
         width: 28px;
         height: 28px;
         border-radius: 50%;
-        background: linear-gradient(135deg, #f97316, #c026d3);
+        background: var(--gradient-brand);
         color: #fff;
         font-size: 0.85em;
         font-weight: 700;
@@ -229,7 +229,7 @@
         align-items: flex-start;
         background: var(--bg-surface);
         border: 1px solid var(--border);
-        border-radius: 12px;
+        border-radius: var(--radius-lg);
         padding: 0.85rem 1rem;
     }
 
@@ -261,7 +261,7 @@
     .btn-cta {
         display: inline-block;
         padding: 0.75rem 2rem;
-        background: linear-gradient(135deg, #f97316, #c026d3);
+        background: var(--gradient-brand);
         color: #fff;
         border-radius: 10px;
         font-weight: 600;
@@ -276,7 +276,7 @@
         display: inline-block;
         padding: 0.55rem 1.25rem;
         border: 1px solid var(--border);
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         font-size: 0.9em;
         color: var(--text-secondary);
         text-decoration: none;
