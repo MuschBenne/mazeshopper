@@ -306,29 +306,12 @@
 </div>
 
 <style>
-    .page {
-        max-width: 680px;
-        margin: 0 auto;
-        padding: 1.5rem 1rem;
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-    }
-
     h1 { margin: 0; font-size: 1.5rem; }
 
     .subtitle {
         margin: 0;
         color: var(--text-muted);
         font-size: 0.9em;
-    }
-
-    .card {
-        background: var(--bg-surface);
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        box-shadow: var(--shadow-card);
-        padding: 1.25rem;
     }
 
     .section-header {
@@ -445,7 +428,7 @@
     .btn-sm:hover { background: var(--bg-elevated); }
 
     .btn-sm--primary {
-        background: linear-gradient(135deg, #f97316, #c026d3);
+        background: var(--gradient-brand);
         color: #fff;
         border-color: transparent;
     }
@@ -467,7 +450,7 @@
         min-width: 0;
     }
 
-    .rename-input:focus { border-color: #f97316; }
+    .rename-input:focus { border-color: var(--color-primary); }
 
     .cat-section-header {
         display: flex;
@@ -513,7 +496,7 @@
         color: var(--text-faint);
         background: var(--bg-elevated);
         border: 1px solid var(--border);
-        border-radius: 999px;
+        border-radius: var(--radius-pill);
         padding: 0.1rem 0.45rem;
         white-space: nowrap;
         flex-shrink: 0;
@@ -527,7 +510,7 @@
 
     .btn-edit {
         padding: 0.35rem 0.9rem;
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
         border: 1px solid var(--border-input);
         background: var(--bg-surface);
         color: var(--text-secondary);
@@ -571,7 +554,7 @@
     .color-input {
         width: 28px;
         height: 28px;
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
         border: 1px solid var(--border-input);
         padding: 1px;
         cursor: pointer;
@@ -612,7 +595,7 @@
     .add-row button {
         padding: 0.4rem 0.9rem;
         border: 1px solid var(--border-input);
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
         background: var(--bg-elevated);
         cursor: pointer;
         white-space: nowrap;
@@ -635,20 +618,20 @@
         flex: 1;
         padding: 0.6rem 0.9rem;
         border: 1px solid var(--border-input);
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         font-size: 0.95em;
         outline: none;
         background: var(--bg-surface);
         color: var(--text-primary);
     }
-    .email-row input:focus { border-color: #f97316; }
+    .email-row input:focus { border-color: var(--color-primary); }
 
     .email-row button {
         padding: 0.6rem 1rem;
-        background: linear-gradient(135deg, #f97316, #c026d3);
+        background: var(--gradient-brand);
         color: #fff;
         border: none;
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         font-weight: 600;
         cursor: pointer;
         white-space: nowrap;
@@ -670,7 +653,7 @@
         padding: 0.5rem 1.1rem;
         background: var(--bg-surface);
         border: 1px solid var(--border-input);
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         font-size: 0.9em;
         font-weight: 500;
         color: var(--text-secondary);
@@ -703,7 +686,7 @@
         background: var(--bg-surface);
         border: 1px solid var(--danger-text);
         color: var(--danger-text);
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         font-size: 0.9em;
         font-weight: 600;
         cursor: pointer;
@@ -734,7 +717,7 @@
         padding: 0.5rem 1rem;
         border: 1px solid var(--border-input);
         background: var(--bg-surface);
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         font-size: 0.9em;
         cursor: pointer;
         color: var(--text-secondary);
@@ -748,7 +731,7 @@
         background: var(--danger-text);
         color: #fff;
         border: none;
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         font-size: 0.9em;
         font-weight: 600;
         cursor: pointer;
@@ -782,7 +765,7 @@
     .theme-toggle {
         display: flex;
         border: 1px solid var(--border-input);
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         overflow: hidden;
         width: fit-content;
     }

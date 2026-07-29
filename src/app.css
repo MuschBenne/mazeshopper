@@ -8,6 +8,25 @@
     --radius-sm: 6px;
     --radius-md: 8px;
     --radius-lg: 12px;
+    --radius-pill: 999px;
+
+    /* Varumärkesgradienten låg tidigare inskriven på 19 ställen i 13 filer. */
+    --gradient-brand: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+
+    /* Typskala i rem. Sidorna använde em, som kompounderar olika beroende på
+       förälder — samma "liten text" hamnade därför på olika storlek per sida. */
+    --text-xs:   0.75rem;
+    --text-sm:   0.85rem;
+    --text-base: 0.95rem;
+    --text-md:   1.05rem;
+    --text-lg:   1.25rem;
+    --text-xl:   1.5rem;
+
+    /* Rörelse */
+    --ease-out:  cubic-bezier(0.2, 0.8, 0.2, 1);
+    --dur-fast:  0.12s;
+    --dur-base:  0.2s;
+    --dur-slow:  0.4s;
 
     /* Shadows */
     --shadow-card: 0 1px 4px rgba(0,0,0,0.05);
@@ -178,13 +197,55 @@ input, select, textarea, button {
     font-family: inherit;
 }
 
-/* Touch targets — minimum 44px */
+/* Touch targets. 36px är medvetet under rekommenderade 44px: knapparna sitter
+   ofta tätt i redigeringsvyerna. Handelsläget höjer dem till 44px, eftersom man
+   där siktar med tummen i rörelse. */
 button {
     min-height: 36px;
 }
 
 img, svg {
     max-width: 100%;
+}
+
+/* Sidlayouter — låg tidigare identiskt duplicerade i elva komponenter. */
+.page {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 1.5rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+/* Löptext: policy och villkor. */
+.page-doc {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 2rem 1rem 4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.75rem;
+    color: var(--text-primary);
+}
+
+/* Standardkortet — låg identiskt duplicerat i fyra komponenter. Sidorna i
+   inloggningsflödet har ett eget, tyngre kort och skriver över det här. */
+.card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-card);
+    padding: 1.25rem;
+}
+
+/* Ensamt kort mitt på skärmen: inloggningsflödets sidor. */
+.page-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: calc(100vh - 56px);
+    padding: 1.5rem 1rem;
 }
 
 /* Keyboard focus ring — only shown for keyboard navigation, not mouse clicks */

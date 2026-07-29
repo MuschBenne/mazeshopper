@@ -313,29 +313,12 @@
 </div>
 
 <style>
-    .page {
-        max-width: 680px;
-        margin: 0 auto;
-        padding: 1.5rem 1rem;
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-    }
-
     h1 { margin: 0; font-size: 1.5rem; }
 
     .subtitle {
         margin: 0;
         color: var(--text-muted);
         font-size: 0.9em;
-    }
-
-    .card {
-        background: var(--bg-surface);
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        box-shadow: var(--shadow-card);
-        padding: 1.25rem;
     }
 
     /* List view */
@@ -350,7 +333,7 @@
         flex: 1;
         padding: 0.55rem 0.8rem;
         border: 1px solid var(--border-input);
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         font-size: 0.95em;
         outline: none;
         transition: border-color 0.15s;
@@ -358,14 +341,14 @@
         color: var(--text-primary);
     }
 
-    .create-row input:focus { border-color: #f97316; }
+    .create-row input:focus { border-color: var(--color-primary); }
 
     .btn-create {
         padding: 0.55rem 1rem;
-        background: linear-gradient(135deg, #f97316, #c026d3);
+        background: var(--gradient-brand);
         color: #fff;
         border: none;
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         font-size: 0.9em;
         font-weight: 600;
         cursor: pointer;
@@ -379,7 +362,7 @@
     .profile-select {
         padding: 0.55rem 0.8rem;
         border: 1px solid var(--border-input);
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         font-size: 0.95em;
         background: var(--bg-surface);
         color: var(--text-primary);
@@ -403,7 +386,7 @@
         min-height: 100px;
         background: var(--bg-surface);
         border: 2px solid var(--border);
-        border-radius: 12px;
+        border-radius: var(--radius-lg);
         padding: 1rem;
         cursor: pointer;
         text-align: center;
@@ -470,7 +453,7 @@
         flex: 1;
         padding: 0.4rem 0.7rem;
         border: 1px solid var(--border-input);
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         font-size: 1.1em;
         font-weight: 700;
         outline: none;
@@ -479,12 +462,12 @@
         color: var(--text-primary);
     }
 
-    .rename-input:focus { border-color: #f97316; }
+    .rename-input:focus { border-color: var(--color-primary); }
 
     .btn-rename {
         background: none;
         border: 1px solid var(--border);
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
         cursor: pointer;
         font-size: 0.8em;
         padding: 0.2rem 0.5rem;
@@ -499,7 +482,7 @@
         color: var(--danger-text);
         background: none;
         border: 1px solid var(--danger-border);
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
         padding: 0.25rem 0.6rem;
         cursor: pointer;
         white-space: nowrap;
@@ -541,7 +524,7 @@
         background: var(--danger-text);
         color: #fff;
         border: none;
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
         cursor: pointer;
         font-size: 0.85em;
         font-weight: 600;
@@ -604,7 +587,7 @@
     .item-cat-chip {
         font-size: 0.78em;
         padding: 0.15rem 0.55rem;
-        border-radius: 999px;
+        border-radius: var(--radius-pill);
         background: var(--chip-color, #e2e8f0);
         color: #374151;
         font-weight: 500;
@@ -621,7 +604,7 @@
         border: 1px solid var(--border);
         background: var(--bg-surface);
         color: var(--text-secondary);
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
         padding: 0.2rem 0.6rem;
         cursor: pointer;
         font-size: 0.8em;
@@ -644,7 +627,7 @@
     .edit-input {
         padding: 0.4rem 0.6rem;
         border: 1px solid var(--border-input);
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
         font-size: 0.9em;
         outline: none;
         transition: border-color 0.15s;
@@ -652,7 +635,7 @@
         color: var(--text-primary);
     }
 
-    .edit-input:focus { border-color: #f97316; }
+    .edit-input:focus { border-color: var(--color-primary); }
 
     .edit-actions {
         display: flex;
@@ -678,7 +661,7 @@
     .add-card input {
         padding: 0.6rem 0.8rem;
         border: 1px solid var(--border-input);
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         font-size: 0.95em;
         outline: none;
         transition: border-color 0.15s;
@@ -686,7 +669,7 @@
         color: var(--text-primary);
     }
 
-    .add-card input:focus { border-color: #f97316; }
+    .add-card input:focus { border-color: var(--color-primary); }
 
     .qty-row, .edit-qty-row {
         display: flex;
@@ -700,7 +683,7 @@
         width: 32px;
         height: 32px;
         border: 1px solid var(--border-input);
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
         background: var(--bg-surface);
         cursor: pointer;
         font-size: 1em;
@@ -732,7 +715,7 @@
 
     .category-chip {
         padding: 0.3rem 0.7rem;
-        border-radius: 999px;
+        border-radius: var(--radius-pill);
         border: 1.5px solid color-mix(in srgb, var(--chip-color, #e5e7eb) 60%, var(--text-faint));
         background: var(--chip-color, #f3f4f6);
         cursor: pointer;
@@ -754,10 +737,10 @@
 
     .btn-add {
         padding: 0.6rem;
-        background: linear-gradient(135deg, #f97316, #c026d3);
+        background: var(--gradient-brand);
         color: #fff;
         border: none;
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         font-size: 0.95em;
         font-weight: 600;
         cursor: pointer;
@@ -788,7 +771,7 @@
         flex: 1;
         padding: 0.45rem 0.7rem;
         border: 1px solid var(--border-input);
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         font-size: 0.9em;
         background: var(--bg-surface);
         color: var(--text-primary);
@@ -798,10 +781,10 @@
 
     .btn-assign {
         padding: 0.45rem 0.9rem;
-        background: linear-gradient(135deg, #f97316, #c026d3);
+        background: var(--gradient-brand);
         color: #fff;
         border: none;
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         font-size: 0.88em;
         font-weight: 600;
         cursor: pointer;

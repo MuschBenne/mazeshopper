@@ -93,14 +93,6 @@
 </div>
 
 <style>
-    .card {
-        background: var(--bg-surface);
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        box-shadow: var(--shadow-card);
-        padding: 1.25rem;
-    }
-
     .share-panel {
         display: flex;
         flex-direction: column;
@@ -150,7 +142,7 @@
         gap: 0.25rem;
         background: var(--violet-bg);
         color: var(--violet-text);
-        border-radius: 999px;
+        border-radius: var(--radius-pill);
         padding: 0.2rem 0.6rem;
         font-size: 0.82em;
         font-weight: 500;
@@ -192,7 +184,7 @@
         flex: 1;
         padding: 0.5rem 0.75rem;
         border: 1px solid var(--border-input);
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         font-size: 0.9em;
         outline: none;
         background: var(--bg-surface);
@@ -206,7 +198,7 @@
         background: var(--violet-text);
         color: #fff;
         border: none;
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         font-size: 0.9em;
         font-weight: 600;
         cursor: pointer;
@@ -218,7 +210,7 @@
         font-size: 0.85em;
         margin: 0;
         padding: 0.4rem 0.7rem;
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
     }
 
     .share-msg.error { color: var(--danger-text); background: var(--danger-bg); }

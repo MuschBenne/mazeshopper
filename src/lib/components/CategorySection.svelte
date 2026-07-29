@@ -229,7 +229,7 @@
     .quantity-controls button {
         border: 1px solid var(--border);
         background: var(--bg-surface);
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
         padding: 0.2rem 0.5rem;
         cursor: pointer;
         font-size: 0.9em;
@@ -280,7 +280,7 @@
     .edit-input {
         padding: 0.4rem 0.6rem;
         border: 1px solid var(--border-input);
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
         font-size: 0.9em;
         outline: none;
         transition: border-color 0.15s;
@@ -288,7 +288,7 @@
         color: var(--text-primary);
     }
 
-    .edit-input:focus { border-color: #f97316; }
+    .edit-input:focus { border-color: var(--color-primary); }
 
     .edit-actions {
         display: flex;
@@ -310,7 +310,7 @@
 
     .category-chip {
         padding: 0.25rem 0.65rem;
-        border-radius: 999px;
+        border-radius: var(--radius-pill);
         border: 1.5px solid color-mix(in srgb, var(--chip-color, #e5e7eb) 60%, var(--text-faint));
         background: var(--chip-color, #f3f4f6);
         cursor: pointer;

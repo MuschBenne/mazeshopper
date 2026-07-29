@@ -255,7 +255,7 @@
     .btn-toggle-all {
         background: none;
         border: none;
-        color: #f97316;
+        color: var(--color-primary);
         font-size: 0.85em;
         font-weight: 600;
         cursor: pointer;
@@ -325,7 +325,7 @@
     .item-cat-chip {
         font-size: 0.75em;
         padding: 0.15rem 0.5rem;
-        border-radius: 999px;
+        border-radius: var(--radius-pill);
         background: var(--chip-color, #e2e8f0);
         color: #374151;
         font-weight: 500;
@@ -337,10 +337,10 @@
         width: calc(100% - 2.5rem);
         margin: 0.75rem 1.25rem 1rem;
         padding: 0.7rem;
-        background: linear-gradient(135deg, #f97316, #c026d3);
+        background: var(--gradient-brand);
         color: #fff;
         border: none;
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         font-size: 0.95em;
         font-weight: 600;
         cursor: pointer;
@@ -359,5 +359,5 @@
         margin: 0;
     }
 
-    .empty a { color: #f97316; }
+    .empty a { color: var(--color-primary); }
 </style>

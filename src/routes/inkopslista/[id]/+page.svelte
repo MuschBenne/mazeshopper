@@ -469,23 +469,6 @@
 {/if}
 
 <style>
-    .page {
-        max-width: 680px;
-        margin: 0 auto;
-        padding: 1.5rem 1rem;
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-    }
-
-    .card {
-        background: var(--bg-surface);
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        box-shadow: var(--shadow-card);
-        padding: 1.25rem;
-    }
-
     /* Header */
     .list-header {
         display: flex;
@@ -524,7 +507,7 @@
         color: var(--violet-text);
         background: none;
         border: 1px solid var(--violet-border);
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
         padding: 0.25rem 0.6rem;
         cursor: pointer;
         white-space: nowrap;
@@ -537,7 +520,7 @@
         color: var(--danger-text);
         background: none;
         border: 1px solid var(--danger-border);
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
         padding: 0.25rem 0.6rem;
         cursor: pointer;
         white-space: nowrap;
@@ -550,7 +533,7 @@
         color: var(--text-secondary);
         background: none;
         border: 1px solid var(--border-input);
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
         padding: 0.25rem 0.6rem;
         cursor: pointer;
         white-space: nowrap;
@@ -571,7 +554,7 @@
         background: none;
         color: var(--text-secondary);
         border: 1.5px solid var(--border);
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         padding: 0.28rem 0.75rem;
         cursor: pointer;
         line-height: 1.4;
@@ -599,7 +582,7 @@
         font-size: 0.85em;
         color: var(--violet-text);
         background: var(--violet-light);
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         padding: 0.5rem 0.9rem;
         margin: 0;
     }
@@ -610,7 +593,7 @@
         background: none;
         border: 1px solid var(--danger-text);
         color: var(--danger-text);
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         cursor: pointer;
         font-weight: 500;
     }
@@ -622,7 +605,7 @@
     .offline-badge {
         background: var(--warning-bg);
         border: 1px solid var(--warning-border);
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         color: var(--warning-text);
         font-size: 0.82em;
         padding: 0.45rem 0.9rem;
@@ -655,7 +638,7 @@
 
     .store-chip {
         padding: 0.3rem 0.75rem;
-        border-radius: 999px;
+        border-radius: var(--radius-pill);
         border: 1.5px solid var(--border-input);
         background: var(--bg-surface);
         color: var(--text-secondary);
@@ -667,11 +650,11 @@
         min-height: unset;
     }
 
-    .store-chip:hover { border-color: #f97316; color: #f97316; }
+    .store-chip:hover { border-color: var(--color-primary); color: var(--color-primary); }
 
     .store-chip.selected {
-        background: #f97316;
-        border-color: #f97316;
+        background: var(--color-primary);
+        border-color: var(--color-primary);
         color: #fff;
         font-weight: 600;
     }
@@ -690,15 +673,15 @@
 
     .progress-track {
         height: 5px;
-        border-radius: 999px;
+        border-radius: var(--radius-pill);
         background: var(--border);
         overflow: hidden;
     }
 
     .progress-fill {
         height: 100%;
-        border-radius: 999px;
-        background: linear-gradient(90deg, #f97316, #c026d3);
+        border-radius: var(--radius-pill);
+        background: linear-gradient(90deg, var(--color-primary), var(--color-accent));
         transition: width 0.4s ease;
     }
 
@@ -710,7 +693,7 @@
 
     .btn-clear-bought, .btn-clear-all {
         padding: 0.3rem 0.75rem;
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
         cursor: pointer;
         font-size: 0.85em;
         border: 1px solid;
@@ -740,7 +723,7 @@
     .btn-confirm-sm {
         padding: 0.2rem 0.55rem;
         border: none;
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
         font-size: 0.85em;
         font-weight: 600;
         cursor: pointer;
@@ -760,7 +743,7 @@
     .add-card input {
         padding: 0.6rem 0.8rem;
         border: 1px solid var(--border-input);
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         font-size: 0.95em;
         outline: none;
         transition: border-color 0.15s;
@@ -768,7 +751,7 @@
         color: var(--text-primary);
     }
 
-    .add-card input:focus { border-color: #f97316; }
+    .add-card input:focus { border-color: var(--color-primary); }
 
     .category-picker {
         display: flex;
@@ -783,7 +766,7 @@
 
     .category-chip {
         padding: 0.3rem 0.7rem;
-        border-radius: 999px;
+        border-radius: var(--radius-pill);
         border: 1.5px solid color-mix(in srgb, var(--chip-color, #e5e7eb) 60%, var(--text-faint));
         background: var(--chip-color, #f3f4f6);
         cursor: pointer;
@@ -802,8 +785,8 @@
         font-weight: 700;
     }
 
-    .picker-error { outline: 1.5px solid var(--danger-text); border-radius: 6px; padding: 0.25rem; }
-    .picker-hint { outline: 1.5px solid #f97316; border-radius: 6px; padding: 0.25rem; }
+    .picker-error { outline: 1.5px solid var(--danger-text); border-radius: var(--radius-sm); padding: 0.25rem; }
+    .picker-hint { outline: 1.5px solid var(--color-primary); border-radius: var(--radius-sm); padding: 0.25rem; }
 
     .field-error {
         margin: 0;
@@ -813,10 +796,10 @@
 
     .btn-add {
         padding: 0.6rem;
-        background: linear-gradient(135deg, #f97316, #c026d3);
+        background: var(--gradient-brand);
         color: #fff;
         border: none;
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         font-size: 0.95em;
         font-weight: 600;
         cursor: pointer;
@@ -830,7 +813,7 @@
         padding: 0.5rem;
         background: none;
         border: 1px dashed var(--border-input);
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         font-size: 0.88em;
         color: var(--text-muted);
         cursor: pointer;
@@ -838,8 +821,8 @@
     }
 
     .btn-import-template:hover {
-        border-color: #f97316;
-        color: #f97316;
+        border-color: var(--color-primary);
+        color: var(--color-primary);
         background: var(--bg-elevated);
     }
 
@@ -854,7 +837,7 @@
         width: 100%;
         padding: 0.55rem 2.2rem 0.55rem 0.9rem;
         border: 1px solid var(--border-input);
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         font-size: 0.9em;
         outline: none;
         background: var(--bg-surface);
@@ -862,7 +845,7 @@
         transition: border-color 0.15s;
     }
 
-    .search-input:focus { border-color: #f97316; }
+    .search-input:focus { border-color: var(--color-primary); }
 
     .btn-clear-search {
         position: absolute;
@@ -883,7 +866,7 @@
     .items-card {
         padding: 0;
         overflow: hidden;
-        border-radius: 12px;
+        border-radius: var(--radius-lg);
     }
 
     .empty-list, .empty-search {

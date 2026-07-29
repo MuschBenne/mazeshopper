@@ -113,7 +113,7 @@
         font-weight: 800;
         font-size: 1.15rem;
         text-decoration: none;
-        background: linear-gradient(135deg, #f97316, #c026d3);
+        background: var(--gradient-brand);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
@@ -133,12 +133,12 @@
         transition: color 0.15s;
     }
 
-    .username:hover { color: #f97316; }
+    .username:hover { color: var(--color-primary); }
 
     .btn-logout {
         padding: 0.45rem 1rem;
         border: 1px solid var(--border);
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
         background: var(--bg-surface);
         font-size: 0.88em;
         cursor: pointer;
@@ -152,7 +152,7 @@
     .btn-about {
         padding: 0.3rem 0.75rem;
         border: 1px solid var(--border);
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
         background: var(--bg-surface);
         font-size: 0.85em;
         color: var(--text-secondary);
@@ -233,8 +233,8 @@
     }
 
     nav a.active {
-        color: #f97316;
-        border-bottom-color: #f97316;
+        color: var(--color-primary);
+        border-bottom-color: var(--color-primary);
         font-weight: 600;
     }
 </style>

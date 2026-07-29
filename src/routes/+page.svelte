@@ -159,7 +159,7 @@
         font-weight: 800;
         margin: 0;
         letter-spacing: -1px;
-        background: linear-gradient(135deg, #f97316, #c026d3);
+        background: var(--gradient-brand);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
@@ -185,7 +185,7 @@
         gap: 0.85rem;
         background: var(--bg-surface);
         border: 1px solid var(--border);
-        border-radius: 12px;
+        border-radius: var(--radius-lg);
         padding: 0.9rem 1rem;
         box-shadow: var(--shadow-card);
     }
@@ -240,7 +240,7 @@
 
     .tabs button.active {
         color: var(--text-primary);
-        border-bottom: 2px solid #f97316;
+        border-bottom: 2px solid var(--color-primary);
         margin-bottom: -1px;
     }
 
@@ -254,7 +254,7 @@
     .fields input {
         padding: 0.65rem 0.9rem;
         border: 1px solid var(--border-input);
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         font-size: 0.95em;
         outline: none;
         transition: border-color 0.15s;
@@ -265,7 +265,7 @@
     }
 
     .fields input:focus {
-        border-color: #f97316;
+        border-color: var(--color-primary);
     }
 
     .pw-wrap {
@@ -304,10 +304,10 @@
     .btn-submit {
         margin-top: 0.25rem;
         padding: 0.7rem;
-        background: linear-gradient(135deg, #f97316, #c026d3);
+        background: var(--gradient-brand);
         color: #fff;
         border: none;
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         font-size: 1em;
         font-weight: 600;
         cursor: pointer;
@@ -352,7 +352,7 @@
     }
 
     .forgot-link:hover {
-        color: #f97316;
+        color: var(--color-primary);
         text-decoration: underline;
     }
 
@@ -386,6 +386,6 @@
         height: 1rem;
         cursor: pointer;
         flex-shrink: 0;
-        accent-color: #f97316;
+        accent-color: var(--color-primary);
     }
 </style>
