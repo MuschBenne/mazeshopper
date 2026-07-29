@@ -18,11 +18,24 @@ async function getListHandler() {
 }
 
 import { getSessionUser } from '$lib/server/session';
+import { ObjectId } from 'mongodb';
+
+// POST /api/lists slår upp profilen innan listan skapas, så testerna behöver en
+// riktig profil att peka på — ett påhittat id ger 400 sedan valideringen kom.
+let profileId = '';
 
 beforeEach(async () => {
     vi.mocked(getSessionUser).mockResolvedValue(MOCK_USER);
     const db = await getDb();
     await db.collection('lists').deleteMany({});
+    await db.collection('listprofiles').deleteMany({});
+    const { insertedId } = await db.collection('listprofiles').insertOne({
+        owner: MOCK_USER,
+        name: 'Livsmedel',
+        categories: [],
+        createdAt: new Date()
+    });
+    profileId = insertedId.toString();
 });
 
 afterAll(async () => {
@@ -72,7 +85,7 @@ describe('GET /api/lists', () => {
 describe('POST /api/lists', () => {
     it('creates a list and returns it', async () => {
         const { POST } = await getListsHandler();
-        const res = await POST(makePostEvent({ name: 'Handla', profileId: 'p1' }));
+        const res = await POST(makePostEvent({ name: 'Handla', profileId }));
         const data = await res.json();
         expect(data.list.name).toBe('Handla');
         expect(data.list.owner).toBe(MOCK_USER);
@@ -81,13 +94,29 @@ describe('POST /api/lists', () => {
 
     it('trims whitespace from the list name', async () => {
         const { POST } = await getListsHandler();
-        const res = await POST(makePostEvent({ name: '  Handla  ', profileId: 'p1' }));
+        const res = await POST(makePostEvent({ name: '  Handla  ', profileId }));
         expect((await res.json()).list.name).toBe('Handla');
     });
 
     it('rejects a list without a profileId', async () => {
         const { POST } = await getListsHandler();
         const res = await POST(makePostEvent({ name: 'Handla' }));
+        expect(res.status).toBe(400);
+    });
+
+    it('rejects a profileId that belongs to nobody', async () => {
+        const { POST } = await getListsHandler();
+        const res = await POST(makePostEvent({ name: 'Handla', profileId: new ObjectId().toString() }));
+        expect(res.status).toBe(400);
+    });
+
+    it('rejects a profileId owned by another user', async () => {
+        const db = await getDb();
+        const { insertedId } = await db.collection('listprofiles').insertOne({
+            owner: OTHER_USER, name: 'Annans', categories: [], createdAt: new Date()
+        });
+        const { POST } = await getListsHandler();
+        const res = await POST(makePostEvent({ name: 'Handla', profileId: insertedId.toString() }));
         expect(res.status).toBe(400);
     });
 

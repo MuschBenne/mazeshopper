@@ -35,6 +35,11 @@ export async function DELETE({ params, cookies }) {
     const storeCount = await db.collection('stores').countDocuments({ owner: username, profileId: params.id });
     if (storeCount > 0) return json({ error: 'in_use_stores' }, { status: 409 });
 
+    // Mallar kontrollerades inte tidigare. En mall blev då kvar med ett
+    // profileId som pekade i tomma intet, och dess kategoriväljare var tom.
+    const templateCount = await db.collection('templates').countDocuments({ owner: username, profileId: params.id });
+    if (templateCount > 0) return json({ error: 'in_use_templates' }, { status: 409 });
+
     const result = await db.collection('listprofiles').deleteOne({ _id: new ObjectId(params.id), owner: username });
     if (result.deletedCount === 0) return json({ error: 'not_found' }, { status: 404 });
     return json({ ok: true });
