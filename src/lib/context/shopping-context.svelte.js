@@ -172,10 +172,26 @@ class ShoppingContext {
      */
     async #mutating(listId, run) {
         this.#beginMutation(listId);
+
+        let released = false;
+        const release = () => {
+            if (released) return;
+            released = true;
+            this.#endMutation(listId);
+        };
+
+        // fetch har ingen egen timeout. Tappar telefonen täckning mitt i ett
+        // anrop svarar det aldrig, och utan den här spärren skulle räknaren
+        // aldrig gå ner — listan slutade då tyst ta emot uppdateringar från
+        // strömmen tills sidan laddades om. Släpp taget och lita på att
+        // avstämningen rättar staten när anslutningen är tillbaka.
+        const timer = setTimeout(release, 15_000);
+
         try {
             return await run();
         } finally {
-            this.#endMutation(listId);
+            clearTimeout(timer);
+            release();
         }
     }
 
