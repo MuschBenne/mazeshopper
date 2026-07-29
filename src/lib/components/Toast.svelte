@@ -3,7 +3,9 @@
     import { fly, fade } from 'svelte/transition';
 </script>
 
-<div class="toast-container">
+<!-- Toasten är enda kanalen för felmeddelanden, så den måste läsas upp.
+     assertive: ett misslyckat sparande behöver avbryta, inte vänta på tur. -->
+<div class="toast-container" role="status" aria-live="assertive" aria-atomic="false">
     {#each notificationContext.toasts as toast (toast.id)}
         <div
             class="toast"

@@ -95,6 +95,14 @@
 <Toast />
 
 <style>
+    /* Handelsläget ska äga hela skärmen. Listsidan sätter attributet på <html>
+       eftersom header och nav ligger här i layouten, utanför dess räckvidd. */
+    :global(html[data-shopping='true']) header,
+    :global(html[data-shopping='true']) .nav-wrapper,
+    :global(html[data-shopping='true']) .verify-banner {
+        display: none;
+    }
+
     header {
         display: flex;
         align-items: center;

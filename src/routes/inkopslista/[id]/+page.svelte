@@ -119,6 +119,54 @@
         return () => clearTimeout(timer);
     });
 
+    const boughtCount = $derived(list?.items.filter(i => i.bought).length ?? 0);
+    const totalCount = $derived(list?.items.length ?? 0);
+    const progressPct = $derived(totalCount > 0 ? Math.round((boughtCount / totalCount) * 100) : 0);
+
+    // Handelsläget behöver synas utanför den här sidan: header och nav ligger i
+    // layouten och går inte att nå härifrån. Attributet på <html> låter dem
+    // gömma sig, så att hela skärmen tillhör listan när man står i butiken.
+    $effect(() => {
+        if (!browser || !shoppingMode) return;
+        document.documentElement.dataset.shopping = 'true';
+        return () => { delete document.documentElement.dataset.shopping; };
+    });
+
+    // Skärmen ska inte slockna mitt i en handlingsrunda. Webbläsaren släpper
+    // låset när fliken döljs, så det måste tas om när man kommer tillbaka.
+    $effect(() => {
+        if (!browser || !shoppingMode) return;
+        const wakeLock = /** @type {any} */ (navigator).wakeLock;
+        if (!wakeLock) return;
+
+        /** @type {any} */
+        let lock = null;
+        let cancelled = false;
+
+        const acquire = async () => {
+            if (cancelled || lock || document.visibilityState !== 'visible') return;
+            try {
+                const held = await wakeLock.request('screen');
+                if (cancelled) held.release().catch(() => {});
+                else lock = held;
+            } catch { /* kan nekas vid t.ex. låg batterinivå — handlingen fungerar ändå */ }
+        };
+
+        const onVisibilityChange = () => {
+            if (document.visibilityState === 'visible') acquire();
+            else lock = null; // redan släppt av webbläsaren
+        };
+
+        document.addEventListener('visibilitychange', onVisibilityChange);
+        acquire();
+
+        return () => {
+            cancelled = true;
+            document.removeEventListener('visibilitychange', onVisibilityChange);
+            lock?.release().catch(() => {});
+        };
+    });
+
     // Profile categories come from the server load — covers both owned and shared lists.
     const profileCategories = $derived(
         /** @type {{ id: string, name: string, color: string }[]} */ (data.profileCategories ?? [])
@@ -275,13 +323,13 @@
                         title="Visa vem som lade till varorna"
                     >Tillagd av</button>
                 {/if}
-                <button
-                    class="btn-shopping-mode"
-                    class:active={shoppingMode}
-                    onclick={() => { shoppingMode = !shoppingMode; showSharePanel = false; }}
-                >
-                    {shoppingMode ? 'Avsluta' : 'Handla'}
-                </button>
+                {#if !shoppingMode}
+                    <!-- Avsluta-knappen bor nere vid tummen under handlingen. -->
+                    <button
+                        class="btn-shopping-mode"
+                        onclick={() => { shoppingMode = true; showSharePanel = false; }}
+                    >Handla</button>
+                {/if}
             </div>
         </div>
 
@@ -314,6 +362,24 @@
 
         <!-- Shopping mode: store selector + actions -->
         {#if shoppingMode}
+            <!-- Förloppet är den enda återkopplingen under handlingen och låg
+                 tidigare gömt under en rad grå text. Fäst det överst istället. -->
+            <div
+                class="shopping-topbar"
+                role="progressbar"
+                aria-label="Handlingsförlopp"
+                aria-valuenow={progressPct}
+                aria-valuemin="0"
+                aria-valuemax="100"
+            >
+                <div class="shopping-topbar-fill" style="width: {progressPct}%"></div>
+            </div>
+
+            <button
+                class="btn-exit-shopping"
+                onclick={() => { shoppingMode = false; showSharePanel = false; }}
+            >Avsluta handling</button>
+
             {#if storeContext.stores.length > 0}
                 <div class="store-selector">
                     <span class="store-label">Varuhus:</span>
@@ -328,16 +394,8 @@
                     </div>
                 </div>
             {/if}
-            {@const boughtCount = list.items.filter(i => i.bought).length}
-            {@const totalCount = list.items.length}
-            {@const pct = totalCount > 0 ? Math.round((boughtCount / totalCount) * 100) : 0}
             {#if totalCount > 0}
-                <div class="progress-row">
-                    <span class="progress-text">{boughtCount} av {totalCount} varor köpta</span>
-                    <div class="progress-track">
-                        <div class="progress-fill" style="width: {pct}%"></div>
-                    </div>
-                </div>
+                <p class="progress-text">{boughtCount} av {totalCount} varor köpta</p>
             {/if}
             <div class="list-actions">
                 <button
@@ -581,13 +639,6 @@
 
     .btn-shopping-mode:hover { background: var(--bg-elevated); }
 
-    .btn-shopping-mode.active {
-        background: var(--text-primary);
-        border-color: var(--text-primary);
-        color: var(--bg-page);
-        font-weight: 700;
-    }
-
     .shared-notice-row {
         display: flex;
         align-items: center;
@@ -677,29 +728,46 @@
     }
 
     /* Progress indicator */
-    .progress-row {
-        display: flex;
-        flex-direction: column;
-        gap: 0.35rem;
-    }
-
     .progress-text {
+        margin: 0;
         font-size: 0.82em;
         color: var(--text-muted);
     }
 
-    .progress-track {
-        height: 5px;
-        border-radius: 999px;
+    /* Fäst överst i handelsläget, där appskalet är borttaget. */
+    .shopping-topbar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 6px;
         background: var(--border);
-        overflow: hidden;
+        z-index: 90;
     }
 
-    .progress-fill {
+    .shopping-topbar-fill {
         height: 100%;
-        border-radius: 999px;
         background: linear-gradient(90deg, #f97316, #c026d3);
         transition: width 0.4s ease;
+    }
+
+    /* Nås med tummen; hamnar ovanför hemknappsområdet på telefoner. */
+    .btn-exit-shopping {
+        position: fixed;
+        left: 50%;
+        transform: translateX(-50%);
+        bottom: max(1rem, calc(env(safe-area-inset-bottom) + 0.5rem));
+        z-index: 95;
+        min-height: 44px;
+        padding: 0.6rem 1.5rem;
+        border: none;
+        border-radius: 999px;
+        background: var(--text-primary);
+        color: var(--bg-surface);
+        font-size: 0.9em;
+        font-weight: 600;
+        cursor: pointer;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.22);
     }
 
     /* List actions */
@@ -964,7 +1032,13 @@
 
     /* Shopping mode overrides */
     .page.shopping-mode {
-        padding: 0.75rem 0.5rem;
+        /* Plats för den fästa förloppsraden överst och avsluta-knappen nederst. */
+        padding: 1rem 0.5rem calc(4.5rem + env(safe-area-inset-bottom));
+    }
+
+    /* Hela skärmen tillhör listan här, så knapparna får full träffyta. */
+    .page.shopping-mode :global(button) {
+        min-height: 44px;
     }
 
     .page.shopping-mode .list-header h1 {
