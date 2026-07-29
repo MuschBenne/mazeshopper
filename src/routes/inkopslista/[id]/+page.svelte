@@ -158,7 +158,9 @@
     const pickerCategories = $derived(
         showAllCategories || !activeGroup
             ? ownerCategories
-            : ownerCategories.filter(c => c.group === activeGroup)
+            // Ogrupperade kategorier är universella och följer alltid med,
+            // annars gick "Övrigt" inte att välja så fort ett filter var aktivt.
+            : ownerCategories.filter(c => c.group === activeGroup || !c.group)
     );
 
     // Utan aktiv grupp visas hela paletten — men grupperad under rubriker,

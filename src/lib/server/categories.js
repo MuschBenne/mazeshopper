@@ -30,6 +30,22 @@ async function migrateFromProfiles(db, username) {
         .sort({ createdAt: 1 })
         .toArray();
 
+    // Ett namn som förekommer i flera profiler är universellt — "Övrigt" finns
+    // i de flesta. Att ge det den äldsta profilens grupp vore fel: då skulle det
+    // försvinna ur väljaren så fort listan gäller någon annan grupp.
+    /** @type {Map<string, number>} */
+    const occurrences = new Map();
+    for (const profile of profiles) {
+        const namesInProfile = new Set();
+        for (const cat of profile.categories ?? []) {
+            const name = String(cat.name ?? '').trim().toLowerCase();
+            if (name) namesInProfile.add(name);
+        }
+        for (const name of namesInProfile) {
+            occurrences.set(name, (occurrences.get(name) ?? 0) + 1);
+        }
+    }
+
     /** @type {Map<string, Category>} */
     const byName = new Map();
     for (const profile of profiles) {
@@ -42,7 +58,7 @@ async function migrateFromProfiles(db, username) {
                 id: String(cat.id ?? crypto.randomUUID()),
                 name,
                 color: cat.color ?? '#e2e8f0',
-                group: profile.name ?? null
+                group: (occurrences.get(key) ?? 0) > 1 ? null : (profile.name ?? null)
             });
         }
     }

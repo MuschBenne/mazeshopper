@@ -50,10 +50,11 @@ class CategoryContext {
         return seen;
     }
 
+    // Ogrupperade kategorier är universella och ingår i varje grupp.
     /** @param {string | null} group */
     inGroup(group) {
         if (!group) return this.categories;
-        return this.categories.filter(c => c.group === group);
+        return this.categories.filter(c => c.group === group || !c.group);
     }
 
     /** @param {string} name */
