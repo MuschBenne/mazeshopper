@@ -496,15 +496,19 @@
                     onkeydown={(e) => e.key === 'Enter' && addItem()}
                 />
                 {#if groups.length > 1}
-                    <label class="group-select-row">
-                        <span>Kategorigrupp</span>
-                        <select value={activeGroup} onchange={(e) => chooseGroup(e.currentTarget.value)}>
-                            {#each groups as group}
-                                <option value={group}>{group}</option>
-                            {/each}
-                            <option value="">Alla kategorier</option>
-                        </select>
-                    </label>
+                    <!-- Rullgardinen talar för sig själv visuellt; etiketten
+                         behövs bara för skärmläsare. -->
+                    <select
+                        class="group-select"
+                        aria-label="Kategorigrupp"
+                        value={activeGroup}
+                        onchange={(e) => chooseGroup(e.currentTarget.value)}
+                    >
+                        {#each groups as group}
+                            <option value={group}>{group}</option>
+                        {/each}
+                        <option value="">Alla kategorier</option>
+                    </select>
                 {/if}
 
                 <div class="category-picker">
@@ -894,23 +898,15 @@
 
 
 
-    .group-select-row {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        font-size: 0.8em;
-        color: var(--text-faint);
-    }
-
-    .group-select-row select {
-        flex: 1;
-        min-width: 0;
+    .group-select {
+        align-self: flex-start;
+        max-width: 100%;
         padding: 0.4rem 0.6rem;
         border: 1px solid var(--border-input);
         border-radius: var(--radius-sm);
         background: var(--bg-surface);
-        color: var(--text-primary);
-        font-size: 1.05em;
+        color: var(--text-secondary);
+        font-size: 0.85em;
         cursor: pointer;
     }
 
