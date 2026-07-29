@@ -7,10 +7,24 @@
      * @type {{
      *   onImport: (items: import('$lib/context/template-context.svelte').TemplateItem[]) => Promise<boolean>,
      *   onClose: () => void,
-     *   profileCategories: { id: string, name: string, color: string }[]
+     *   profileCategories: { id: string, name: string, color: string }[],
+     *   listProfileId?: string | null
      * }}
      */
-    let { onImport, onClose, profileCategories } = $props();
+    let { onImport, onClose, profileCategories, listProfileId = null } = $props();
+
+    // Mallistan filtrerades tidigare inte alls, så en livsmedelsmall kunde
+    // importeras rakt in i en byggvarulista. Filtrera på listans profil, men
+    // låt användaren se resten — det är ett hjälpsamt urval, inte en regel.
+    let showAll = $state(false);
+
+    const matching = $derived(
+        listProfileId
+            ? templateContext.templates.filter(t => t.profileId === listProfileId)
+            : templateContext.templates
+    );
+    const hiddenCount = $derived(templateContext.templates.length - matching.length);
+    const shownTemplates = $derived(showAll ? templateContext.templates : matching);
 
     /** @type {string | null} */
     let previewId = $state(null);
@@ -68,9 +82,11 @@
             <!-- Template list -->
             {#if templateContext.templates.length === 0}
                 <p class="empty">Inga mallar skapade ännu. Gå till <a href="/mallar">Mallar</a> för att skapa din första.</p>
+            {:else if shownTemplates.length === 0}
+                <p class="empty">Inga mallar hör till den här listans profil.</p>
             {:else}
                 <ul class="template-list">
-                    {#each templateContext.templates as t (t.id)}
+                    {#each shownTemplates as t (t.id)}
                         <li>
                             <button class="template-row" onclick={() => selectTemplate(t.id)}>
                                 <span class="t-name">{t.name}</span>
@@ -79,6 +95,11 @@
                         </li>
                     {/each}
                 </ul>
+            {/if}
+            {#if !showAll && hiddenCount > 0}
+                <button class="btn-show-all" onclick={() => showAll = true}>
+                    Visa {hiddenCount} {hiddenCount === 1 ? 'mall' : 'mallar'} från andra profiler
+                </button>
             {/if}
         {:else if previewTemplate}
             <!-- Item selection -->
@@ -357,6 +378,22 @@
         font-size: 0.9em;
         padding: 2rem 1.25rem;
         margin: 0;
+    }
+
+    .btn-show-all {
+        margin: 0 1.25rem 1rem;
+        padding: 0.45rem 0.9rem;
+        background: none;
+        border: 1px dashed var(--border-input);
+        border-radius: 8px;
+        color: var(--text-muted);
+        font-size: 0.85em;
+        cursor: pointer;
+    }
+
+    .btn-show-all:hover {
+        background: var(--bg-elevated);
+        color: var(--text-secondary);
     }
 
     .empty a { color: #f97316; }

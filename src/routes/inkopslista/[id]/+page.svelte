@@ -126,9 +126,12 @@
 
     const sortedCategories = $derived.by(() => {
         const store = storeContext.selectedStore;
-        // Only use the store's layout if it belongs to the same profile as the list.
-        const storeMatches = store && store.profileId === list?.profileId;
-        const base = (!storeMatches || Object.keys(store.categoryOrder).length === 0)
+        // Rutten är namnbaserad, och kategorier som saknas i den sorteras sist
+        // (se Infinity nedan). En rutt från en annan profil är därför harmlös.
+        // Villkoret som krävde samma profil gjorde att den man delar en lista
+        // med aldrig fick någon sortering: mottagarens varuhus tillhör
+        // mottagarens egna profiler, så det var alltid falskt.
+        const base = (!store || Object.keys(store.categoryOrder).length === 0)
             ? profileCategories
             : [...profileCategories].sort((a, b) => {
                 const pa = store.categoryOrder[a.name] ?? Infinity;
@@ -406,6 +409,7 @@
                 onImport={(items) => shoppingContext.importItems(id, items)}
                 onClose={() => showImportModal = false}
                 {profileCategories}
+                listProfileId={list.profileId}
             />
         {/if}
 

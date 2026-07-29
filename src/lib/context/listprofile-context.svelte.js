@@ -84,6 +84,8 @@ class ListProfileContext {
                     notificationContext.show('Profilen används av en eller flera listor och kan inte tas bort.');
                 } else if (data.error === 'in_use_stores') {
                     notificationContext.show('Profilen används av ett eller flera varuhus och kan inte tas bort.');
+                } else if (data.error === 'in_use_templates') {
+                    notificationContext.show('Profilen används av en eller flera mallar och kan inte tas bort.');
                 } else {
                     notificationContext.show('Kunde inte ta bort profil. Försök igen.');
                 }
