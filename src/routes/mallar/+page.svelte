@@ -5,6 +5,14 @@
     import { listprofileContext } from '$lib/context/listprofile-context.svelte';
     import { notificationContext } from '$lib/context/notification-context.svelte';
 
+    let { data } = $props();
+
+    // Seedas före första render så mallarna finns direkt, istället för att
+    // hämtas efter hydrering.
+    $effect.pre(() => {
+        templateContext.seed(data.templates);
+    });
+
     // null = list view, string = editing a specific template
     /** @type {string | null} */
     let selectedId = $state(null);

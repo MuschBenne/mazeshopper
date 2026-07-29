@@ -180,7 +180,7 @@ Manuell temainställning (system/ljust/mörkt) via `theme-context.svelte.js`. Sp
 
 ## Handelsläge
 
-I `inkopslista/[id]/+page.svelte` aktiveras handelsläge via `shoppingMode`-state. Pollning sker var 15:e sekund via `shoppingContext.refreshList(id)`. Efter 2+ på varandra följande misslyckade polls visas ett gult offline-banner (`pollFailures >= 2`). SSE-ström finns som alternativ via `GET /api/lists/[id]/stream`.
+I `inkopslista/[id]/+page.svelte` aktiveras handelsläge via `shoppingMode`-state. Realtidsuppdateringar kommer från SSE-strömmen `GET /api/lists/[id]/stream` — det finns ingen pollning. Servern stänger strömmen med jämna mellanrum (funktioner har maxlivslängd), så korta avbrott är normala; offline-bannern visas först när återanslutningen uteblivit i 6 sekunder.
 
 ## GDPR
 
