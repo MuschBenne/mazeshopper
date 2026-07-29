@@ -130,7 +130,6 @@ class TemplateContext {
         }
     }
 
-
     /** @param {string} id */
     async deleteTemplate(id) {
         const prev = [...this.templates];

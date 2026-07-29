@@ -294,19 +294,6 @@
         font-size: 1.1rem;
     }
 
-    /* Profile grid (list view) */
-
-
-
-
-
-    /* Profile detail view */
-
-
-
-
-
-
     .btn-sm {
         padding: 0.2rem 0.55rem;
         border: 1px solid var(--border-input);
@@ -329,7 +316,6 @@
 
     .btn-sm--primary:hover { opacity: 0.9; }
 
-
     .rename-input {
         flex: 1;
         padding: 0.2rem 0.4rem;
@@ -343,8 +329,6 @@
     }
 
     .rename-input:focus { border-color: var(--color-primary); }
-
-
 
     .cat-list {
         list-style: none;
@@ -425,9 +409,6 @@
         margin: 0 0 0.5rem;
         font-style: italic;
     }
-
-
-
 
     .btn-edit {
         padding: 0.35rem 0.9rem;

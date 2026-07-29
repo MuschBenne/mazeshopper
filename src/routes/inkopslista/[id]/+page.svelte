@@ -9,7 +9,7 @@
     import ImportModal from "$lib/components/ImportModal.svelte";
     import { untrack } from 'svelte';
     import { page } from '$app/state';
-    import { goto, invalidateAll } from '$app/navigation';
+    import { goto } from '$app/navigation';
     import { browser } from '$app/environment';
     import { fade, slide, fly } from 'svelte/transition';
 
@@ -1000,7 +1000,6 @@
         box-shadow: 0 0 0 2px var(--text-secondary);
         font-weight: 700;
     }
-
 
     .btn-add {
         padding: 0.6rem;

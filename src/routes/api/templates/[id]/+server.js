@@ -36,7 +36,6 @@ export async function PATCH({ params, request, cookies }) {
         update.servings = clampServings(body.servings);
     }
 
-
     if (Array.isArray(body.items)) {
         update.items = body.items.map(/** @param {Record<string,unknown>} i */ i => ({
             itemId: String(i.itemId ?? crypto.randomUUID()),

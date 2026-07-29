@@ -256,35 +256,35 @@
         <!-- Add item form -->
         <div class="card add-card">
             <p class="add-card-label">Lägg till vara i mallen</p>
-                <input
-                    bind:value={newItemName}
-                    placeholder="Vara"
-                    onkeydown={(e) => e.key === 'Enter' && addItem()}
-                />
-                <input
-                    bind:value={newItemSpec}
-                    placeholder="Specifikation (valfritt)"
-                    onkeydown={(e) => e.key === 'Enter' && addItem()}
-                />
-                <div class="qty-row">
-                    <label>Antal:</label>
-                    <button class="qty-btn" onclick={() => newItemQty = Math.max(1, newItemQty - 1)}>−</button>
-                    <span class="qty-value">{newItemQty}</span>
-                    <button class="qty-btn" onclick={() => newItemQty = Math.min(9999, newItemQty + 1)}>+</button>
-                </div>
-                <div class="category-picker">
-                    {#each editorCategories as cat}
-                        <button
-                            class="category-chip"
-                            class:selected={newItemCategory === cat.name}
-                            style="--chip-color: {cat.color}"
-                            onclick={() => newItemCategory = cat.name}
-                        >{cat.name}</button>
-                    {/each}
-                </div>
-                <button class="btn-add" onclick={addItem} disabled={addingItem}>
-                    {addingItem ? 'Lägger till…' : 'Lägg till vara'}
-                </button>
+            <input
+                bind:value={newItemName}
+                placeholder="Vara"
+                onkeydown={(e) => e.key === 'Enter' && addItem()}
+            />
+            <input
+                bind:value={newItemSpec}
+                placeholder="Specifikation (valfritt)"
+                onkeydown={(e) => e.key === 'Enter' && addItem()}
+            />
+            <div class="qty-row">
+                <label>Antal:</label>
+                <button class="qty-btn" onclick={() => newItemQty = Math.max(1, newItemQty - 1)}>−</button>
+                <span class="qty-value">{newItemQty}</span>
+                <button class="qty-btn" onclick={() => newItemQty = Math.min(9999, newItemQty + 1)}>+</button>
+            </div>
+            <div class="category-picker">
+                {#each editorCategories as cat}
+                    <button
+                        class="category-chip"
+                        class:selected={newItemCategory === cat.name}
+                        style="--chip-color: {cat.color}"
+                        onclick={() => newItemCategory = cat.name}
+                    >{cat.name}</button>
+                {/each}
+            </div>
+            <button class="btn-add" onclick={addItem} disabled={addingItem}>
+                {addingItem ? 'Lägger till…' : 'Lägg till vara'}
+            </button>
         </div>
 
     {:else}
