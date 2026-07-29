@@ -39,6 +39,24 @@ class ShoppingContext {
     // över både färsk server-data och optimistiska ändringar gjorda under tiden.
     #seedGen = 0;
 
+    // Räknare som ökar vid varje seedList. load() jämför mot värdet den startade
+    // med för att se vilka enskilda listor som seedats medan svaret var i luften.
+    #seedTick = 0;
+
+    /** @type {Map<string, number>} */
+    #listSeedTick = new Map();
+
+    // Antal egna mutationer som är i luften per lista. Så länge det är fler än
+    // noll speglar servern fortfarande ett äldre läge, och dess ögonblicksbilder
+    // ska inte få skriva över den optimistiska staten.
+    /** @type {Map<string, number>} */
+    #pendingMutations = new Map();
+
+    // Listor där minst en ögonblicksbild kastats — de måste stämmas av mot
+    // servern när mutationerna lagt sig, annars tappas andras ändringar.
+    /** @type {Set<string>} */
+    #missedSnapshots = new Set();
+
     // Fyller listorna från data som redan hämtats server-side.
     /** @param {ShoppingList[]} lists */
     seedAll(lists) {
@@ -55,6 +73,7 @@ class ShoppingContext {
         // Att hämta om dem direkt efteråt vore samma fråga en gång till —
         // /api/lists och sidornas server-load använder samma åtkomstfilter.
         const gen = this.#seedGen;
+        const tick = this.#seedTick;
         const listsAreSeeded = this.loaded && gen > 0;
         try {
             const [listsRes, invRes] = await Promise.all([
@@ -64,7 +83,13 @@ class ShoppingContext {
             if (listsRes?.ok) {
                 const { lists } = await listsRes.json();
                 // Släpp svaret om en seed hunnit landa medan det var i luften.
-                if (this.#seedGen === gen) this.lists = lists;
+                // En enskild lista som seedats under tiden är färskare än svaret
+                // och behålls — resten av listorna kommer bara härifrån.
+                if (this.#seedGen === gen) {
+                    this.lists = lists.map((/** @type {ShoppingList} */ l) =>
+                        (this.#listSeedTick.get(l.id) ?? 0) > tick ? (this.getList(l.id) ?? l) : l
+                    );
+                }
             }
             if (invRes.ok) {
                 const { invitations } = await invRes.json();
@@ -94,16 +119,87 @@ class ShoppingContext {
         }
     }
 
+    // Tar emot en ögonblicksbild från SSE-strömmen. Strömmen skickar tillbaka
+    // hela dokumentet även för ens egna ändringar, så en bild som beskriver
+    // läget före en mutation som fortfarande är i luften skulle nolla den —
+    // för användaren ser det ut som att bocken hoppar tillbaka av sig själv.
     /** @param {ShoppingList} list */
     applyUpdate(list) {
+        if ((this.#pendingMutations.get(list.id) ?? 0) > 0) {
+            this.#missedSnapshots.add(list.id);
+            return;
+        }
         const idx = this.lists.findIndex(l => l.id === list.id);
         if (idx !== -1) this.lists[idx] = list;
+    }
+
+    /** @param {string} listId */
+    #beginMutation(listId) {
+        this.#pendingMutations.set(listId, (this.#pendingMutations.get(listId) ?? 0) + 1);
+    }
+
+    // När den sista mutationen kvitterats motsvarar den lokala staten det vi
+    // skickat. Har vi däremot kastat en ögonblicksbild på vägen kan den ha
+    // innehållit någon annans ändring, och då måste listan hämtas om en gång.
+    /** @param {string} listId */
+    #endMutation(listId) {
+        const left = (this.#pendingMutations.get(listId) ?? 1) - 1;
+        if (left > 0) {
+            this.#pendingMutations.set(listId, left);
+            return;
+        }
+        this.#pendingMutations.delete(listId);
+        if (this.#missedSnapshots.delete(listId)) this.#resync(listId);
+    }
+
+    /** @param {string} listId */
+    async #resync(listId) {
+        try {
+            const res = await fetch(`/api/lists/${listId}`);
+            if (!res.ok) return;
+            const { list } = await res.json();
+            this.applyUpdate(list);
+        } catch { /* nästa ström-uppdatering rättar till det */ }
+    }
+
+    /**
+     * Kör en mutation som ändrar listdokumentet och håller undan strömmens
+     * ögonblicksbilder så länge den är i luften.
+     * @template T
+     * @param {string} listId
+     * @param {() => Promise<T>} run
+     * @returns {Promise<T>}
+     */
+    async #mutating(listId, run) {
+        this.#beginMutation(listId);
+
+        let released = false;
+        const release = () => {
+            if (released) return;
+            released = true;
+            this.#endMutation(listId);
+        };
+
+        // fetch har ingen egen timeout. Tappar telefonen täckning mitt i ett
+        // anrop svarar det aldrig, och utan den här spärren skulle räknaren
+        // aldrig gå ner — listan slutade då tyst ta emot uppdateringar från
+        // strömmen tills sidan laddades om. Släpp taget och lita på att
+        // avstämningen rättar staten när anslutningen är tillbaka.
+        const timer = setTimeout(release, 15_000);
+
+        try {
+            return await run();
+        } finally {
+            clearTimeout(timer);
+            release();
+        }
     }
 
     // Lägger in en lista som redan hämtats server-side, så detaljsidan kan rendera
     // direkt utan att invänta den bredare /api/lists-hämtningen.
     /** @param {ShoppingList} list */
     seedList(list) {
+        this.#listSeedTick.set(list.id, ++this.#seedTick);
         const idx = this.lists.findIndex(l => l.id === list.id);
         if (idx === -1) this.lists = [...this.lists, list];
         else this.lists[idx] = list;
@@ -115,6 +211,10 @@ class ShoppingContext {
         this.invitations = [];
         this.loaded = false;
         this.#seedGen = 0;
+        this.#seedTick = 0;
+        this.#listSeedTick.clear();
+        this.#pendingMutations.clear();
+        this.#missedSnapshots.clear();
     }
 
     /**
@@ -176,17 +276,19 @@ class ShoppingContext {
         if (!item) return;
         const prev = item.bought;
         item.bought = !prev;
-        try {
-            const res = await fetch(`/api/lists/${listId}/items/${itemId}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ bought: !prev })
-            });
-            if (!res.ok) throw new Error();
-        } catch {
-            item.bought = prev;
-            notificationContext.show('Kunde inte uppdatera vara. Försök igen.');
-        }
+        await this.#mutating(listId, async () => {
+            try {
+                const res = await fetch(`/api/lists/${listId}/items/${itemId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ bought: !prev })
+                });
+                if (!res.ok) throw new Error();
+            } catch {
+                item.bought = prev;
+                notificationContext.show('Kunde inte uppdatera vara. Försök igen.');
+            }
+        });
     }
 
     // Returns lists where the user is either the owner or in the sharedWith array.
@@ -335,20 +437,22 @@ class ShoppingContext {
         const item = { itemId, name, spec, quantity: 1, bought: false, category, addedBy };
         // Optimistic update — show the item immediately before the server confirms.
         list.items = [...list.items, item];
-        try {
-            const res = await fetch(`/api/lists/${listId}/items`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(item)
-            });
-            if (!res.ok) throw new Error();
-            return true;
-        } catch {
-            // Roll back the optimistic update on failure.
-            list.items = list.items.filter(i => i.itemId !== itemId);
-            notificationContext.show('Kunde inte lägga till vara. Försök igen.');
-            return false;
-        }
+        return await this.#mutating(listId, async () => {
+            try {
+                const res = await fetch(`/api/lists/${listId}/items`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(item)
+                });
+                if (!res.ok) throw new Error();
+                return true;
+            } catch {
+                // Roll back the optimistic update on failure.
+                list.items = list.items.filter(i => i.itemId !== itemId);
+                notificationContext.show('Kunde inte lägga till vara. Försök igen.');
+                return false;
+            }
+        });
     }
 
     /**
@@ -362,14 +466,16 @@ class ShoppingContext {
         if (!item) return;
         // Optimistic update.
         list.items = list.items.filter(i => i.itemId !== itemId);
-        try {
-            const res = await fetch(`/api/lists/${listId}/items/${itemId}`, { method: 'DELETE' });
-            if (!res.ok) throw new Error();
-        } catch {
-            // Restore the item if the delete failed.
-            list.items = [...list.items, item];
-            notificationContext.show('Kunde inte ta bort vara. Försök igen.');
-        }
+        await this.#mutating(listId, async () => {
+            try {
+                const res = await fetch(`/api/lists/${listId}/items/${itemId}`, { method: 'DELETE' });
+                if (!res.ok) throw new Error();
+            } catch {
+                // Restore the item if the delete failed.
+                list.items = [...list.items, item];
+                notificationContext.show('Kunde inte ta bort vara. Försök igen.');
+            }
+        });
     }
 
     /**
@@ -390,21 +496,23 @@ class ShoppingContext {
         item.name = name.trim();
         item.spec = spec.trim();
         item.category = category;
-        try {
-            const res = await fetch(`/api/lists/${listId}/items/${itemId}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: name.trim(), spec: spec.trim(), category })
-            });
-            if (!res.ok) throw new Error();
-            return true;
-        } catch {
-            item.name = prev.name;
-            item.spec = prev.spec;
-            item.category = prev.category;
-            notificationContext.show('Kunde inte uppdatera vara. Försök igen.');
-            return false;
-        }
+        return await this.#mutating(listId, async () => {
+            try {
+                const res = await fetch(`/api/lists/${listId}/items/${itemId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: name.trim(), spec: spec.trim(), category })
+                });
+                if (!res.ok) throw new Error();
+                return true;
+            } catch {
+                item.name = prev.name;
+                item.spec = prev.spec;
+                item.category = prev.category;
+                notificationContext.show('Kunde inte uppdatera vara. Försök igen.');
+                return false;
+            }
+        });
     }
 
     /**
@@ -419,6 +527,17 @@ class ShoppingContext {
         const prevQty = item.quantity;
         const newQty = prevQty + 1;
         item.quantity = newQty;
+        await this.#mutating(listId, () => this.#saveQuantity(listId, itemId, item, prevQty, newQty));
+    }
+
+    /**
+     * @param {string} listId
+     * @param {string} itemId
+     * @param {ShoppingItem} item
+     * @param {number} prevQty
+     * @param {number} newQty
+     */
+    async #saveQuantity(listId, itemId, item, prevQty, newQty) {
         try {
             const res = await fetch(`/api/lists/${listId}/items/${itemId}`, {
                 method: 'PATCH',
@@ -446,17 +565,7 @@ class ShoppingContext {
         const prevQty = item.quantity;
         const newQty = prevQty - 1;
         item.quantity = newQty;
-        try {
-            const res = await fetch(`/api/lists/${listId}/items/${itemId}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ quantity: newQty })
-            });
-            if (!res.ok) throw new Error();
-        } catch {
-            item.quantity = prevQty;
-            notificationContext.show('Kunde inte uppdatera antal. Försök igen.');
-        }
+        await this.#mutating(listId, () => this.#saveQuantity(listId, itemId, item, prevQty, newQty));
     }
 
     /** @param {string} listId */
@@ -469,15 +578,17 @@ class ShoppingContext {
         this.#addToHistory(listId, boughtItems);
         // Optimistic update.
         list.items = list.items.filter(i => !i.bought);
-        try {
-            const res = await fetch(`/api/lists/${listId}/items?bought=true`, { method: 'DELETE' });
-            if (!res.ok) throw new Error();
-        } catch {
-            // Restore both the items and the history entry on failure.
-            list.items = [...list.items, ...boughtItems];
-            this.#removeLastHistory(listId);
-            notificationContext.show('Kunde inte rensa köpta varor. Försök igen.');
-        }
+        await this.#mutating(listId, async () => {
+            try {
+                const res = await fetch(`/api/lists/${listId}/items?bought=true`, { method: 'DELETE' });
+                if (!res.ok) throw new Error();
+            } catch {
+                // Restore both the items and the history entry on failure.
+                list.items = [...list.items, ...boughtItems];
+                this.#removeLastHistory(listId);
+                notificationContext.show('Kunde inte rensa köpta varor. Försök igen.');
+            }
+        });
     }
 
     /**
@@ -495,22 +606,24 @@ class ShoppingContext {
             return { ...i, itemId, bought: false };
         });
         list.items = [...list.items, ...optimisticItems];
-        try {
-            const res = await fetch(`/api/lists/${listId}/import`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ items })
-            });
-            if (!res.ok) throw new Error();
-            const data = await res.json();
-            // Replace temp IDs with the real IDs assigned by the server
-            list.items = [...list.items.filter(i => !tempIds.has(i.itemId)), ...data.items];
-            return true;
-        } catch {
-            list.items = list.items.filter(i => !tempIds.has(i.itemId));
-            notificationContext.show('Kunde inte importera varor. Försök igen.');
-            return false;
-        }
+        return await this.#mutating(listId, async () => {
+            try {
+                const res = await fetch(`/api/lists/${listId}/import`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ items })
+                });
+                if (!res.ok) throw new Error();
+                const data = await res.json();
+                // Replace temp IDs with the real IDs assigned by the server
+                list.items = [...list.items.filter(i => !tempIds.has(i.itemId)), ...data.items];
+                return true;
+            } catch {
+                list.items = list.items.filter(i => !tempIds.has(i.itemId));
+                notificationContext.show('Kunde inte importera varor. Försök igen.');
+                return false;
+            }
+        });
     }
 
     /** @param {string} listId */
@@ -520,13 +633,15 @@ class ShoppingContext {
         const prevItems = [...list.items];
         // Optimistic update.
         list.items = [];
-        try {
-            const res = await fetch(`/api/lists/${listId}/items`, { method: 'DELETE' });
-            if (!res.ok) throw new Error();
-        } catch {
-            list.items = prevItems;
-            notificationContext.show('Kunde inte tömma listan. Försök igen.');
-        }
+        await this.#mutating(listId, async () => {
+            try {
+                const res = await fetch(`/api/lists/${listId}/items`, { method: 'DELETE' });
+                if (!res.ok) throw new Error();
+            } catch {
+                list.items = prevItems;
+                notificationContext.show('Kunde inte tömma listan. Försök igen.');
+            }
+        });
     }
 
     // Prepends a new history entry and keeps at most 3 entries per list.
