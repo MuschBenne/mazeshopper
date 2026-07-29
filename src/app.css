@@ -241,6 +241,46 @@ img, svg {
     color: var(--text-primary);
 }
 
+/* Kategoriväljare — låg i tre nästan identiska kopior.
+   Färgen sitter i en stapel till vänster istället för i bakgrunden: namnen är
+   olika långa, och en färgad yta som varierar i bredd blev rörig. Stapeln är
+   lika bred oavsett, så raden får en tydlig vänsterkant att läsa längs. */
+.category-picker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.category-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.35rem 0.7rem;
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--chip-color, var(--border-input));
+    border-radius: var(--radius-sm);
+    background: var(--bg-surface);
+    color: var(--text-secondary);
+    font-size: 0.82em;
+    font-weight: 500;
+    line-height: 1.2;
+    cursor: pointer;
+    min-height: unset;
+    transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+
+.category-chip:hover {
+    background: var(--bg-elevated);
+}
+
+.category-chip.selected {
+    /* Svag ton av kategorins egen färg, så valet syns utan att skrika. */
+    background: color-mix(in srgb, var(--chip-color, #e5e7eb) 30%, var(--bg-surface));
+    border-color: color-mix(in srgb, var(--chip-color, #e5e7eb) 60%, var(--text-faint));
+    border-left-width: 8px;
+    color: var(--text-primary);
+    font-weight: 700;
+}
+
 /* Standardkortet — låg identiskt duplicerat i fyra komponenter. Sidorna i
    inloggningsflödet har ett eget, tyngre kort och skriver över det här. */
 .card {

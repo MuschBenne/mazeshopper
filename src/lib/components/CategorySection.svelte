@@ -301,35 +301,9 @@
         min-width: 36px;
     }
 
-    .category-picker {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.35rem;
-        padding-top: 0.1rem;
-    }
 
-    .category-chip {
-        padding: 0.25rem 0.65rem;
-        border-radius: var(--radius-pill);
-        border: 1.5px solid color-mix(in srgb, var(--chip-color, #e5e7eb) 60%, var(--text-faint));
-        background: var(--chip-color, #f3f4f6);
-        cursor: pointer;
-        font-size: 0.8em;
-        font-weight: 500;
-        color: #374151;
-        opacity: 0.75;
-        transition: opacity 0.1s, box-shadow 0.1s;
-        min-height: unset;
-        min-width: unset;
-    }
 
-    .category-chip:hover { opacity: 1; }
 
-    .category-chip.selected {
-        opacity: 1;
-        box-shadow: 0 0 0 2px var(--text-secondary);
-        font-weight: 700;
-    }
 
     /* Shopping mode overrides */
     :global(.shopping-mode) .category-header {

@@ -777,38 +777,10 @@
         font-weight: 600;
     }
 
-    .category-picker {
-        display: flex;
-        flex-wrap: nowrap;
-        gap: 0.4rem;
-        overflow-x: auto;
-        padding: 3px 2px;
-        scrollbar-width: none;
-    }
 
-    .category-picker::-webkit-scrollbar { display: none; }
 
-    .category-chip {
-        padding: 0.3rem 0.7rem;
-        border-radius: var(--radius-pill);
-        border: 1.5px solid color-mix(in srgb, var(--chip-color, #e5e7eb) 60%, var(--text-faint));
-        background: var(--chip-color, #f3f4f6);
-        cursor: pointer;
-        font-size: 0.82em;
-        font-weight: 500;
-        color: #374151;
-        opacity: 0.8;
-        transition: opacity 0.1s, box-shadow 0.1s;
-        min-height: unset;
-    }
 
-    .category-chip:hover { opacity: 1; }
 
-    .category-chip.selected {
-        opacity: 1;
-        box-shadow: 0 0 0 2px var(--text-secondary);
-        font-weight: 700;
-    }
 
     .btn-add {
         padding: 0.6rem;
