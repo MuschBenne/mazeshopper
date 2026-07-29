@@ -403,7 +403,7 @@
 
         {#if showImportModal}
             <ImportModal
-                onImport={(items) => shoppingContext.importItems(id, items)}
+                onImport={(items, scale) => shoppingContext.importItems(id, items, scale)}
                 onClose={() => showImportModal = false}
                 {profileCategories}
             />

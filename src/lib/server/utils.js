@@ -55,6 +55,52 @@ export function hasListAccess(doc, username) {
     );
 }
 
+/**
+ * Mallar och recept delar collection och skiljs åt av `kind`. Dokument som
+ * saknar fältet är mallar skapade före recepten fanns — samma mönster som
+ * `emailVerified ?? true` för äldre konton.
+ * @param {any} doc
+ */
+export function serializeTemplate(doc) {
+    const kind = doc.kind === 'recipe' ? 'recipe' : 'template';
+    return {
+        id: doc._id.toString(),
+        owner: doc.owner,
+        name: doc.name,
+        kind,
+        // Portioner är bara meningsfullt för recept, och är grunden receptet
+        // skalas från vid import.
+        servings: kind === 'recipe' ? (doc.servings ?? 4) : null,
+        shareToken: doc.shareToken ?? null,
+        profileId: doc.profileId ?? null,
+        items: (doc.items ?? []).map(/** @param {any} i */ i => ({
+            itemId: i.itemId,
+            name: i.name,
+            spec: i.spec,
+            quantity: i.quantity,
+            unit: i.unit ?? '',
+            category: i.category
+        }))
+    };
+}
+
+/** @param {unknown} value */
+export function clampServings(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return 4;
+    return Math.min(99, Math.max(1, Math.round(n)));
+}
+
+/**
+ * 256 bitar, samma mönster som sessionstoken. Används i publika länkar, så
+ * den måste vara omöjlig att gissa.
+ */
+export function generateShareToken() {
+    const bytes = new Uint8Array(32);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 /** @param {any} doc */
 export function serializeList(doc) {
     return {

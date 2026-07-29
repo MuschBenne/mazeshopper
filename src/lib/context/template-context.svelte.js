@@ -1,8 +1,8 @@
 import { notificationContext } from './notification-context.svelte';
 
 /**
- * @typedef {{ itemId: string, name: string, spec: string, quantity: number, category: string }} TemplateItem
- * @typedef {{ id: string, owner: string, name: string, items: TemplateItem[], profileId: string | null }} Template
+ * @typedef {{ itemId: string, name: string, spec: string, quantity: number, unit?: string, category: string }} TemplateItem
+ * @typedef {{ id: string, owner: string, name: string, kind: 'template' | 'recipe', servings: number | null, shareToken: string | null, items: TemplateItem[], profileId: string | null }} Template
  */
 
 class TemplateContext {
@@ -32,6 +32,59 @@ class TemplateContext {
         this.loaded = false;
     }
 
+    /**
+     * Antal portioner receptet är skrivet för. Mängderna räknas om mot det här
+     * talet vid import.
+     * @param {string} id
+     * @param {number} servings
+     */
+    async setServings(id, servings) {
+        const t = this.getTemplate(id);
+        if (!t) return false;
+        const prev = t.servings;
+        t.servings = servings;
+        try {
+            const res = await fetch(`/api/templates/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ servings })
+            });
+            if (!res.ok) throw new Error();
+            return true;
+        } catch {
+            t.servings = prev;
+            notificationContext.show('Kunde inte spara portioner. Försök igen.');
+            return false;
+        }
+    }
+
+    /**
+     * Slår på eller av den publika länken. Att stänga av tar bort token, så en
+     * länk som redan spridits slutar fungera.
+     * @param {string} id
+     * @param {boolean} shared
+     */
+    async setShared(id, shared) {
+        const t = this.getTemplate(id);
+        if (!t) return false;
+        const prev = t.shareToken;
+        try {
+            const res = await fetch(`/api/templates/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ shared })
+            });
+            if (!res.ok) throw new Error();
+            const { shareToken } = await res.json();
+            t.shareToken = shareToken ?? null;
+            return true;
+        } catch {
+            t.shareToken = prev;
+            notificationContext.show('Kunde inte ändra delningen. Försök igen.');
+            return false;
+        }
+    }
+
     /** @param {string} id */
     getTemplate(id) {
         return this.templates.find(t => t.id === id) ?? null;
@@ -41,12 +94,12 @@ class TemplateContext {
      * @param {string} name
      * @param {string | null} profileId
      */
-    async createTemplate(name, profileId) {
+    async createTemplate(name, profileId, kind = 'template', servings = 4) {
         try {
             const res = await fetch('/api/templates', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, profileId })
+                body: JSON.stringify({ name, profileId, kind, servings })
             });
             if (res.status === 400) {
                 const { error } = await res.json();

@@ -484,22 +484,24 @@ class ShoppingContext {
      * Bulk-imports items from a template into a list with optimistic update.
      * @param {string} listId
      * @param {{ name: string, spec: string, quantity: number, category: string }[]} items
+     * @param {number} [scale] Skalfaktor för recept — 1 för mallar.
      */
-    async importItems(listId, items) {
+    async importItems(listId, items, scale = 1) {
         const list = this.getList(listId);
         if (!list) return false;
         const tempIds = /** @type {Set<string>} */ (new Set());
         const optimisticItems = items.map(i => {
             const itemId = crypto.randomUUID();
             tempIds.add(itemId);
-            return { ...i, itemId, bought: false };
+            // Speglar serverns avrundning, annars hoppar antalet när svaret landar.
+            return { ...i, itemId, bought: false, quantity: Math.max(1, Math.ceil((i.quantity ?? 1) * scale)) };
         });
         list.items = [...list.items, ...optimisticItems];
         try {
             const res = await fetch(`/api/lists/${listId}/import`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ items })
+                body: JSON.stringify({ items, scale })
             });
             if (!res.ok) throw new Error();
             const data = await res.json();

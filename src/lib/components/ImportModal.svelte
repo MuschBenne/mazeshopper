@@ -5,7 +5,7 @@
 
     /**
      * @type {{
-     *   onImport: (items: import('$lib/context/template-context.svelte').TemplateItem[]) => Promise<boolean>,
+     *   onImport: (items: import('$lib/context/template-context.svelte').TemplateItem[], scale?: number) => Promise<boolean>,
      *   onClose: () => void,
      *   profileCategories: { id: string, name: string, color: string }[]
      * }}
@@ -22,11 +22,19 @@
 
     let importing = $state(false);
 
+    // Recept skalas mot antalet portioner man vill laga. Mallar har ingen
+    // motsvarighet och importeras som de är.
+    let servings = $state(0);
+    const isRecipe = $derived(previewTemplate?.kind === 'recipe');
+    const baseServings = $derived(previewTemplate?.servings ?? 0);
+    const scale = $derived(isRecipe && baseServings > 0 ? servings / baseServings : 1);
+
     /** @param {string} id */
     function selectTemplate(id) {
         previewId = id;
         const t = templateContext.getTemplate(id);
         selectedItems = new Set(t?.items.map(i => i.itemId) ?? []);
+        servings = t?.servings ?? 0;
     }
 
     /** @param {string} itemId */
@@ -50,7 +58,7 @@
         if (!previewTemplate || selectedItems.size === 0) return;
         const items = previewTemplate.items.filter(i => selectedItems.has(i.itemId));
         importing = true;
-        const ok = await onImport(items);
+        const ok = await onImport(items, scale);
         importing = false;
         if (ok) onClose();
     }
@@ -84,6 +92,18 @@
             <!-- Item selection -->
             <button class="btn-back" onclick={() => { previewId = null; selectedItems = new Set(); }}>← Tillbaka</button>
             <p class="template-title">{previewTemplate.name}</p>
+
+            {#if isRecipe}
+                <div class="servings-row">
+                    <span>Portioner</span>
+                    <button class="btn-serv" onclick={() => servings = Math.max(1, servings - 1)} aria-label="Färre portioner">−</button>
+                    <span class="serv-value">{servings}</span>
+                    <button class="btn-serv" onclick={() => servings = Math.min(99, servings + 1)} aria-label="Fler portioner">+</button>
+                    {#if servings !== baseServings}
+                        <span class="serv-note">receptet är skrivet för {baseServings}</span>
+                    {/if}
+                </div>
+            {/if}
 
             {#if previewTemplate.items.length === 0}
                 <p class="empty">Den här mallen har inga varor.</p>
@@ -331,6 +351,33 @@
         font-weight: 500;
         border: 1px solid color-mix(in srgb, var(--chip-color, #e2e8f0) 60%, var(--text-faint));
     }
+
+    .servings-row {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0 1.25rem 0.5rem;
+        font-size: 0.85em;
+        color: var(--text-secondary);
+    }
+
+    .serv-value { font-weight: 700; min-width: 1.5rem; text-align: center; }
+
+    .serv-note { color: var(--text-faint); font-size: 0.95em; }
+
+    .btn-serv {
+        width: 30px;
+        height: 30px;
+        min-height: 30px;
+        border: 1px solid var(--border-input);
+        border-radius: 6px;
+        background: var(--bg-surface);
+        color: var(--text-primary);
+        line-height: 1;
+        cursor: pointer;
+    }
+
+    .btn-serv:hover { background: var(--bg-elevated); }
 
     .btn-import {
         display: block;
