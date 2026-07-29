@@ -60,6 +60,20 @@
         route = route.filter(n => n !== name);
     }
 
+    /**
+     * Flyttar en rad i rutten. Används av både dragningen och pilknapparna, så
+     * de två sätten inte kan hamna ur synk med varandra.
+     * @param {number} from
+     * @param {number} to
+     */
+    function move(from, to) {
+        if (to < 0 || to >= route.length || from === to) return;
+        const next = [...route];
+        const [moved] = next.splice(from, 1);
+        next.splice(to, 0, moved);
+        route = next;
+    }
+
     /** @type {number | null} */
     let dragIndex = $state(null);
     /** @type {number | null} */
@@ -95,10 +109,7 @@
             dragOverIndex = null;
             return;
         }
-        const newRoute = [...route];
-        const [moved] = newRoute.splice(dragIndex, 1);
-        newRoute.splice(index, 0, moved);
-        route = newRoute;
+        move(dragIndex, index);
         dragIndex = null;
         dragOverIndex = null;
     }
@@ -141,11 +152,8 @@
     }
 
     function onListTouchEnd() {
-        if (touchDragIndex !== null && touchOverIndex !== null && touchOverIndex !== touchDragIndex) {
-            const newRoute = [...route];
-            const [moved] = newRoute.splice(touchDragIndex, 1);
-            newRoute.splice(touchOverIndex, 0, moved);
-            route = newRoute;
+        if (touchDragIndex !== null && touchOverIndex !== null) {
+            move(touchDragIndex, touchOverIndex);
         }
         touchDragIndex = null;
         touchOverIndex = null;
@@ -230,7 +238,13 @@
                 >
                     <span class="drag-handle" aria-hidden="true"
                         ontouchstart={(e) => onHandleTouchStart(e, i)}
-                    >⠿</span>
+                    >
+                        <svg width="12" height="18" viewBox="0 0 12 18" fill="currentColor">
+                            <circle cx="3" cy="3" r="1.4" /><circle cx="9" cy="3" r="1.4" />
+                            <circle cx="3" cy="9" r="1.4" /><circle cx="9" cy="9" r="1.4" />
+                            <circle cx="3" cy="15" r="1.4" /><circle cx="9" cy="15" r="1.4" />
+                        </svg>
+                    </span>
                     <span class="color-dot" style="background: {color}"></span>
                     <span class="cat-name">{name}</span>
                     <div class="badges">
@@ -240,6 +254,31 @@
                         {#if isLast && route.length > 1}
                             <span class="badge badge-end">Utgång</span>
                         {/if}
+                    </div>
+                    <!-- Pilknapparna är den pålitliga vägen: de kräver ingen
+                         sikte, fungerar med tangentbord och läses upp korrekt.
+                         Dragningen finns kvar för den som föredrar den. -->
+                    <div class="move-buttons">
+                        <button
+                            class="btn-move"
+                            onclick={() => move(i, i - 1)}
+                            disabled={isFirst}
+                            aria-label="Flytta {name} uppåt"
+                        >
+                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M3 9l4-4 4 4" />
+                            </svg>
+                        </button>
+                        <button
+                            class="btn-move"
+                            onclick={() => move(i, i + 1)}
+                            disabled={isLast}
+                            aria-label="Flytta {name} nedåt"
+                        >
+                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M3 5l4 4 4-4" />
+                            </svg>
+                        </button>
                     </div>
                     <button
                         class="btn-item-remove"
@@ -404,15 +443,53 @@
         box-shadow: 0 0 0 2px var(--warning-border);
     }
 
+    /* Greppet var ett tecken med 4px marginal — runt 20px träffyta, mot
+       rekommenderade 44. Ikonen är liten, men ytan runt den är full storlek. */
     .drag-handle {
-        font-size: 1.1em;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        min-height: 44px;
+        margin: -0.55rem 0 -0.55rem -0.65rem;
         color: var(--text-faint);
         cursor: grab;
         flex-shrink: 0;
-        line-height: 1;
-        padding: 0.25rem;
-        margin: -0.25rem;
         touch-action: none;
+    }
+
+    .drag-handle:active { cursor: grabbing; }
+
+    .move-buttons {
+        display: flex;
+        flex-direction: column;
+        flex-shrink: 0;
+        margin: -0.35rem 0;
+    }
+
+    .btn-move {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 34px;
+        height: 26px;
+        min-height: 26px;
+        padding: 0;
+        border: none;
+        background: none;
+        color: var(--text-muted);
+        cursor: pointer;
+        border-radius: var(--radius-sm);
+    }
+
+    .btn-move:hover:not(:disabled) {
+        background: var(--bg-elevated);
+        color: var(--text-primary);
+    }
+
+    .btn-move:disabled {
+        opacity: 0.25;
+        cursor: default;
     }
 
     @media (pointer: coarse) {
