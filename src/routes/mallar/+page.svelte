@@ -70,10 +70,8 @@
 
     async function addItem() {
         if (!selectedId) return;
-        if (!newItemCategory) {
-            notificationContext.show('Välj en kategori innan du lägger till en vara.');
-            return;
-        }
+        // Kategori är valfri här likaväl som i listan — varor utan kategori
+        // hamnar i "Utan kategori" när mallen importeras.
         if (!newItemName.trim()) return;
         addingItem = true;
         const ok = await templateContext.addItem(selectedId, newItemName.trim(), newItemSpec.trim(), newItemQty, newItemCategory);
