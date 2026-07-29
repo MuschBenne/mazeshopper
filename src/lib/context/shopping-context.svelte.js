@@ -39,6 +39,17 @@ class ShoppingContext {
     // över både färsk server-data och optimistiska ändringar gjorda under tiden.
     #seedGen = 0;
 
+    // Sätts när inbjudningarna kommit med från en server-load.
+    #invitationsSeeded = false;
+
+    // Inbjudningarna hämtades tidigare alltid klientsida och dök upp ovanför
+    // listgriden när svaret landade, vilket knuffade ned korten under fingret.
+    /** @param {Invitation[]} invitations */
+    seedInvitations(invitations) {
+        this.invitations = [...invitations];
+        this.#invitationsSeeded = true;
+    }
+
     // Fyller listorna från data som redan hämtats server-side.
     /** @param {ShoppingList[]} lists */
     seedAll(lists) {
@@ -59,14 +70,14 @@ class ShoppingContext {
         try {
             const [listsRes, invRes] = await Promise.all([
                 listsAreSeeded ? null : fetch('/api/lists'),
-                fetch('/api/invitations')
+                this.#invitationsSeeded ? null : fetch('/api/invitations')
             ]);
             if (listsRes?.ok) {
                 const { lists } = await listsRes.json();
                 // Släpp svaret om en seed hunnit landa medan det var i luften.
                 if (this.#seedGen === gen) this.lists = lists;
             }
-            if (invRes.ok) {
+            if (invRes?.ok) {
                 const { invitations } = await invRes.json();
                 this.invitations = invitations;
             }
@@ -74,23 +85,6 @@ class ShoppingContext {
             notificationContext.show('Kunde inte ladda listor. Kontrollera din anslutning.');
         } finally {
             this.loaded = true;
-        }
-    }
-
-    // Fetches a single list from the server and replaces it in the local array.
-    // Returns true on success and false on any network or server error.
-    // Used for polling during shopping mode so all collaborators see live changes.
-    /** @param {string} listId */
-    async refreshList(listId) {
-        try {
-            const res = await fetch(`/api/lists/${listId}`);
-            if (!res.ok) return false;
-            const { list } = await res.json();
-            const idx = this.lists.findIndex(l => l.id === listId);
-            if (idx !== -1) this.lists[idx] = list;
-            return true;
-        } catch {
-            return false;
         }
     }
 
@@ -115,6 +109,7 @@ class ShoppingContext {
         this.invitations = [];
         this.loaded = false;
         this.#seedGen = 0;
+        this.#invitationsSeeded = false;
     }
 
     /**

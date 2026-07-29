@@ -13,7 +13,21 @@ class TemplateContext {
     // inte flimrar förbi vid varje sidladdning.
     loaded = $state(false);
 
+    // Sätts när mallarna kommit med från en server-load. Layouten anropar load()
+    // på varje sida, och utan den här flaggan vore det samma fråga en gång till.
+    #seeded = false;
+
+    /** @param {Template[]} templates */
+    seed(templates) {
+        // Kopieras så att optimistiska mutationer inte skriver i SvelteKits
+        // cachade load-data.
+        this.templates = [...templates];
+        this.loaded = true;
+        this.#seeded = true;
+    }
+
     async load() {
+        if (this.#seeded) return;
         try {
             const res = await fetch('/api/templates');
             if (res.ok) {
@@ -30,6 +44,7 @@ class TemplateContext {
     reset() {
         this.templates = [];
         this.loaded = false;
+        this.#seeded = false;
     }
 
     /** @param {string} id */

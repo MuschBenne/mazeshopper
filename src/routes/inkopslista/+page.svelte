@@ -14,6 +14,7 @@
     // for the background load() triggered by the layout effect.
     $effect.pre(() => {
         shoppingContext.seedAll(data.lists);
+        shoppingContext.seedInvitations(data.invitations);
     });
 
     const username = $derived(authContext.user?.username ?? '');

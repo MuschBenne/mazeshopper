@@ -307,7 +307,7 @@
             </div>
         {/if}
 
-        <!-- Offline indicator: shown after 2+ consecutive poll failures in shopping mode -->
+        <!-- Offline indicator: shown when the SSE stream stays down past the grace period -->
         {#if showOffline}
             <div class="offline-badge" role="alert" transition:fade={{ duration: 250 }}>Ingen anslutning – listan uppdateras inte</div>
         {/if}
