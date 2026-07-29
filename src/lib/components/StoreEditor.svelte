@@ -3,7 +3,7 @@
      * @type {{
      *   store: { categoryOrder: {[k: string]: number} },
      *   categories: { id: string, name: string, color: string }[],
-     *   onSave: (layout: { positions: {[k: string]: {x: number, y: number}}, route: string[] }) => void
+     *   onSave: (layout: { positions: {[k: string]: {x: number, y: number}}, route: string[] }) => Promise<boolean>
      * }}
      */
     let { store, categories, onSave } = $props();
@@ -152,14 +152,24 @@
     }
 
     let saved = $state(false);
+    let saving = $state(false);
     /** @type {ReturnType<typeof setTimeout> | null} */
     let savedTimer = null;
 
-    function save() {
-        onSave({ positions: {}, route: [...route] });
-        saved = true;
-        if (savedTimer) clearTimeout(savedTimer);
-        savedTimer = setTimeout(() => { saved = false; }, 2000);
+    // Kvittensen får bara visas när servern faktiskt tagit emot ordningen.
+    // Annars ser en misslyckad sparning identisk ut med en lyckad, och felet
+    // upptäcks först nästa gång butiken sorteras.
+    async function save() {
+        if (saving) return;
+        saving = true;
+        try {
+            if (!await onSave({ positions: {}, route: [...route] })) return;
+            saved = true;
+            if (savedTimer) clearTimeout(savedTimer);
+            savedTimer = setTimeout(() => { saved = false; }, 2000);
+        } finally {
+            saving = false;
+        }
     }
 
     /** @param {string} name */
@@ -244,8 +254,8 @@
     {/if}
 
     <div class="save-row">
-        <button class="btn-save" class:saved onclick={save} disabled={route.length === 0}>
-            {saved ? '✓ Sparat!' : 'Spara rutt'}
+        <button class="btn-save" class:saved onclick={save} disabled={route.length === 0 || saving}>
+            {saved ? '✓ Sparat!' : saving ? 'Sparar…' : 'Spara rutt'}
         </button>
     </div>
 </div>

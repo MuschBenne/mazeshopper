@@ -38,8 +38,8 @@
      * @param {{ positions: {[k: string]: {x: number, y: number}}, route: string[] }} layout
      */
     async function onSave(layout) {
-        if (selectedIndex === null) return;
-        await storeContext.setStoreLayout(selectedIndex, layout.positions, layout.route);
+        if (selectedIndex === null) return false;
+        return await storeContext.setStoreLayout(selectedIndex, layout.positions, layout.route);
     }
 
     async function deleteStore() {
