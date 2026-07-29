@@ -38,7 +38,53 @@
 
     let confirmDelete = $state(false);
 
-    const editorCategories = $derived(categoryContext.categories);
+    // Paletten är platt, så utan filter blir väljaren en vägg av alla
+    // kategorier. Samma gruppval som på listsidan, och samma minne av senast
+    // använda grupp — väljer du Bygg här står nästa nya lista också på Bygg.
+    /** @type {string | null} */
+    let groupChoice = $state(null);
+    let lastUsedGroup = $state('');
+
+    $effect(() => {
+        lastUsedGroup = localStorage.getItem('mazeshopper_lastGroup') ?? '';
+    });
+
+    // En mall med varor i ställer in sig själv efter innehållet.
+    const derivedGroup = $derived.by(() => {
+        for (const item of selected?.items ?? []) {
+            const group = categoryContext.groupOf(item.category);
+            if (group) return group;
+        }
+        return null;
+    });
+
+    const groups = $derived(categoryContext.groups);
+
+    const activeGroup = $derived(
+        groupChoice ?? derivedGroup ?? (groups.includes(lastUsedGroup) ? lastUsedGroup : groups[0] ?? '')
+    );
+
+    const editorCategories = $derived(
+        !activeGroup
+            ? categoryContext.categories
+            // Ogrupperade kategorier hör hemma överallt och följer alltid med.
+            : categoryContext.categories.filter(c => c.group === activeGroup || !c.group)
+    );
+
+    /** @param {string} group */
+    function chooseGroup(group) {
+        groupChoice = group;
+        if (group) localStorage.setItem('mazeshopper_lastGroup', group);
+    }
+
+    // En vara som redan har en kategori utanför den valda gruppen ska ändå gå
+    // att se och behålla när man redigerar den.
+    /** @param {string} current */
+    function categoriesWith(current) {
+        if (!current || editorCategories.some(c => c.name === current)) return editorCategories;
+        const extra = categoryContext.categories.filter(c => c.name === current);
+        return [...editorCategories, ...extra];
+    }
 
     // Inline item edit
     /** @type {string | null} */
@@ -217,12 +263,12 @@
                                         <button class="qty-btn" onclick={() => editItemQty = Math.min(9999, editItemQty + 1)}>+</button>
                                     </div>
                                     <div class="category-picker">
-                                        {#each editorCategories as cat}
+                                        {#each categoriesWith(editItemCategory) as cat}
                                             <button
                                                 class="category-chip"
                                                 class:selected={editItemCategory === cat.name}
                                                 style="--chip-color: {cat.color}"
-                                                onclick={() => editItemCategory = cat.name}
+                                                onclick={() => editItemCategory = editItemCategory === cat.name ? '' : cat.name}
                                             >{cat.name}</button>
                                         {/each}
                                     </div>
@@ -272,13 +318,26 @@
                 <span class="qty-value">{newItemQty}</span>
                 <button class="qty-btn" onclick={() => newItemQty = Math.min(9999, newItemQty + 1)}>+</button>
             </div>
+            {#if groups.length > 1}
+                <select
+                    class="group-select"
+                    aria-label="Kategorigrupp"
+                    value={activeGroup}
+                    onchange={(e) => chooseGroup(e.currentTarget.value)}
+                >
+                    {#each groups as group}
+                        <option value={group}>{group}</option>
+                    {/each}
+                    <option value="">Alla kategorier</option>
+                </select>
+            {/if}
             <div class="category-picker">
                 {#each editorCategories as cat}
                     <button
                         class="category-chip"
                         class:selected={newItemCategory === cat.name}
                         style="--chip-color: {cat.color}"
-                        onclick={() => newItemCategory = cat.name}
+                        onclick={() => newItemCategory = newItemCategory === cat.name ? '' : cat.name}
                     >{cat.name}</button>
                 {/each}
             </div>

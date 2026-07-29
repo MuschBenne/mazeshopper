@@ -241,6 +241,20 @@ img, svg {
     color: var(--text-primary);
 }
 
+/* Gruppfilter ovanför kategoriväljaren. Används av både listsidan och
+   mallredigeraren. */
+.group-select {
+    align-self: flex-start;
+    max-width: 100%;
+    padding: 0.4rem 0.6rem;
+    border: 1px solid var(--border-input);
+    border-radius: var(--radius-sm);
+    background: var(--bg-surface);
+    color: var(--text-secondary);
+    font-size: 0.85em;
+    cursor: pointer;
+}
+
 /* Kategoriväljare — låg i tre nästan identiska kopior.
    Färgen sitter i en stapel till vänster istället för i bakgrunden: namnen är
    olika långa, och en färgad yta som varierar i bredd blev rörig. Stapeln är

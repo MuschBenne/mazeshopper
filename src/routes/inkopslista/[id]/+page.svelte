@@ -898,17 +898,6 @@
 
 
 
-    .group-select {
-        align-self: flex-start;
-        max-width: 100%;
-        padding: 0.4rem 0.6rem;
-        border: 1px solid var(--border-input);
-        border-radius: var(--radius-sm);
-        background: var(--bg-surface);
-        color: var(--text-secondary);
-        font-size: 0.85em;
-        cursor: pointer;
-    }
 
 
 
