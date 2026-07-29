@@ -67,8 +67,8 @@
         const saved = sessionStorage.getItem(`lastCategory_${id}`);
         if (saved) {
             selectedCategory = saved;
-        } else if (pickerCategories.length === 1) {
-            selectedCategory = pickerCategories[0].name;
+        } else if (ownerCategories.length === 1) {
+            selectedCategory = ownerCategories[0].name;
         } else {
             selectedCategory = '';
         }
@@ -139,14 +139,57 @@
         return null;
     });
 
+    // Första kategorivalet på en tom lista sätter gruppen, så väljaren smalnar
+    // av direkt istället för att vänta på att en vara faktiskt lagts till.
+    // Sparas per lista, precis som senast valda kategori.
+    /** @type {string | null} */
+    let chosenGroup = $state(null);
+
+    $effect(() => {
+        if (!browser) return;
+        chosenGroup = sessionStorage.getItem(`listGroup_${id}`);
+    });
+
+    const activeGroup = $derived(derivedGroup ?? chosenGroup);
+
     // Användaren kan alltid välja bort filtret för en enskild inmatning.
     let showAllCategories = $state(false);
 
     const pickerCategories = $derived(
-        showAllCategories || !derivedGroup
+        showAllCategories || !activeGroup
             ? ownerCategories
-            : ownerCategories.filter(c => c.group === derivedGroup)
+            : ownerCategories.filter(c => c.group === activeGroup)
     );
+
+    // Utan aktiv grupp visas hela paletten — men grupperad under rubriker,
+    // inte som en vägg av chips. Kategorier utan grupp hamnar sist.
+    const groupedPicker = $derived.by(() => {
+        /** @type {{ group: string | null, categories: typeof ownerCategories }[]} */
+        const sections = [];
+        for (const group of groups) {
+            const categories = ownerCategories.filter(c => c.group === group);
+            if (categories.length > 0) sections.push({ group, categories });
+        }
+        const ungrouped = ownerCategories.filter(c => !c.group);
+        if (ungrouped.length > 0) sections.push({ group: null, categories: ungrouped });
+        return sections;
+    });
+
+    /** @param {{ name: string, group: string | null }} category */
+    function pickCategory(category) {
+        selectedCategory = category.name;
+        categoryError = false;
+        if (!activeGroup && category.group) {
+            chosenGroup = category.group;
+            if (browser) sessionStorage.setItem(`listGroup_${id}`, category.group);
+        }
+    }
+
+    function clearGroup() {
+        chosenGroup = null;
+        showAllCategories = false;
+        if (browser) sessionStorage.removeItem(`listGroup_${id}`);
+    }
 
     const sortedCategories = $derived.by(() => {
         const store = storeContext.selectedStore;
@@ -155,8 +198,8 @@
         // samma profil gjorde att den man delade en lista med aldrig fick
         // sortering — mottagarens varuhus hörde till mottagarens egna profiler.
         const base = (!store || Object.keys(store.categoryOrder).length === 0)
-            ? pickerCategories
-            : [...pickerCategories].sort((a, b) => {
+            ? ownerCategories
+            : [...ownerCategories].sort((a, b) => {
                 const pa = store.categoryOrder[a.name] ?? Infinity;
                 const pb = store.categoryOrder[b.name] ?? Infinity;
                 return pa - pb;
@@ -405,26 +448,55 @@
                     placeholder="Specifikation (valfritt)"
                     onkeydown={(e) => e.key === 'Enter' && addItem()}
                 />
-                {#if derivedGroup && groups.length > 1}
+                {#if activeGroup && groups.length > 1}
                     <div class="group-hint">
-                        <span>Visar kategorier för <strong>{derivedGroup}</strong></span>
+                        <span>Visar kategorier för <strong>{activeGroup}</strong></span>
                         <button class="btn-show-all-cats" onclick={() => showAllCategories = !showAllCategories}>
                             {showAllCategories ? 'Filtrera igen' : 'Visa alla'}
                         </button>
+                        {#if chosenGroup && !derivedGroup}
+                            <button class="btn-show-all-cats" onclick={clearGroup}>Byt grupp</button>
+                        {/if}
                     </div>
                 {/if}
-                <div class="category-picker" class:picker-error={categoryError} class:picker-hint={newItem.trim().length > 0 && !selectedCategory && !categoryError}>
-                    {#each pickerCategories as category}
-                        <button
-                            class="category-chip"
-                            class:selected={selectedCategory === category.name}
-                            style="--chip-color: {category.color}"
-                            onclick={() => { selectedCategory = category.name; categoryError = false; }}
-                        >
-                            {category.name}
-                        </button>
-                    {/each}
-                </div>
+
+                {#if activeGroup || groups.length <= 1}
+                    <div class="category-picker" class:picker-error={categoryError} class:picker-hint={newItem.trim().length > 0 && !selectedCategory && !categoryError}>
+                        {#each pickerCategories as category}
+                            <button
+                                class="category-chip"
+                                class:selected={selectedCategory === category.name}
+                                style="--chip-color: {category.color}"
+                                onclick={() => pickCategory(category)}
+                            >
+                                {category.name}
+                            </button>
+                        {/each}
+                    </div>
+                {:else}
+                    <!-- Tom lista: gruppera under rubriker istället för att lägga
+                         hela paletten som en vägg av chips. Första valet smalnar
+                         av väljaren till den gruppen. -->
+                    <div class="picker-groups" class:picker-error={categoryError}>
+                        {#each groupedPicker as section (section.group ?? '__none__')}
+                            <div class="picker-group">
+                                <span class="picker-group-title">{section.group ?? 'Övriga'}</span>
+                                <div class="category-picker">
+                                    {#each section.categories as category}
+                                        <button
+                                            class="category-chip"
+                                            class:selected={selectedCategory === category.name}
+                                            style="--chip-color: {category.color}"
+                                            onclick={() => pickCategory(category)}
+                                        >
+                                            {category.name}
+                                        </button>
+                                    {/each}
+                                </div>
+                            </div>
+                        {/each}
+                    </div>
+                {/if}
                 {#if categoryError}
                     <p class="field-error" role="alert">Välj en kategori innan du lägger till en vara.</p>
                 {/if}
@@ -803,6 +875,26 @@
     }
 
     .add-card input:focus { border-color: #f97316; }
+
+    .picker-groups {
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+    }
+
+    .picker-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.3rem;
+    }
+
+    .picker-group-title {
+        font-size: 0.72em;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--text-faint);
+    }
 
     .group-hint {
         display: flex;

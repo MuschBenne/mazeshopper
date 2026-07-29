@@ -134,9 +134,24 @@
                             <button class="btn-sm" onclick={() => renamingCatId = null}>Avbryt</button>
                         {:else}
                             <span class="category-name">{cat.name}</span>
-                            {#if cat.group}<span class="cat-group-badge">{cat.group}</span>{/if}
                             {#if categoryEditMode}
+                                <select
+                                    class="group-select"
+                                    aria-label="Grupp för {cat.name}"
+                                    value={cat.group ?? ''}
+                                    onchange={(e) => categoryContext.updateCategory(cat.id, { group: e.currentTarget.value || null })}
+                                >
+                                    <option value="">Ingen grupp</option>
+                                    {#each categoryContext.groups as group}
+                                        <option value={group}>{group}</option>
+                                    {/each}
+                                    {#if newCatGroup.trim() && !categoryContext.groups.includes(newCatGroup.trim())}
+                                        <option value={newCatGroup.trim()}>{newCatGroup.trim()} (ny)</option>
+                                    {/if}
+                                </select>
                                 <button class="btn-sm" onclick={() => startRename(cat)}>Byt namn</button>
+                            {:else if cat.group}
+                                <span class="cat-group-badge">{cat.group}</span>
                             {/if}
                         {/if}
                     </li>
@@ -170,7 +185,9 @@
                 <button onclick={addCategory}>Lägg till</button>
             </div>
             <p class="cat-hint">
-                Grupper filtrerar bara vilka kategorier som visas. Att ta bort en kategori tar inte bort några varor — de hamnar under "Utan kategori".
+                Grupper filtrerar bara vilka kategorier som visas — de påverkar ingen lista och kan ändras när som helst.
+                Skriv ett nytt gruppnamn i fältet ovan så går det att välja i listorna här.
+                Att ta bort en kategori tar inte bort några varor — de hamnar under "Utan kategori".
             </p>
         {/if}
     </div>
@@ -388,6 +405,17 @@
         border-color: var(--text-primary);
         color: var(--bg-surface);
         font-weight: 600;
+    }
+
+    .group-select {
+        padding: 0.25rem 0.5rem;
+        border: 1px solid var(--border-input);
+        border-radius: 6px;
+        background: var(--bg-surface);
+        color: var(--text-muted);
+        font-size: 0.8em;
+        cursor: pointer;
+        max-width: 9rem;
     }
 
     .cat-group-badge {
