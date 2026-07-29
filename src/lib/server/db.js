@@ -1,5 +1,12 @@
 import { MongoClient } from 'mongodb';
 import { MONGODB_URI } from '$env/static/private';
+import { env } from '$env/dynamic/private';
+
+// Databasnamnet är valfritt och faller tillbaka på produktionsnamnet, så
+// befintliga driftsättningar fungerar utan att variabeln sätts. Poängen är att
+// kunna peka lokal utveckling mot en egen databas i samma kluster — annars
+// skriver npm run dev i samma data som den driftsatta appen.
+const DB_NAME = env.MONGODB_DB || 'mazeshopper';
 
 /** @type {MongoClient | null} */
 let client = null;
@@ -50,5 +57,5 @@ export async function getDb() {
             throw err;
         }
     }
-    return client.db('mazeshopper');
+    return client.db(DB_NAME);
 }

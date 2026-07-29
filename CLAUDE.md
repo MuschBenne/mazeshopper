@@ -35,9 +35,12 @@ Se `.env.example`. Krävs för att appen ska starta:
 
 ```
 MONGODB_URI=          # MongoDB Atlas connection string
+MONGODB_DB=           # Valfritt databasnamn (default: mazeshopper)
 RESEND_API_KEY=       # API-nyckel för transaktionsmejl
 EMAIL_FROM=           # Avsändaradress, t.ex. noreply@dindomän.se
 ```
+
+**Lokal utveckling:** sätt `MONGODB_DB=mazeshopper_dev` i `.env`. Utan den skriver `npm run dev` i samma databas som den driftsatta appen — och vissa ändringar (indexskapande, migreringar i server-loads) sker automatiskt vid sidladdning, utan att du gör något aktivt.
 
 ## Arkitektur
 
