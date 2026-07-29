@@ -4,12 +4,13 @@
     import { shoppingContext } from "$lib/context/shopping-context.svelte";
     import { authContext } from "$lib/context/auth-context.svelte";
     import { storeContext } from "$lib/context/store-context.svelte";
+    import { listprofileContext } from "$lib/context/listprofile-context.svelte";
     import SharePanel from "$lib/components/SharePanel.svelte";
     import CategorySection from "$lib/components/CategorySection.svelte";
     import ImportModal from "$lib/components/ImportModal.svelte";
     import { untrack } from 'svelte';
     import { page } from '$app/state';
-    import { goto } from '$app/navigation';
+    import { goto, invalidateAll } from '$app/navigation';
     import { browser } from '$app/environment';
     import { fade, slide, fly } from 'svelte/transition';
 
@@ -53,7 +54,6 @@
     let showHistory = $state(false);
     let sseConnected = $state(false);
     let sseHasConnected = $state(false);
-    let categoryError = $state(false);
     let confirmDeleteList = $state(false);
     let confirmClearAll = $state(false);
     let confirmLeaveList = $state(false);
@@ -86,9 +86,11 @@
     });
 
     $effect(() => {
-        if (browser && selectedCategory) {
-            sessionStorage.setItem(`lastCategory_${id}`, selectedCategory);
-        }
+        if (!browser) return;
+        // Avmarkering ska också sparas, annars kommer den bortvalda kategorin
+        // tillbaka nästa gång listan öppnas.
+        if (selectedCategory) sessionStorage.setItem(`lastCategory_${id}`, selectedCategory);
+        else sessionStorage.removeItem(`lastCategory_${id}`);
     });
 
     // Connect to the SSE stream for this list so all collaborators see changes in real-time.
@@ -242,12 +244,18 @@
 
     const listHistory = $derived(shoppingContext.recentlyBought[id] ?? []);
 
+    // Kategorierna kommer från server-loaden, så sidan måste laddas om för att
+    // den nya profilens kategorier ska visas.
+    /** @param {string} profileId */
+    async function changeProfile(profileId) {
+        if (!profileId || profileId === list?.profileId) return;
+        if (await shoppingContext.changeProfile(id, profileId)) await invalidateAll();
+    }
+
+    // Kategori är valfri. Varor utan kategori hamnar i "Utan kategori", en hink
+    // som redan finns för importerade varor — att kräva ett val innan man får
+    // skriva sin första vara var ett steg utan motsvarande nytta.
     async function addItem() {
-        if (selectedCategory === '') {
-            categoryError = true;
-            return;
-        }
-        categoryError = false;
         const name = newItem.trim();
         if (name.length === 0) return;
 
@@ -351,6 +359,21 @@
             </div>
         {/if}
 
+        {#if isOwner && !shoppingMode && listprofileContext.profiles.length > 1}
+            <div class="profile-row">
+                <label for="list-profile">Kategorier från</label>
+                <select
+                    id="list-profile"
+                    value={list.profileId}
+                    onchange={(e) => changeProfile(e.currentTarget.value)}
+                >
+                    {#each listprofileContext.profiles as profile}
+                        <option value={profile.id}>{profile.name}</option>
+                    {/each}
+                </select>
+            </div>
+        {/if}
+
         <!-- Share panel -->
         {#if showSharePanel && isOwner && !shoppingMode}
             <div transition:fly={{ y: -6, duration: 200 }}>
@@ -440,21 +463,18 @@
                     placeholder="Specifikation (valfritt)"
                     onkeydown={(e) => e.key === 'Enter' && addItem()}
                 />
-                <div class="category-picker" class:picker-error={categoryError} class:picker-hint={newItem.trim().length > 0 && !selectedCategory && !categoryError}>
+                <div class="category-picker">
                     {#each profileCategories as category}
                         <button
                             class="category-chip"
                             class:selected={selectedCategory === category.name}
                             style="--chip-color: {category.color}"
-                            onclick={() => { selectedCategory = category.name; categoryError = false; }}
+                            onclick={() => { selectedCategory = selectedCategory === category.name ? '' : category.name; }}
                         >
                             {category.name}
                         </button>
                     {/each}
                 </div>
-                {#if categoryError}
-                    <p class="field-error" role="alert">Välj en kategori innan du lägger till en vara.</p>
-                {/if}
                 <button class="btn-add" onclick={addItem}>Lägg till vara</button>
                 <button class="btn-import-template" onclick={() => showImportModal = true}>
                     Importera mall
@@ -642,6 +662,24 @@
     }
 
     .btn-shopping-mode:hover { background: var(--bg-elevated); }
+
+    .profile-row {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.85em;
+        color: var(--text-muted);
+    }
+
+    .profile-row select {
+        padding: 0.35rem 0.6rem;
+        border: 1px solid var(--border-input);
+        border-radius: 6px;
+        background: var(--bg-surface);
+        color: var(--text-primary);
+        font-size: 0.95em;
+        cursor: pointer;
+    }
 
     .shared-notice-row {
         display: flex;
@@ -874,14 +912,6 @@
         font-weight: 700;
     }
 
-    .picker-error { outline: 1.5px solid var(--danger-text); border-radius: 6px; padding: 0.25rem; }
-    .picker-hint { outline: 1.5px solid #f97316; border-radius: 6px; padding: 0.25rem; }
-
-    .field-error {
-        margin: 0;
-        font-size: 0.82em;
-        color: var(--danger-text);
-    }
 
     .btn-add {
         padding: 0.6rem;
