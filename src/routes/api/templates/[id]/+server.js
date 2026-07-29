@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import { getDb } from '$lib/server/db';
 import { getSessionUser } from '$lib/server/session';
 import { ObjectId } from 'mongodb';
+import { clampServings, generateShareToken } from '$lib/server/utils';
 
 /**
  * @param {import('mongodb').Db} db
@@ -37,23 +38,41 @@ export async function PATCH({ params, request, cookies }) {
         update.profileId = body.profileId;
     }
 
+    if (body.servings !== undefined) {
+        update.servings = clampServings(body.servings);
+    }
+
     if (Array.isArray(body.items)) {
         update.items = body.items.map(/** @param {Record<string,unknown>} i */ i => ({
             itemId: String(i.itemId ?? crypto.randomUUID()),
             name: String(i.name ?? '').trim().slice(0, 200),
             spec: String(i.spec ?? '').trim().slice(0, 500),
             quantity: Number.isInteger(i.quantity) && /** @type {number} */ (i.quantity) > 0 && /** @type {number} */ (i.quantity) <= 9999 ? i.quantity : 1,
+            unit: String(i.unit ?? '').trim().slice(0, 20),
             category: String(i.category ?? '').trim().slice(0, 50)
         })).filter(/** @param {{ name: string }} i */ i => i.name);
     }
 
-    if (Object.keys(update).length === 0) return json({ ok: true });
+    // Delningslänken slås på och av här. Att stänga av tar bort token, så en
+    // länk som redan spridits slutar fungera direkt.
+    /** @type {Record<string, ''> | null} */
+    let unset = null;
+    if (body.shared === true) {
+        update.shareToken = template.shareToken ?? generateShareToken();
+    } else if (body.shared === false) {
+        unset = { shareToken: '' };
+    }
+
+    if (Object.keys(update).length === 0 && !unset) return json({ ok: true });
 
     await db.collection('templates').updateOne(
         { _id: new ObjectId(params.id) },
-        { $set: update }
+        {
+            ...(Object.keys(update).length > 0 ? { $set: update } : {}),
+            ...(unset ? { $unset: unset } : {})
+        }
     );
-    return json({ ok: true });
+    return json({ ok: true, shareToken: unset ? null : (update.shareToken ?? template.shareToken ?? null) });
 }
 
 export async function DELETE({ params, cookies }) {

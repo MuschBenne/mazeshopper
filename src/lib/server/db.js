@@ -34,6 +34,8 @@ export async function ensureIndexes() {
         db.collection('login_attempts').createIndex({ key: 1 }),
         db.collection('login_attempts').createIndex({ at: 1 }, { expireAfterSeconds: 900 }),
         db.collection('templates').createIndex({ owner: 1 }),
+        // Publika receptlänkar slår upp på token, aldrig på ägare.
+        db.collection('templates').createIndex({ shareToken: 1 }, { unique: true, sparse: true }),
         db.collection('listprofiles').createIndex({ owner: 1 }),
     ]);
     indexesEnsured = true;

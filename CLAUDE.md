@@ -108,6 +108,7 @@ src/
 │   ├── integritetspolicy/  # GDPR-policy (Swedish)
 │   ├── anvandardvillkor/   # Användarvillkor
 │   ├── om/                 # Om-sida
+│   ├── r/[token]/          # Publik läsvy för delat recept (kräver ej inloggning)
 │   ├── glomt-losenord/     # Begär lösenordsåterställning
 │   ├── aterstall-losenord/ # Formulär för nytt lösenord (token i URL)
 │   └── verifiera-epost/    # Verifieringslänk via mejl
@@ -154,7 +155,7 @@ Max 10 försök per IP per 15 minuter, spåras i `login_attempts`-collection med
 | `users` | username (unik, lowercase), email (sparse), password (bcrypt), emailVerified |
 | `sessions` | token (unik), username, expiresAt (TTL) |
 | `lists` | owner, profileId, sharedWith[], pendingInvites[], items[] (inkl. addedBy per vara) |
-| `templates` | owner, name, items[] (itemId, name, spec, quantity, category) |
+| `templates` | owner, name, kind ('template'\|'recipe'), servings (recept), shareToken (sparse unik), items[] (itemId, name, spec, quantity, unit, category) |
 | `stores` | owner, profileId, name, categoryOrder{}, positions{} |
 | `listprofiles` | owner, name, categories[] ({id, name, color, locked?}), createdAt |
 | `password_resets` | email, tokenHash, expiresAt (TTL 15 min) |
@@ -173,6 +174,14 @@ Kategorier är kopplade till **listprofiler** — namngivna samlingar av kategor
 - "Generisk lista" har en inbyggd låst "Övrigt"-kategori (`locked: true`) som inte kan tas bort.
 - Delade listor: delade användare ser ägarens profilkategorier (laddas server-side i `[id]/+page.server.js`).
 - En profil kan inte tas bort om aktiva listor eller varuhus refererar till den.
+
+## Mallar och recept
+
+Mallar och recept delar `templates`-collection och skiljs åt av `kind`. Dokument utan fältet behandlas som `'template'` (samma mönster som `emailVerified ?? true`).
+
+- Ett recept är en mall med `servings`. Vid import skalas `quantity` mot antalet portioner man vill laga och avrundas uppåt.
+- `shareToken` (256 bitar, samma mönster som sessionstoken) ger en publik läsvy på `/r/{token}`. Att sluta dela tar bort token, så spridda länkar slutar fungera direkt.
+- "Spara bland mina recept" kopierar dokumentet. Kategorier följer med som namn och visas via samma fallback som okända kategorier i delade listor.
 
 ## Tema
 

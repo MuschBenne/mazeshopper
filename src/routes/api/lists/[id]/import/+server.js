@@ -19,11 +19,24 @@ export async function POST({ params, request, cookies }) {
     const body = await request.json();
     if (!Array.isArray(body.items)) return json({ error: 'invalid_items' }, { status: 400 });
 
+    // Skalfaktor för recept: dubbla portioner ska ge dubbla mängder. Avrundas
+    // uppåt, eftersom man hellre köper en för mycket än en för lite.
+    const rawScale = Number(body.scale);
+    const scale = Number.isFinite(rawScale) && rawScale > 0 ? Math.min(99, rawScale) : 1;
+
+    /** @param {unknown} value */
+    const scaledQuantity = (value) => {
+        const base = Number.isInteger(value) && /** @type {number} */ (value) > 0 && /** @type {number} */ (value) <= 9999
+            ? /** @type {number} */ (value)
+            : 1;
+        return Math.min(9999, Math.max(1, Math.ceil(base * scale)));
+    };
+
     const items = body.items.map(/** @param {Record<string,unknown>} i */ i => ({
         itemId: crypto.randomUUID(),
         name: String(i.name ?? '').trim().slice(0, 200),
         spec: String(i.spec ?? '').trim().slice(0, 500),
-        quantity: Number.isInteger(i.quantity) && /** @type {number} */ (i.quantity) > 0 && /** @type {number} */ (i.quantity) <= 9999 ? i.quantity : 1,
+        quantity: scaledQuantity(i.quantity),
         bought: false,
         category: String(i.category ?? '').trim().slice(0, 50),
         addedBy: username

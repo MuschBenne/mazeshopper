@@ -23,6 +23,8 @@
     let newTemplateName = $state('');
     let newTemplateProfileId = $state('');
     let creatingTemplate = $state(false);
+    /** @type {'template' | 'recipe'} */
+    let newTemplateKind = $state('template');
 
     $effect(() => {
         if (!newTemplateProfileId && listprofileContext.profiles.length > 0) {
@@ -70,7 +72,7 @@
         const name = newTemplateName.trim();
         if (!name) return;
         creatingTemplate = true;
-        const id = await templateContext.createTemplate(name, newTemplateProfileId || null);
+        const id = await templateContext.createTemplate(name, newTemplateProfileId || null, newTemplateKind);
         creatingTemplate = false;
         newTemplateName = '';
         if (id) selectedId = id;
@@ -122,6 +124,29 @@
         renamingId = '';
     }
 
+    const isRecipe = $derived(selected?.kind === 'recipe');
+
+    // location finns inte under SSR — fältet fylls i vid hydrering.
+    let origin = $state('');
+    $effect(() => { origin = location.origin; });
+
+    async function toggleShare() {
+        if (!selectedId || !selected) return;
+        await templateContext.setShared(selectedId, !selected.shareToken);
+    }
+
+    async function copyShareLink() {
+        if (!selected?.shareToken) return;
+        const url = `${location.origin}/r/${selected.shareToken}`;
+        try {
+            await navigator.clipboard.writeText(url);
+            notificationContext.show('Länken är kopierad.', 'success');
+        } catch {
+            // Utan klippbordsbehörighet är länken ändå synlig i fältet bredvid.
+            notificationContext.show('Kunde inte kopiera. Markera länken och kopiera manuellt.');
+        }
+    }
+
     async function deleteTemplate() {
         if (!selectedId || !selected) return;
         await templateContext.deleteTemplate(selectedId);
@@ -157,6 +182,29 @@
                 </div>
             {:else}
                 <button class="btn-delete-template" onclick={() => confirmDelete = true}>Ta bort mall</button>
+            {/if}
+        </div>
+
+        {#if isRecipe}
+            <div class="recipe-bar">
+                <label for="servings">Portioner</label>
+                <button class="qty-btn" onclick={() => templateContext.setServings(selected.id, Math.max(1, (selected.servings ?? 4) - 1))}>−</button>
+                <span class="qty-value" id="servings">{selected.servings}</span>
+                <button class="qty-btn" onclick={() => templateContext.setServings(selected.id, Math.min(99, (selected.servings ?? 4) + 1))}>+</button>
+                <span class="recipe-hint">Mängderna räknas om mot det här talet vid import.</span>
+            </div>
+        {/if}
+
+        <div class="share-row">
+            {#if selected.shareToken}
+                <input class="share-link" readonly value="{origin}/r/{selected.shareToken}" onclick={(e) => e.currentTarget.select()} />
+                <button class="btn-copy" onclick={copyShareLink}>Kopiera</button>
+                <button class="btn-unshare" onclick={toggleShare}>Sluta dela</button>
+            {:else}
+                <button class="btn-share-link" onclick={toggleShare}>
+                    Skapa delningslänk
+                </button>
+                <span class="recipe-hint">Vem som helst med länken kan läsa och spara en egen kopia.</span>
             {/if}
         </div>
 
@@ -283,9 +331,13 @@
             <div class="create-row">
                 <input
                     bind:value={newTemplateName}
-                    placeholder="Namn på ny mall"
+                    placeholder={newTemplateKind === 'recipe' ? 'Namn på nytt recept' : 'Namn på ny mall'}
                     onkeydown={(e) => e.key === 'Enter' && createTemplate()}
                 />
+                <select bind:value={newTemplateKind} class="profile-select" aria-label="Typ">
+                    <option value="template">Mall</option>
+                    <option value="recipe">Recept</option>
+                </select>
                 {#if listprofileContext.profiles.length > 1}
                     <select bind:value={newTemplateProfileId} class="profile-select">
                         {#each listprofileContext.profiles as profile}
@@ -294,7 +346,7 @@
                     </select>
                 {/if}
                 <button class="btn-create" onclick={createTemplate} disabled={creatingTemplate || !newTemplateName.trim()}>
-                    {creatingTemplate ? '…' : 'Skapa mall'}
+                    {creatingTemplate ? '…' : newTemplateKind === 'recipe' ? 'Skapa recept' : 'Skapa mall'}
                 </button>
             </div>
         </div>
@@ -310,7 +362,11 @@
                 {#each templateContext.templates as t (t.id)}
                     <button class="template-card" onclick={() => { selectedId = t.id; editingItemId = null; }}>
                         <span class="template-name">{t.name}</span>
-                        <span class="template-count">{t.items.length} {t.items.length === 1 ? 'vara' : 'varor'}</span>
+                        <span class="template-count">
+                            {t.items.length} {t.items.length === 1 ? 'vara' : 'varor'}
+                            {#if t.kind === 'recipe'}· {t.servings} port.{/if}
+                        </span>
+                        {#if t.kind === 'recipe'}<span class="kind-badge">Recept</span>{/if}
                     </button>
                 {/each}
             </div>
@@ -329,6 +385,61 @@
     }
 
     h1 { margin: 0; font-size: 1.5rem; }
+
+    .kind-badge {
+        font-size: 0.68em;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--violet-text);
+        background: var(--violet-light);
+        border-radius: 999px;
+        padding: 0.15rem 0.55rem;
+    }
+
+    .recipe-bar,
+    .share-row {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        font-size: 0.85em;
+        color: var(--text-secondary);
+    }
+
+    .qty-value { font-weight: 700; min-width: 1.5rem; text-align: center; }
+
+    .recipe-hint { color: var(--text-faint); font-size: 0.95em; }
+
+    .share-link {
+        flex: 1;
+        min-width: 12rem;
+        padding: 0.4rem 0.6rem;
+        border: 1px solid var(--border-input);
+        border-radius: 6px;
+        background: var(--bg-elevated);
+        color: var(--text-muted);
+        font-size: 0.85em;
+    }
+
+    .btn-copy,
+    .btn-unshare,
+    .btn-share-link {
+        padding: 0.4rem 0.8rem;
+        border: 1px solid var(--border-input);
+        border-radius: 6px;
+        background: var(--bg-surface);
+        color: var(--text-secondary);
+        font-size: 0.85em;
+        cursor: pointer;
+        min-height: unset;
+    }
+
+    .btn-copy:hover,
+    .btn-unshare:hover,
+    .btn-share-link:hover { background: var(--bg-elevated); }
+
+    .btn-unshare { color: var(--danger-text); border-color: var(--danger-border); }
 
     .subtitle {
         margin: 0;
