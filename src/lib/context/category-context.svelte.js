@@ -29,6 +29,11 @@ class CategoryContext {
             if (!res.ok) return;
             const { categories } = await res.json();
             this.categories = categories;
+        } catch {
+            // Layouten anropar load() utan await, så ett nätverksfel skulle
+            // annars bli en tyst unhandled rejection. Övriga contexter visar
+            // en toast här — gör likadant.
+            notificationContext.show('Kunde inte ladda kategorier. Kontrollera din anslutning.');
         } finally {
             this.loaded = true;
         }
