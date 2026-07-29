@@ -2,36 +2,29 @@
 
 <script>
     import { storeContext } from "$lib/context/store-context.svelte";
-    import { listprofileContext } from "$lib/context/listprofile-context.svelte";
+    import { categoryContext } from "$lib/context/category-context.svelte";
     import StoreEditor from "$lib/components/StoreEditor.svelte";
 
     let newStore = $state('');
-    let selectedProfileId = $state('');
     /** @type {number | null} */
     let selectedIndex = $state(null);
     let confirmDelete = $state(false);
 
     const selected = $derived(selectedIndex !== null ? storeContext.stores[selectedIndex] : null);
 
-    // Auto-select the first profile once profiles are loaded.
-    $effect(() => {
-        if (!selectedProfileId && listprofileContext.profiles.length > 0) {
-            selectedProfileId = listprofileContext.profiles[0].id;
-        }
-    });
+    // Redigeraren visar hela paletten, filtrerad på gruppetikett. Utan
+    // filtret vore poolen en vägg av alla kategorier man någonsin skapat —
+    // det var den enda invändningen mot att släppa profilbindningen.
+    /** @type {string | null} */
+    let storeGroup = $state(null);
 
-    // Categories for the currently selected store, derived from its profile.
-    const editorCategories = $derived(
-        selected?.profileId
-            ? (listprofileContext.getProfile(selected.profileId)?.categories ?? [])
-            : []
-    );
+    const editorCategories = $derived(categoryContext.inGroup(storeGroup));
 
     async function addStore() {
         const name = newStore.trim();
-        if (!name || !selectedProfileId) return;
+        if (!name) return;
         // Behåll namnet i fältet om det misslyckades, så användaren kan försöka igen.
-        if (await storeContext.addStore(name, selectedProfileId)) newStore = '';
+        if (await storeContext.addStore(name)) newStore = '';
     }
 
     /**
@@ -74,6 +67,15 @@
         {/if}
     </div>
 
+    {#if categoryContext.groups.length > 0}
+        <div class="group-filter">
+            <button class="group-chip" class:selected={storeGroup === null} onclick={() => storeGroup = null}>Alla</button>
+            {#each categoryContext.groups as group}
+                <button class="group-chip" class:selected={storeGroup === group} onclick={() => storeGroup = group}>{group}</button>
+            {/each}
+        </div>
+    {/if}
+
     <div class="editor-card">
         <StoreEditor
             store={selected}
@@ -94,13 +96,6 @@
             bind:value={newStore}
             onkeydown={(e) => e.key === 'Enter' && addStore()}
         />
-        {#if listprofileContext.profiles.length > 1}
-            <select bind:value={selectedProfileId} class="profile-select">
-                {#each listprofileContext.profiles as profile}
-                    <option value={profile.id}>{profile.name}</option>
-                {/each}
-            </select>
-        {/if}
         <button onclick={addStore}>+ Lägg till</button>
     </div>
 
@@ -155,17 +150,6 @@
     }
 
     .new-store-card input:focus { border-color: var(--color-primary); }
-
-    .profile-select {
-        padding: 0.55rem 0.8rem;
-        border: 1px solid var(--border-input);
-        border-radius: var(--radius-md);
-        font-size: 0.95em;
-        background: var(--bg-surface);
-        color: var(--text-primary);
-        outline: none;
-        cursor: pointer;
-    }
 
     .new-store-card button {
         padding: 0.55rem 1rem;
@@ -229,6 +213,32 @@
         font-weight: 600;
         color: var(--text-primary);
         word-break: break-word;
+    }
+
+    .group-filter {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+    }
+
+    .group-chip {
+        padding: 0.3rem 0.7rem;
+        border: 1px solid var(--border-input);
+        border-radius: 999px;
+        background: var(--bg-surface);
+        color: var(--text-muted);
+        font-size: 0.82em;
+        cursor: pointer;
+        min-height: unset;
+    }
+
+    .group-chip:hover { background: var(--bg-elevated); }
+
+    .group-chip.selected {
+        background: var(--text-primary);
+        border-color: var(--text-primary);
+        color: var(--bg-surface);
+        font-weight: 600;
     }
 
     /* Detail view */

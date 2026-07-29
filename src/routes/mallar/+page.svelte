@@ -2,7 +2,7 @@
 
 <script>
     import { templateContext } from '$lib/context/template-context.svelte';
-    import { listprofileContext } from '$lib/context/listprofile-context.svelte';
+    import { categoryContext } from '$lib/context/category-context.svelte';
     import { notificationContext } from '$lib/context/notification-context.svelte';
 
     let { data } = $props();
@@ -21,16 +21,9 @@
 
     // "Ny mall" form
     let newTemplateName = $state('');
-    let newTemplateProfileId = $state('');
     let creatingTemplate = $state(false);
     /** @type {'template' | 'recipe'} */
     let newTemplateKind = $state('template');
-
-    $effect(() => {
-        if (!newTemplateProfileId && listprofileContext.profiles.length > 0) {
-            newTemplateProfileId = listprofileContext.profiles[0].id;
-        }
-    });
 
     // Add-item form (inside editor)
     let newItemName = $state('');
@@ -45,20 +38,7 @@
 
     let confirmDelete = $state(false);
 
-    // Profiltilldelning för mallar utan profileId
-    let assigningProfileId = $state('');
-
-    const editorCategories = $derived(
-        selected?.profileId
-            ? (listprofileContext.getProfile(selected.profileId)?.categories ?? [])
-            : []
-    );
-
-    async function assignProfile() {
-        if (!selectedId || !assigningProfileId) return;
-        await templateContext.assignProfile(selectedId, assigningProfileId);
-        assigningProfileId = '';
-    }
+    const editorCategories = $derived(categoryContext.categories);
 
     // Inline item edit
     /** @type {string | null} */
@@ -72,7 +52,7 @@
         const name = newTemplateName.trim();
         if (!name) return;
         creatingTemplate = true;
-        const id = await templateContext.createTemplate(name, newTemplateProfileId || null, newTemplateKind);
+        const id = await templateContext.createTemplate(name, newTemplateKind);
         creatingTemplate = false;
         newTemplateName = '';
         if (id) selectedId = id;
@@ -276,20 +256,6 @@
         <!-- Add item form -->
         <div class="card add-card">
             <p class="add-card-label">Lägg till vara i mallen</p>
-            {#if !selected.profileId}
-                <div class="no-profile-notice">
-                    <p>Tilldela en profil för att välja kategorier.</p>
-                    <div class="assign-row">
-                        <select bind:value={assigningProfileId} class="profile-select-sm">
-                            <option value="">Välj profil…</option>
-                            {#each listprofileContext.profiles as profile}
-                                <option value={profile.id}>{profile.name}</option>
-                            {/each}
-                        </select>
-                        <button class="btn-assign" onclick={assignProfile} disabled={!assigningProfileId}>Tilldela</button>
-                    </div>
-                </div>
-            {:else}
                 <input
                     bind:value={newItemName}
                     placeholder="Vara"
@@ -319,7 +285,6 @@
                 <button class="btn-add" onclick={addItem} disabled={addingItem}>
                     {addingItem ? 'Lägger till…' : 'Lägg till vara'}
                 </button>
-            {/if}
         </div>
 
     {:else}
@@ -334,17 +299,10 @@
                     placeholder={newTemplateKind === 'recipe' ? 'Namn på nytt recept' : 'Namn på ny mall'}
                     onkeydown={(e) => e.key === 'Enter' && createTemplate()}
                 />
-                <select bind:value={newTemplateKind} class="profile-select" aria-label="Typ">
+                <select bind:value={newTemplateKind} class="kind-select" aria-label="Typ">
                     <option value="template">Mall</option>
                     <option value="recipe">Recept</option>
                 </select>
-                {#if listprofileContext.profiles.length > 1}
-                    <select bind:value={newTemplateProfileId} class="profile-select">
-                        {#each listprofileContext.profiles as profile}
-                            <option value={profile.id}>{profile.name}</option>
-                        {/each}
-                    </select>
-                {/if}
                 <button class="btn-create" onclick={createTemplate} disabled={creatingTemplate || !newTemplateName.trim()}>
                     {creatingTemplate ? '…' : newTemplateKind === 'recipe' ? 'Skapa recept' : 'Skapa mall'}
                 </button>
@@ -476,7 +434,7 @@
     .btn-create:hover:not(:disabled) { opacity: 0.9; }
     .btn-create:disabled { opacity: 0.5; cursor: not-allowed; }
 
-    .profile-select {
+    .kind-select {
         padding: 0.55rem 0.8rem;
         border: 1px solid var(--border-input);
         border-radius: var(--radius-md);
@@ -867,48 +825,4 @@
     .btn-add:hover:not(:disabled) { opacity: 0.9; }
     .btn-add:disabled { opacity: 0.6; cursor: not-allowed; }
 
-    .no-profile-notice {
-        display: flex;
-        flex-direction: column;
-        gap: 0.6rem;
-    }
-
-    .no-profile-notice p {
-        margin: 0;
-        font-size: 0.88em;
-        color: var(--text-muted);
-    }
-
-    .assign-row {
-        display: flex;
-        gap: 0.5rem;
-    }
-
-    .profile-select-sm {
-        flex: 1;
-        padding: 0.45rem 0.7rem;
-        border: 1px solid var(--border-input);
-        border-radius: var(--radius-md);
-        font-size: 0.9em;
-        background: var(--bg-surface);
-        color: var(--text-primary);
-        outline: none;
-        cursor: pointer;
-    }
-
-    .btn-assign {
-        padding: 0.45rem 0.9rem;
-        background: var(--gradient-brand);
-        color: #fff;
-        border: none;
-        border-radius: var(--radius-md);
-        font-size: 0.88em;
-        font-weight: 600;
-        cursor: pointer;
-        white-space: nowrap;
-        transition: opacity 0.15s;
-    }
-
-    .btn-assign:hover:not(:disabled) { opacity: 0.9; }
-    .btn-assign:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>

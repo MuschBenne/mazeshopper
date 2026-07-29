@@ -4,7 +4,6 @@
     import { shoppingContext } from "$lib/context/shopping-context.svelte";
     import { authContext } from "$lib/context/auth-context.svelte";
     import { storeContext } from "$lib/context/store-context.svelte";
-    import { listprofileContext } from "$lib/context/listprofile-context.svelte";
     import SharePanel from "$lib/components/SharePanel.svelte";
     import CategorySection from "$lib/components/CategorySection.svelte";
     import ImportModal from "$lib/components/ImportModal.svelte";
@@ -67,8 +66,8 @@
         const saved = sessionStorage.getItem(`lastCategory_${id}`);
         if (saved) {
             selectedCategory = saved;
-        } else if (profileCategories.length === 1) {
-            selectedCategory = profileCategories[0].name;
+        } else if (ownerCategories.length === 1) {
+            selectedCategory = ownerCategories[0].name;
         } else {
             selectedCategory = '';
         }
@@ -169,21 +168,91 @@
         };
     });
 
-    // Profile categories come from the server load — covers both owned and shared lists.
-    const profileCategories = $derived(
-        /** @type {{ id: string, name: string, color: string }[]} */ (data.profileCategories ?? [])
+    // Kategorierna kommer ur ägarens palett via server-loaden, så alla som
+    // delar listan ser samma namn och färger.
+    const ownerCategories = $derived(
+        /** @type {{ id: string, name: string, color: string, group: string | null }[]} */ (data.categories ?? [])
     );
+
+    // Grupperna som finns representerade i ägarens palett.
+    const groups = $derived([...new Set(ownerCategories.map(c => c.group).filter(Boolean))]);
+
+    // Listans grupp härleds från varorna som redan ligger i den, istället för
+    // att efterfrågas innan man fått skriva något. Är listan tom visas allt.
+    const derivedGroup = $derived.by(() => {
+        if (!list) return null;
+        for (const item of list.items) {
+            const group = ownerCategories.find(c => c.name === item.category)?.group;
+            if (group) return group;
+        }
+        return null;
+    });
+
+    // Första kategorivalet på en tom lista sätter gruppen, så väljaren smalnar
+    // av direkt istället för att vänta på att en vara faktiskt lagts till.
+    // Sparas per lista, precis som senast valda kategori.
+    /** @type {string | null} */
+    let chosenGroup = $state(null);
+
+    $effect(() => {
+        if (!browser) return;
+        chosenGroup = sessionStorage.getItem(`listGroup_${id}`);
+    });
+
+    const activeGroup = $derived(derivedGroup ?? chosenGroup);
+
+    // Användaren kan alltid välja bort filtret för en enskild inmatning.
+    let showAllCategories = $state(false);
+
+    const pickerCategories = $derived(
+        showAllCategories || !activeGroup
+            ? ownerCategories
+            // Ogrupperade kategorier är universella och följer alltid med,
+            // annars gick "Övrigt" inte att välja så fort ett filter var aktivt.
+            : ownerCategories.filter(c => c.group === activeGroup || !c.group)
+    );
+
+    // Utan aktiv grupp visas hela paletten — men grupperad under rubriker,
+    // inte som en vägg av chips. Kategorier utan grupp hamnar sist.
+    const groupedPicker = $derived.by(() => {
+        /** @type {{ group: string | null, categories: typeof ownerCategories }[]} */
+        const sections = [];
+        for (const group of groups) {
+            const categories = ownerCategories.filter(c => c.group === group);
+            if (categories.length > 0) sections.push({ group, categories });
+        }
+        const ungrouped = ownerCategories.filter(c => !c.group);
+        if (ungrouped.length > 0) sections.push({ group: null, categories: ungrouped });
+        return sections;
+    });
+
+    /** @param {{ name: string, group: string | null }} category */
+    function pickCategory(category) {
+        // Kategori är valfritt, så ett klick på den valda kategorin tar bort
+        // valet igen istället för att låsa fast det.
+        const deselecting = selectedCategory === category.name;
+        selectedCategory = deselecting ? '' : category.name;
+        if (!deselecting && !activeGroup && category.group) {
+            chosenGroup = category.group;
+            if (browser) sessionStorage.setItem(`listGroup_${id}`, category.group);
+        }
+    }
+
+    function clearGroup() {
+        chosenGroup = null;
+        showAllCategories = false;
+        if (browser) sessionStorage.removeItem(`listGroup_${id}`);
+    }
 
     const sortedCategories = $derived.by(() => {
         const store = storeContext.selectedStore;
-        // Rutten är namnbaserad, och kategorier som saknas i den sorteras sist
-        // (se Infinity nedan). En rutt från en annan profil är därför harmlös.
-        // Villkoret som krävde samma profil gjorde att den man delar en lista
-        // med aldrig fick någon sortering: mottagarens varuhus tillhör
-        // mottagarens egna profiler, så det var alltid falskt.
+        // Rutten är namnbaserad och kategorier den saknar sorteras sist, så den
+        // gäller oavsett var kategorierna kommer ifrån. Villkoret som krävde
+        // samma profil gjorde att den man delade en lista med aldrig fick
+        // sortering — mottagarens varuhus hörde till mottagarens egna profiler.
         const base = (!store || Object.keys(store.categoryOrder).length === 0)
-            ? profileCategories
-            : [...profileCategories].sort((a, b) => {
+            ? ownerCategories
+            : [...ownerCategories].sort((a, b) => {
                 const pa = store.categoryOrder[a.name] ?? Infinity;
                 const pb = store.categoryOrder[b.name] ?? Infinity;
                 return pa - pb;
@@ -243,14 +312,6 @@
     });
 
     const listHistory = $derived(shoppingContext.recentlyBought[id] ?? []);
-
-    // Kategorierna kommer från server-loaden, så sidan måste laddas om för att
-    // den nya profilens kategorier ska visas.
-    /** @param {string} profileId */
-    async function changeProfile(profileId) {
-        if (!profileId || profileId === list?.profileId) return;
-        if (await shoppingContext.changeProfile(id, profileId)) await invalidateAll();
-    }
 
     // Kategori är valfri. Varor utan kategori hamnar i "Utan kategori", en hink
     // som redan finns för importerade varor — att kräva ett val innan man får
@@ -359,21 +420,6 @@
             </div>
         {/if}
 
-        {#if isOwner && !shoppingMode && listprofileContext.profiles.length > 1}
-            <div class="profile-row">
-                <label for="list-profile">Kategorier från</label>
-                <select
-                    id="list-profile"
-                    value={list.profileId}
-                    onchange={(e) => changeProfile(e.currentTarget.value)}
-                >
-                    {#each listprofileContext.profiles as profile}
-                        <option value={profile.id}>{profile.name}</option>
-                    {/each}
-                </select>
-            </div>
-        {/if}
-
         <!-- Share panel -->
         {#if showSharePanel && isOwner && !shoppingMode}
             <div transition:fly={{ y: -6, duration: 200 }}>
@@ -463,18 +509,55 @@
                     placeholder="Specifikation (valfritt)"
                     onkeydown={(e) => e.key === 'Enter' && addItem()}
                 />
-                <div class="category-picker">
-                    {#each profileCategories as category}
-                        <button
-                            class="category-chip"
-                            class:selected={selectedCategory === category.name}
-                            style="--chip-color: {category.color}"
-                            onclick={() => { selectedCategory = selectedCategory === category.name ? '' : category.name; }}
-                        >
-                            {category.name}
+                {#if activeGroup && groups.length > 1}
+                    <div class="group-hint">
+                        <span>Visar kategorier för <strong>{activeGroup}</strong></span>
+                        <button class="btn-show-all-cats" onclick={() => showAllCategories = !showAllCategories}>
+                            {showAllCategories ? 'Filtrera igen' : 'Visa alla'}
                         </button>
-                    {/each}
-                </div>
+                        {#if chosenGroup && !derivedGroup}
+                            <button class="btn-show-all-cats" onclick={clearGroup}>Byt grupp</button>
+                        {/if}
+                    </div>
+                {/if}
+
+                {#if activeGroup || groups.length <= 1}
+                    <div class="category-picker">
+                        {#each pickerCategories as category}
+                            <button
+                                class="category-chip"
+                                class:selected={selectedCategory === category.name}
+                                style="--chip-color: {category.color}"
+                                onclick={() => pickCategory(category)}
+                            >
+                                {category.name}
+                            </button>
+                        {/each}
+                    </div>
+                {:else}
+                    <!-- Tom lista: gruppera under rubriker istället för att lägga
+                         hela paletten som en vägg av chips. Första valet smalnar
+                         av väljaren till den gruppen. -->
+                    <div class="picker-groups">
+                        {#each groupedPicker as section (section.group ?? '__none__')}
+                            <div class="picker-group">
+                                <span class="picker-group-title">{section.group ?? 'Övriga'}</span>
+                                <div class="category-picker">
+                                    {#each section.categories as category}
+                                        <button
+                                            class="category-chip"
+                                            class:selected={selectedCategory === category.name}
+                                            style="--chip-color: {category.color}"
+                                            onclick={() => pickCategory(category)}
+                                        >
+                                            {category.name}
+                                        </button>
+                                    {/each}
+                                </div>
+                            </div>
+                        {/each}
+                    </div>
+                {/if}
                 <button class="btn-add" onclick={addItem}>Lägg till vara</button>
                 <button class="btn-import-template" onclick={() => showImportModal = true}>
                     Importera mall
@@ -486,8 +569,7 @@
             <ImportModal
                 onImport={(items, scale) => shoppingContext.importItems(id, items, scale)}
                 onClose={() => showImportModal = false}
-                {profileCategories}
-                listProfileId={list.profileId}
+                {pickerCategories}
             />
         {/if}
 
@@ -515,7 +597,7 @@
                 {#each sections as section (section.category.id)}
                     <CategorySection
                         category={section.category}
-                        categories={profileCategories}
+                        categories={pickerCategories}
                         items={section.items}
                         {shoppingMode}
                         listId={id}
@@ -645,24 +727,6 @@
     }
 
     .btn-shopping-mode:hover { background: var(--bg-elevated); }
-
-    .profile-row {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        font-size: 0.85em;
-        color: var(--text-muted);
-    }
-
-    .profile-row select {
-        padding: 0.35rem 0.6rem;
-        border: 1px solid var(--border-input);
-        border-radius: 6px;
-        background: var(--bg-surface);
-        color: var(--text-primary);
-        font-size: 0.95em;
-        cursor: pointer;
-    }
 
     .shared-notice-row {
         display: flex;
@@ -862,6 +926,48 @@
     }
 
     .add-card input:focus { border-color: var(--color-primary); }
+
+    .picker-groups {
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+    }
+
+    .picker-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.3rem;
+    }
+
+    .picker-group-title {
+        font-size: 0.72em;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--text-faint);
+    }
+
+    .group-hint {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        font-size: 0.8em;
+        color: var(--text-faint);
+    }
+
+    .btn-show-all-cats {
+        padding: 0.2rem 0.6rem;
+        border: 1px solid var(--border-input);
+        border-radius: 999px;
+        background: none;
+        color: var(--text-muted);
+        font-size: 0.95em;
+        cursor: pointer;
+        min-height: unset;
+    }
+
+    .btn-show-all-cats:hover { background: var(--bg-elevated); }
 
     .category-picker {
         display: flex;

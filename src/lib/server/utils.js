@@ -73,7 +73,6 @@ export function serializeTemplate(doc) {
         // skalas från vid import.
         servings: kind === 'recipe' ? (doc.servings ?? 4) : null,
         shareToken: doc.shareToken ?? null,
-        profileId: doc.profileId ?? null,
         items: (doc.items ?? []).map(/** @param {any} i */ i => ({
             itemId: i.itemId,
             name: i.name,

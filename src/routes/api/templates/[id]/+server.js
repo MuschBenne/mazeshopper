@@ -32,15 +32,10 @@ export async function PATCH({ params, request, cookies }) {
         update.name = name;
     }
 
-    if (typeof body.profileId === 'string') {
-        const profile = await db.collection('listprofiles').findOne({ owner: username, _id: new ObjectId(body.profileId) });
-        if (!profile) return json({ error: 'invalid_profile' }, { status: 400 });
-        update.profileId = body.profileId;
-    }
-
     if (body.servings !== undefined) {
         update.servings = clampServings(body.servings);
     }
+
 
     if (Array.isArray(body.items)) {
         update.items = body.items.map(/** @param {Record<string,unknown>} i */ i => ({

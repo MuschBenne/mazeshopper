@@ -1,7 +1,6 @@
 import { json } from '@sveltejs/kit';
 import { getDb } from '$lib/server/db';
 import { getSessionUser } from '$lib/server/session';
-import { ObjectId } from 'mongodb';
 
 // Returns all stores owned by the current user.
 export async function GET({ cookies }) {
@@ -22,19 +21,11 @@ export async function POST({ request, cookies }) {
     if (!name || typeof name !== 'string' || !name.trim() || name.trim().length > 100) {
         return json({ error: 'invalid_name' }, { status: 400 });
     }
-    if (!profileId || typeof profileId !== 'string' || !ObjectId.isValid(profileId)) {
-        return json({ error: 'invalid_profile' }, { status: 400 });
-    }
+    // Varuhusrutten är namnbaserad och kategorier den saknar sorteras sist, så
+    // den behöver ingen profilbindning för att vara meningsfull.
     const db = await getDb();
-    // Se kommentaren i api/lists — profilen typkontrollerades men slogs aldrig upp.
-    const profile = await db.collection('listprofiles').findOne({
-        _id: new ObjectId(profileId),
-        owner: username
-    });
-    if (!profile) return json({ error: 'invalid_profile' }, { status: 400 });
-
-    const result = await db.collection('stores').insertOne({ owner: username, name: name.trim(), profileId, categoryOrder: {}, positions: {} });
-    return json({ store: { id: result.insertedId.toString(), name: name.trim(), profileId, categoryOrder: {}, positions: {} } });
+    const result = await db.collection('stores').insertOne({ owner: username, name: name.trim(), profileId: profileId ?? null, categoryOrder: {}, positions: {} });
+    return json({ store: { id: result.insertedId.toString(), name: name.trim(), profileId: profileId ?? null, categoryOrder: {}, positions: {} } });
 }
 
 // Converts a MongoDB document into the plain object shape expected by the client.

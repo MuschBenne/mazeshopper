@@ -14,5 +14,9 @@ export default defineConfig({
         globalSetup: ['src/tests/global-setup.js'],
         environment: 'node',
         include: ['src/**/*.test.js'],
+        // Alla integrationstester delar samma in-memory-databas, och flera av
+        // dem tömmer collections i beforeEach. Körs filerna parallellt raderar
+        // de varandras data mitt i ett test.
+        fileParallelism: false,
     }
 });

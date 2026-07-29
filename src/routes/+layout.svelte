@@ -5,7 +5,7 @@
     import { shoppingContext } from '$lib/context/shopping-context.svelte';
     import { storeContext } from '$lib/context/store-context.svelte';
     import { templateContext } from '$lib/context/template-context.svelte';
-    import { listprofileContext } from '$lib/context/listprofile-context.svelte';
+    import { categoryContext } from '$lib/context/category-context.svelte';
     import Toast from '$lib/components/Toast.svelte';
     import { themeContext } from '$lib/context/theme-context.svelte';
     import { goto } from '$app/navigation';
@@ -21,6 +21,12 @@
         authContext.user = data.user;
     });
 
+    // Kategoripaletten kommer från server-loaden och seedas före de övriga
+    // hämtningarna, så sidorna aldrig renderar med en tom kategoriväljare.
+    $effect.pre(() => {
+        if (data.categories) categoryContext.seed(data.categories);
+    });
+
     // Load all user data when logged in, or clear it when logged out.
     // This runs reactively whenever authContext.user changes.
     $effect(() => {
@@ -28,12 +34,12 @@
             shoppingContext.load();
             storeContext.load();
             templateContext.load();
-            listprofileContext.load();
+            categoryContext.load();
         } else {
             shoppingContext.reset();
             storeContext.reset();
             templateContext.reset();
-            listprofileContext.reset();
+            categoryContext.reset();
         }
     });
 

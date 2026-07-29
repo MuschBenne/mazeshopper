@@ -9,7 +9,9 @@ export async function GET({ cookies }) {
 
     const db = await getDb();
 
-    // Kategorier bor i listprofiler sedan migreringen — exporten läste tidigare
+    // Kategorierna ligger på användardokumentet och följer med i `user`.
+    // listprofiles exporteras fortfarande så länge äldre konton har kvar dem.
+    // Historik: exporten läste tidigare
     // den utrangerade user_settings och fick därför med tomma kategorier och
     // inga profiler alls. Mallar saknades också.
     const [user, lists, stores, listprofiles, templates] = await Promise.all([

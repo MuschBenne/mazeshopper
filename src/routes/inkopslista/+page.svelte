@@ -5,7 +5,6 @@
     // plus any pending invitations that need to be accepted or declined.
     import { shoppingContext } from "$lib/context/shopping-context.svelte";
     import { authContext } from "$lib/context/auth-context.svelte";
-    import { listprofileContext } from "$lib/context/listprofile-context.svelte";
     import { goto } from '$app/navigation';
 
     let { data } = $props();
@@ -26,19 +25,11 @@
     const pendingInvitations = $derived(shoppingContext.invitations);
 
     let newListName = $state('');
-    let selectedProfileId = $state('');
-
-    // Auto-select the first profile once profiles are loaded.
-    $effect(() => {
-        if (!selectedProfileId && listprofileContext.profiles.length > 0) {
-            selectedProfileId = listprofileContext.profiles[0].id;
-        }
-    });
 
     // Creates the list and immediately navigates to it so the user can start adding items.
     async function createList() {
-        if (newListName.trim().length === 0 || !selectedProfileId) return;
-        const id = await shoppingContext.createList(newListName, username, selectedProfileId);
+        if (newListName.trim().length === 0) return;
+        const id = await shoppingContext.createList(newListName, username);
         if (!id) return;
         newListName = '';
         goto(`/inkopslista/${id}`);
@@ -55,13 +46,6 @@
         placeholder="Namn på ny lista"
         onkeydown={(e) => e.key === 'Enter' && createList()}
     />
-    {#if listprofileContext.profiles.length > 1}
-        <select bind:value={selectedProfileId} class="profile-select">
-            {#each listprofileContext.profiles as profile}
-                <option value={profile.id}>{profile.name}</option>
-            {/each}
-        </select>
-    {/if}
     <button onclick={createList}>+ Skapa lista</button>
 </div>
 
@@ -184,17 +168,6 @@
     }
 
     .new-list-card input:focus { border-color: var(--color-primary); }
-
-    .profile-select {
-        padding: 0.55rem 0.8rem;
-        border: 1px solid var(--border-input);
-        border-radius: var(--radius-md);
-        font-size: 0.95em;
-        background: var(--bg-surface);
-        color: var(--text-primary);
-        outline: none;
-        cursor: pointer;
-    }
 
     .new-list-card button {
         padding: 0.55rem 1rem;

@@ -152,12 +152,12 @@ Max 10 försök per IP per 15 minuter, spåras i `login_attempts`-collection med
 
 | Collection | Innehåll |
 |---|---|
-| `users` | username (unik, lowercase), email (sparse), password (bcrypt), emailVerified |
+| `users` | username (unik, lowercase), email (sparse), password (bcrypt), emailVerified, categories[] ({id, name, color, group}) |
 | `sessions` | token (unik), username, expiresAt (TTL) |
-| `lists` | owner, profileId, sharedWith[], pendingInvites[], items[] (inkl. addedBy per vara) |
+| `lists` | owner, sharedWith[], pendingInvites[], items[] (inkl. addedBy per vara) |
 | `templates` | owner, name, kind ('template'\|'recipe'), servings (recept), shareToken (sparse unik), items[] (itemId, name, spec, quantity, unit, category) |
-| `stores` | owner, profileId, name, categoryOrder{}, positions{} |
-| `listprofiles` | owner, name, categories[] ({id, name, color, locked?}), createdAt |
+| `stores` | owner, name, categoryOrder{}, positions{} |
+| `listprofiles` | *utfasad* — läses bara vid engångsmigrering till `users.categories` |
 | `password_resets` | email, tokenHash, expiresAt (TTL 15 min) |
 | `email_verifications` | username, tokenHash, expiresAt (TTL 24h) |
 | `login_attempts` | key (IP), at (TTL 900s) |
@@ -165,15 +165,19 @@ Max 10 försök per IP per 15 minuter, spåras i `login_attempts`-collection med
 
 Indexes skapas av `ensureIndexes()` i `db.js`, körs vid serverstart via `hooks.server.js`.
 
-## Listprofiler
+## Kategorier
 
-Kategorier är kopplade till **listprofiler** — namngivna samlingar av kategorier. Varje lista och varuhus tillhör en profil.
+Kategorier är en **platt palett per användare**, lagrad på användardokumentet som `categories[]` med `{id, name, color, group}`.
 
-- Vid registrering skapas 4 standardprofiler: Livsmedel, Bygg & Järnhandel, Hem & Inredning, Generisk lista.
-- Kategorier bäddas in i profildokumentet (`categories[]`), inte som egna dokument.
-- "Generisk lista" har en inbyggd låst "Övrigt"-kategori (`locked: true`) som inte kan tas bort.
-- Delade listor: delade användare ser ägarens profilkategorier (laddas server-side i `[id]/+page.server.js`).
-- En profil kan inte tas bort om aktiva listor eller varuhus refererar till den.
+- `group` är en ren visningsetikett som filtrerar kategoriväljaren och varuhusredigeraren. Ingen lista, inget varuhus och ingen mall refererar den, så den kan aldrig vara "i bruk" och blockera en borttagning.
+- Varor lagrar sin kategori som **namn**, och varuhusrutter nycklas på namn. Ett namnbyte kaskaderar därför till ägarens listor, mallar och varuhus (`renameCategoryEverywhere` i `lib/server/categories.js`).
+- Kategori är valfri. Varor utan kategori hamnar i "Utan kategori".
+- På en lista **härleds gruppen från varorna som redan ligger i den** — inget profilval krävs innan man får skriva. Filtret går alltid att slå av.
+- Delade listor visar **ägarens** palett, laddad server-side i `[id]/+page.server.js`. Kategorinamn mottagaren saknar visas ändå, via fallbacken för okända kategorier.
+
+### Migrering från listprofiler
+
+`getUserCategories()` migrerar första gången en användare läses: unionen av alla profilers kategorier, skiftlägesokänsligt på namn, där första färgen vinner och det gamla profilnamnet blir grupp. Resultatet sparas, så omvandlingen sker en gång per konto. `listprofiles`-collectionen lämnas orörd.
 
 ## Mallar och recept
 

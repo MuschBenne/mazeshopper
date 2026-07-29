@@ -215,14 +215,13 @@ class ShoppingContext {
     /**
      * @param {string} name
      * @param {string} owner
-     * @param {string} profileId
      */
-    async createList(name, owner, profileId) {
+    async createList(name, owner) {
         try {
             const res = await fetch('/api/lists', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, owner, profileId })
+                body: JSON.stringify({ name, owner })
             });
             if (!res.ok) throw new Error();
             const { list } = await res.json();
@@ -257,32 +256,6 @@ class ShoppingContext {
     /** @param {string} id */
     getList(id) {
         return this.lists.find(l => l.id === id) ?? null;
-    }
-
-    /**
-     * Byter vilken profil listans kategorier kommer ur. Varornas kategorier är
-     * namn och följer med oförändrade.
-     * @param {string} listId
-     * @param {string} profileId
-     */
-    async changeProfile(listId, profileId) {
-        const list = this.getList(listId);
-        if (!list) return false;
-        const prev = list.profileId;
-        list.profileId = profileId;
-        try {
-            const res = await fetch(`/api/lists/${listId}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ profileId })
-            });
-            if (!res.ok) throw new Error();
-            return true;
-        } catch {
-            list.profileId = prev;
-            notificationContext.show('Kunde inte byta profil. Försök igen.');
-            return false;
-        }
     }
 
     /**
