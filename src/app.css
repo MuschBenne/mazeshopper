@@ -187,6 +187,18 @@ img, svg {
     max-width: 100%;
 }
 
+/* Respektera systeminställningen för minskad rörelse. Appen animerar bland
+   annat varulistan, toasts och förloppsraden — allt det ska stå stilla för
+   den som bett om det, utan att något slutar fungera. */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
 /* Keyboard focus ring — only shown for keyboard navigation, not mouse clicks */
 :focus-visible {
     outline: 2px solid var(--color-primary);
