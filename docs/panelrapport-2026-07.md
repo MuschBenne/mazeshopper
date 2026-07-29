@@ -98,7 +98,9 @@ Skillnaden mot dagens modell är strukturell, inte kosmetisk. En etikett har ing
 Två invändningar överlevde replikrundan och fick svar:
 
 - **Rutteditorn** skulle bli en vägg av 30 kategorier (`StoreEditor.svelte:22-23` bygger `available` som alla kategorier minus de i rutten). Lösning: filtrera editorn på gruppetiketten.
-- **Kallstart** — frekvenssortering ger noll signal på en helt ny lista, precis när valet är svårast. Lösning: paletten renderas grupperad, och **första valda varan härleder listans grupp**. Profilen härleds i stället för att efterfrågas, och är ändringsbar.
+- **Kallstart** — frekvenssortering ger noll signal på en helt ny lista, precis när valet är svårast. Föreslagen lösning: rendera paletten grupperad och låta listans grupp härledas i stället för att efterfrågas.
+
+  *Utfall:* den första commiten på `refactor/platt-kategoripalett` plattade bara ut datamodellen och lämnade kallstarten olöst — hela paletten visades som en enda vägg av chips. Den grupperade väljaren och den härledda gruppen kom först i en senare commit på samma branch. I slutresultatet gäller: en tom lista visar paletten grupperad under rubriker; gruppen härleds ur de varor som redan ligger i listan, och på en tom lista sätter det första kategorivalet gruppen. Filtret går alltid att slå av med "Visa alla" eller "Byt grupp". Något profilbyte finns inte kvar — det behövs inte när det inte finns några profiler.
 
 ### Mallar och recept
 
@@ -136,28 +138,29 @@ CLAUDE.md beskriver pollning var 15:e sekund i handelsläge och ett offlinebanne
 
 ## Genomförandeplan och brancher
 
-Varje del ligger på egen branch från `main` för att kunna granskas och förkastas oberoende.
+Varje del låg på egen branch från `main` för att kunna granskas och förkastas oberoende. Alla tio är numera hopslagna på `integration`. Tabellerna nedan beskriver **slutresultatet efter sammanslagningen**, inte den ursprungliga planen.
 
 ### Frontend
 
-| Branch | Innehåll | Fynd |
+| Branch | Slutresultat | Fynd |
 |---|---|---|
-| `fix/realtid-och-sparning` | Rollback och felavisering på ruttsparning, ekodämpning på SSE, `#seedGen`-vakt på `seedList` | 6, 7, 8 |
-| `update/handelslage-helskarm` | Handelsläget lyft till documentElement, fixerad förloppsrad, safe-area, `wakeLock`, `aria-live`, `prefers-reduced-motion` | 9, 10 |
-| `update/laddordning` | `+page.server.js` för `/mallar`, inbjudningar via server-load, död kod bort | 11, 12 |
-| `refactor/designtokens` | Tokens tas i bruk, delade klasser för `.page`/`.card`/`.btn`, träffytor | 13, 14, 15 |
+| `fix/realtid-och-sparning` | `setStoreLayout` rullar tillbaka och toastar; SSE-ögonblicksbilder som beskriver ett läge före en egen mutation kastas och stäms av efteråt; `#mutating`-wrappern släpper taget efter 15 s så ett hängande anrop inte låser ute strömmen; `seedList` har generationsvakt | 6, 7, 8 |
+| `update/handelslage-helskarm` | `data-shopping` på `<html>` gömmer header, nav och verifieringsbanner; fixerad förloppsrad och avsluta-knapp med safe-area; `wakeLock` återtas vid `visibilitychange`; `aria-live` på Toast; `prefers-reduced-motion`; 44px träffytor i handelsläget | 9, 10 |
+| `update/laddordning` | `/mallar` har `+page.server.js`; inbjudningar kommer via server-load; seed-metoderna har vakt mot svar i luften; `refreshList` borttagen; CLAUDE.md rättad om pollningen | 11, 12 |
+| `refactor/designtokens` | Tokens i bruk för gradient, radier och färger; `.page`, `.page-doc`, `.page-center` och `.card` delade i `app.css`; tomt tillstånd på listöversikten | 13, 14, 15 |
 
 ### Arkitektur
 
-| Branch | Innehåll | Fynd |
+| Branch | Slutresultat | Fynd |
 |---|---|---|
-| `fix/delad-lista-sortering` | Villkoret på rad 130 bort, `profileId` valideras, mallcheck vid profilradering, ImportModal filtreras | 1, 3, 5 |
-| `update/avblockera-flodena` | Kategori valfri, `PATCH` för att byta listprofil, härledd grupp | 2 |
-| `fix/kategorinamnbyte` | Omdöpning kaskaderar till varor och varuhusrutter | 4 |
-| `refactor/platt-kategoripalett` | `users.categories[]` med `group?`, `profileId` bort från stores och templates | — |
-| `add/recept` | `collections` med `kind`, portioner, skalfaktor vid import, `shareToken` och publik vy | — |
+| `fix/delad-lista-sortering` | Villkoret `store.profileId === list.profileId` borta — varuhusrutten är namnbaserad och gäller nu även i en delad lista. Profilvalideringen och mallchecken föll bort när profilerna gjorde det; ImportModals profilfiltrering likaså, eftersom mallar inte längre har någon profil | 1, (3, 5 upplösta) |
+| `update/avblockera-flodena` | Kategori är valfri, och ett klick på den valda kategorin tar bort valet igen. Profilbytaren och `PATCH /api/lists/[id]` slogs *inte* ihop: fynd 2 handlade om att rätta ett profilval, och under den platta paletten finns inget profilval att rätta | (2 upplöst) |
+| `fix/kategorinamnbyte` | Namnbytet kaskaderar till ägarens varor, mallar och varuhusrutter via `renameCategoryEverywhere()` i `lib/server/categories.js`, anropad från `PATCH /api/categories/[id]` | 4 |
+| `refactor/platt-kategoripalett` | `users.categories[]` med `group`, `/api/categories`, `category-context`, grupperad väljare med härledd grupp, engångsmigrering i `getUserCategories()`. `listprofiles` läses bara vid migrering; `profileId` finns kvar som oanvänt fält på `lists` och `stores` | — |
+| `add/recept` | `kind` på `templates`, portioner, skalfaktor vid import, `shareToken` och publik läsvy på `/r/[token]`, "spara som egen kopia" | — |
+| `docs/panelrapport` | Det här dokumentet | — |
 
-`refactor/platt-kategoripalett` är den enda brytande ändringen och bör inte slås ihop innan mätningen nedan är gjord.
+`refactor/platt-kategoripalett` var den enda brytande ändringen. Den togs med, vilket gör att fynd 2, 3 och 5 aldrig behövde egna åtgärder — de handlade alla om listprofilens livscykel.
 
 ---
 

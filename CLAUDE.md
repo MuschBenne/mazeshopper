@@ -63,20 +63,21 @@ src/
 │   │   └── Toast.svelte             # Toast-notifikationer
 │   ├── context/                     # Globala Svelte 5-singletons (module-exports)
 │   │   ├── auth-context.svelte.js          # Inloggningsstatus + auth-anrop
-│   │   ├── listprofile-context.svelte.js   # Listprofiler + kategorier (CRUD)
+│   │   ├── category-context.svelte.js      # Kategoripaletten (CRUD + gruppfilter)
 │   │   ├── notification-context.svelte.js  # Toast-kö
 │   │   ├── shopping-context.svelte.js      # Listor + inbjudningar
 │   │   ├── store-context.svelte.js         # Varuhus + layout
-│   │   ├── template-context.svelte.js      # Listmallar (CRUD + import till lista)
+│   │   ├── template-context.svelte.js      # Mallar och recept (CRUD + import till lista)
 │   │   └── theme-context.svelte.js         # Tema (system/ljust/mörkt, localStorage)
 │   └── server/
+│       ├── categories.js            # getUserCategories() (migrering), renameCategoryEverywhere()
+│       ├── category-defaults.js     # Standardpaletten som nya konton får
 │       ├── db.js                    # MongoClient singleton + ensureIndexes()
 │       ├── email.js                 # sendPasswordReset(), sendEmailVerification()
-│       ├── listprofile-defaults.js  # De 4 standardprofilerna som skapas vid registrering
 │       ├── session.js               # createSession(), getSessionUser(), deleteSession()
-│       └── utils.js                 # serializeList(), isValidPassword(), isValidEmail(), escapeRegex()
+│       └── utils.js                 # serializeList(), serializeTemplate(), listAccessFilter(), isValidPassword(), isValidEmail(), escapeRegex(), generateShareToken(), clampServings()
 ├── routes/
-│   ├── +layout.server.js   # Laddar session → skickar user till layout
+│   ├── +layout.server.js   # Laddar session + kategoripalett → skickar till layout
 │   ├── +layout.svelte      # Navbar, Toast, bootstrappar alla context:ar
 │   ├── +page.svelte        # Inloggning/registrering (startsida)
 │   ├── api/
@@ -85,26 +86,27 @@ src/
 │   │   │                   #       resend_verification, delete_account, exists
 │   │   │                   # GET: returnerar inloggad användare
 │   │   ├── invitations/    # GET inbjudningar, POST accept/decline
-│   │   ├── listprofiles/   # GET/POST listprofiler
-│   │   │   └── [id]/       # PATCH byt namn, DELETE (blockeras om listor/varuhus använder den)
-│   │   │       └── categories/        # POST lägg till kategori
-│   │   │           └── [catId]/       # PATCH redigera, DELETE ta bort (ej låsta)
-│   │   ├── lists/          # GET/POST listor (POST kräver profileId)
+│   │   ├── categories/     # GET/POST kategorier i paletten
+│   │   │   └── [id]/       # PATCH namn/färg/grupp (namnbyte kaskaderar), DELETE
+│   │   ├── lists/          # GET/POST listor (bara namn krävs)
 │   │   │   └── [id]/       # DELETE lista, GET enskild lista
-│   │   │       ├── import/ # POST importera varor från mall (addedBy sätts)
+│   │   │       ├── import/ # POST importera varor från mall/recept (scale + addedBy sätts)
 │   │   │       ├── items/  # POST item, DELETE alla/bought
 │   │   │       │   └── [itemId]/  # DELETE/PATCH enskild vara
 │   │   │       ├── share/  # POST/DELETE dela lista; delare kan ta bort sig själva (lämna)
 │   │   │       └── stream/ # GET SSE-ström för realtidsuppdateringar (maxDuration 300s)
-│   │   ├── stores/         # GET/POST varuhus (POST kräver profileId)
+│   │   ├── stores/         # GET/POST varuhus (bara namn krävs)
 │   │   │   └── [storeId]/  # PATCH layout, DELETE varuhus
-│   │   ├── templates/      # GET/POST/DELETE/PATCH listmallar
+│   │   ├── templates/      # GET/POST mallar och recept
+│   │   │   ├── [id]/       # PATCH namn/portioner/varor/delningslänk, DELETE
+│   │   │   └── shared/[token]/  # POST spara delat recept som egen kopia
 │   │   └── user/export/    # GET — returnerar all användardata som JSON
 │   ├── inkopslista/
-│   │   ├── +page.svelte         # Lista-översikt + skapa lista (med profilväljare)
+│   │   ├── +page.svelte         # Lista-översikt + skapa lista
 │   │   └── [id]/+page.svelte    # Listadetail — redigerings- och handelsläge
-│   ├── varuhus/            # Varuhushantering + StoreEditor (med profilväljare)
-│   ├── installningar/      # Listprofiler, e-post, dataexport, kontoborttagning
+│   ├── mallar/             # Mallar och recept: portioner, delningslänk, varor
+│   ├── varuhus/            # Varuhushantering + StoreEditor (gruppfilter)
+│   ├── installningar/      # Kategoripalett, tema, e-post, dataexport, kontoborttagning
 │   ├── integritetspolicy/  # GDPR-policy (Swedish)
 │   ├── anvandardvillkor/   # Användarvillkor
 │   ├── om/                 # Om-sida
@@ -124,7 +126,9 @@ All state använder runes — ingen legacy `let`/`$:`. Kontextobjekt är class-i
 `shopping-context.svelte.js` uppdaterar UI direkt och rullar tillbaka vid serverfel. Alla mutationer visar toast via `notificationContext.show(...)` vid fel.
 
 ### API-handlers
-Alla `/api/**` routes returnerar `json(...)` från `@sveltejs/kit`. Auth-kontroll via `getSessionUser(cookies)` i varje handler — returnerar 401 om ej inloggad. Åtkomst till listor kontrolleras med `$or: [{ owner }, { sharedWith }]`.
+Alla `/api/**` routes returnerar `json(...)` från `@sveltejs/kit`. Auth-kontroll via `getSessionUser(cookies)` i varje handler — returnerar 401 om ej inloggad. Åtkomst till listor kontrolleras med `listAccessFilter(username)` i `lib/server/utils.js` (`$or: [{ owner }, { sharedWith }]`); mot ett dokument man redan har används `hasListAccess()`. Håll de två i synk.
+
+Undantag: `GET /r/[token]` är publik — en delningslänk ska gå att skicka till vem som helst.
 
 ### Lösenordsregler
 Minst 8 tecken, minst en bokstav (inkl. åäö), minst en siffra. Valideras av `isValidPassword()` i `api/auth/+server.js` och speglat i frontend.
@@ -200,6 +204,6 @@ I `inkopslista/[id]/+page.svelte` aktiveras handelsläge via `shoppingMode`-stat
 - Personuppgiftsansvarig: Benjamin Sjöstrand (benjamin@rosenbergab.com)
 - Laglig grund: avtal (Art. 6.1.b)
 - Åldersgräns: 16 år
-- Dataexport: `GET /api/user/export` returnerar JSON-fil (konto, listor, varuhus, listprofiler, mallar)
+- Dataexport: `GET /api/user/export` returnerar JSON-fil (konto inkl. kategoripalett, listor, varuhus, mallar, samt `listprofiles` så länge äldre konton har kvar dem)
 - Radering: `POST /api/auth` action `delete_account` tar bort allt
 - Policy: `/integritetspolicy`, villkor: `/anvandardvillkor`
