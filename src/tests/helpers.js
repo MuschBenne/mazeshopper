@@ -23,6 +23,23 @@ export function makePostEvent(body, cookies = makeCookies(), ip = '127.0.0.1') {
     };
 }
 
+/**
+ * Creates a mock SvelteKit request event with both route params and a JSON body —
+ * behövs av handlers under `[id]`, som `makePostEvent` inte täcker.
+ */
+export function makeBodyEvent(method, params, body, cookies = makeCookies()) {
+    return {
+        request: new Request('http://localhost', {
+            method,
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify(body),
+        }),
+        params,
+        cookies,
+        getClientAddress: () => '127.0.0.1',
+    };
+}
+
 /** Creates a mock SvelteKit request event for GET/DELETE handlers. */
 export function makeGetEvent(params = {}, cookies = makeCookies()) {
     return {

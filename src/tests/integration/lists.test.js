@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest';
 import { getDb, closeClient } from '$lib/server/db';
-import { makeCookies, makePostEvent, makeGetEvent } from '../helpers.js';
+import { makeCookies, makePostEvent, makeGetEvent, makeBodyEvent } from '../helpers.js';
 
 const MOCK_USER = 'listowner';
 const OTHER_USER = 'otheruser';
@@ -169,5 +169,88 @@ describe('DELETE /api/lists/[id]', () => {
         const event = { ...makeGetEvent({ id: insertedId.toString() }), cookies: makeCookies() };
         const res = await DELETE(event);
         expect(res.status).toBe(403);
+    });
+});
+
+// ── POST /api/lists/[id]/items ────────────────────────────────────────────────
+
+describe('POST /api/lists/[id]/items', () => {
+    // Kategori gjordes valfri när kravet på ett val innan första varan togs bort.
+    // Varor utan kategori hamnar i "Utan kategori" i listvyn.
+    it('accepts an item without a category', async () => {
+        const db = await getDb();
+        const { insertedId } = await db.collection('lists').insertOne({ name: 'L', owner: MOCK_USER, sharedWith: [], pendingInvites: [], items: [] });
+        const { POST } = await import('../../routes/api/lists/[id]/items/+server.js');
+        const res = await POST(makeBodyEvent('POST', { id: insertedId.toString() }, { name: 'Mjölk', spec: '', category: '' }));
+        expect(res.status).toBe(200);
+
+        const list = await db.collection('lists').findOne({ _id: insertedId });
+        expect(list?.items).toHaveLength(1);
+        expect(list?.items[0].category).toBe('');
+        expect(list?.items[0].addedBy).toBe(MOCK_USER);
+    });
+
+    it('still rejects an item without a name', async () => {
+        const db = await getDb();
+        const { insertedId } = await db.collection('lists').insertOne({ name: 'L', owner: MOCK_USER, sharedWith: [], pendingInvites: [], items: [] });
+        const { POST } = await import('../../routes/api/lists/[id]/items/+server.js');
+        const res = await POST(makeBodyEvent('POST', { id: insertedId.toString() }, { name: '   ', category: 'Mejeri' }));
+        expect(res.status).toBe(400);
+    });
+});
+
+// ── POST /api/lists/[id]/import ───────────────────────────────────────────────
+
+describe('POST /api/lists/[id]/import', () => {
+    async function seedList() {
+        const db = await getDb();
+        const { insertedId } = await db.collection('lists').insertOne({ name: 'L', owner: MOCK_USER, sharedWith: [], pendingInvites: [], items: [] });
+        return insertedId;
+    }
+
+    it('imports items unchanged without a scale', async () => {
+        const id = await seedList();
+        const { POST } = await import('../../routes/api/lists/[id]/import/+server.js');
+        const res = await POST(makeBodyEvent('POST', { id: id.toString() }, {
+            items: [{ name: 'Ägg', spec: '', quantity: 6, category: 'Mejeri' }]
+        }));
+        const data = await res.json();
+        expect(data.items[0].quantity).toBe(6);
+    });
+
+    // Recept skalas mot antalet portioner. Avrundas uppåt — hellre en för mycket
+    // än en för lite. Skalfaktorn räknas ut i klienten och skickas med.
+    it('scales quantities and rounds up', async () => {
+        const id = await seedList();
+        const { POST } = await import('../../routes/api/lists/[id]/import/+server.js');
+        const res = await POST(makeBodyEvent('POST', { id: id.toString() }, {
+            items: [
+                { name: 'Ägg', spec: '', quantity: 6, category: 'Mejeri' },
+                { name: 'Salt', spec: '', quantity: 1, category: '' }
+            ],
+            scale: 1.5
+        }));
+        const data = await res.json();
+        expect(data.items.map((/** @type {any} */ i) => i.quantity)).toEqual([9, 2]);
+    });
+
+    it('never scales a quantity below 1 or above 9999', async () => {
+        const id = await seedList();
+        const { POST } = await import('../../routes/api/lists/[id]/import/+server.js');
+        const res = await POST(makeBodyEvent('POST', { id: id.toString() }, {
+            items: [{ name: 'Ägg', spec: '', quantity: 4, category: '' }],
+            scale: 0.1
+        }));
+        expect((await res.json()).items[0].quantity).toBe(1);
+    });
+
+    it('ignores a nonsensical scale instead of wiping the quantities', async () => {
+        const id = await seedList();
+        const { POST } = await import('../../routes/api/lists/[id]/import/+server.js');
+        const res = await POST(makeBodyEvent('POST', { id: id.toString() }, {
+            items: [{ name: 'Ägg', spec: '', quantity: 6, category: '' }],
+            scale: 'mycket'
+        }));
+        expect((await res.json()).items[0].quantity).toBe(6);
     });
 });

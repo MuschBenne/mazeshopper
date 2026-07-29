@@ -1,8 +1,14 @@
-import { describe, it, expect, beforeEach, afterAll } from 'vitest';
+import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest';
 import { getDb, closeClient } from '$lib/server/db';
 import { getUserCategories, renameCategoryEverywhere } from '$lib/server/categories';
+import { makeBodyEvent } from '../helpers.js';
 
 const USER = 'palettuser';
+
+vi.mock('$lib/server/session', async (importOriginal) => {
+    const actual = await importOriginal();
+    return { ...actual, getSessionUser: vi.fn().mockResolvedValue('palettuser') };
+});
 
 beforeEach(async () => {
     const db = await getDb();
@@ -136,6 +142,86 @@ describe('namnbyte kaskaderar', () => {
         await renameCategoryEverywhere(db, USER, 'Mejeri', 'Kylvaror');
 
         const list = await db.collection('lists').findOne({ owner: 'annan' });
+        expect(list?.items[0].category).toBe('Mejeri');
+    });
+});
+
+// ── PATCH /api/categories/[id] ────────────────────────────────────────────────
+
+// Kaskaden ligger i renameCategoryEverywhere, men det som gör den till en
+// funktion för användaren är att endpointen faktiskt anropar den. Testas här
+// eftersom kopplingen är lätt att tappa vid en omskrivning av handlern.
+describe('PATCH /api/categories/[id]', () => {
+    async function seedPalette() {
+        const db = await getDb();
+        const id = crypto.randomUUID();
+        await db.collection('users').insertOne({
+            username: USER,
+            categories: [
+                { id, name: 'Mejeri', color: '#111111', group: 'Livsmedel' },
+                { id: crypto.randomUUID(), name: 'Bröd', color: '#222222', group: 'Livsmedel' }
+            ]
+        });
+        return id;
+    }
+
+    it('skriver igenom namnbytet till varor och varuhusrutter', async () => {
+        const db = await getDb();
+        const id = await seedPalette();
+        await db.collection('lists').insertOne({
+            owner: USER, name: 'L', sharedWith: [], pendingInvites: [],
+            items: [{ itemId: '1', name: 'Mjölk', category: 'Mejeri' }]
+        });
+        await db.collection('stores').insertOne({
+            owner: USER, name: 'Ica', categoryOrder: { Mejeri: 1 }, positions: {}
+        });
+
+        const { PATCH } = await import('../../routes/api/categories/[id]/+server.js');
+        const res = await PATCH(makeBodyEvent('PATCH', { id }, { name: 'Kylvaror' }));
+        expect(res.status).toBe(200);
+
+        const user = await db.collection('users').findOne({ username: USER });
+        expect(user?.categories.find((/** @type {any} */ c) => c.id === id).name).toBe('Kylvaror');
+
+        const list = await db.collection('lists').findOne({ owner: USER });
+        expect(list?.items[0].category).toBe('Kylvaror');
+
+        const store = await db.collection('stores').findOne({ owner: USER });
+        expect(store?.categoryOrder).toEqual({ Kylvaror: 1 });
+    });
+
+    it('avvisar ett namn som redan finns och rör då ingenting', async () => {
+        const db = await getDb();
+        const id = await seedPalette();
+        await db.collection('lists').insertOne({
+            owner: USER, name: 'L', sharedWith: [], pendingInvites: [],
+            items: [{ itemId: '1', name: 'Mjölk', category: 'Mejeri' }]
+        });
+
+        const { PATCH } = await import('../../routes/api/categories/[id]/+server.js');
+        const res = await PATCH(makeBodyEvent('PATCH', { id }, { name: 'bröd' }));
+        expect(res.status).toBe(409);
+
+        const list = await db.collection('lists').findOne({ owner: USER });
+        expect(list?.items[0].category).toBe('Mejeri');
+    });
+
+    it('byter grupp utan att röra varornas kategorinamn', async () => {
+        const db = await getDb();
+        const id = await seedPalette();
+        await db.collection('lists').insertOne({
+            owner: USER, name: 'L', sharedWith: [], pendingInvites: [],
+            items: [{ itemId: '1', name: 'Mjölk', category: 'Mejeri' }]
+        });
+
+        const { PATCH } = await import('../../routes/api/categories/[id]/+server.js');
+        const res = await PATCH(makeBodyEvent('PATCH', { id }, { group: '' }));
+        expect(res.status).toBe(200);
+
+        const user = await db.collection('users').findOne({ username: USER });
+        expect(user?.categories.find((/** @type {any} */ c) => c.id === id).group).toBeNull();
+
+        const list = await db.collection('lists').findOne({ owner: USER });
         expect(list?.items[0].category).toBe('Mejeri');
     });
 });
