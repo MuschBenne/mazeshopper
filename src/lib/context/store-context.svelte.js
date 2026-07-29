@@ -56,17 +56,14 @@ class StoreContext {
         return i === null ? null : this.stores[i];
     }
 
-    /**
-     * @param {string} name
-     * @param {string} profileId
-     */
-    async addStore(name, profileId) {
+    /** @param {string} name */
+    async addStore(name) {
         if (name.trim().length === 0) return false;
         try {
             const res = await fetch('/api/stores', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, profileId })
+                body: JSON.stringify({ name })
             });
             if (!res.ok) throw new Error();
             const { store } = await res.json();

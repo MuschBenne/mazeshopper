@@ -7,10 +7,10 @@
      * @type {{
      *   onImport: (items: import('$lib/context/template-context.svelte').TemplateItem[]) => Promise<boolean>,
      *   onClose: () => void,
-     *   profileCategories: { id: string, name: string, color: string }[]
+     *   pickerCategories: { id: string, name: string, color: string }[]
      * }}
      */
-    let { onImport, onClose, profileCategories } = $props();
+    let { onImport, onClose, pickerCategories } = $props();
 
     /** @type {string | null} */
     let previewId = $state(null);
@@ -96,7 +96,7 @@
                 </div>
                 <ul class="item-list">
                     {#each previewTemplate.items as item (item.itemId)}
-                        {@const cat = profileCategories.find(c => c.name === item.category)}
+                        {@const cat = pickerCategories.find(c => c.name === item.category)}
                         <li>
                             <label class="item-row">
                                 <input type="checkbox" checked={selectedItems.has(item.itemId)} onchange={() => toggleItem(item.itemId)} />

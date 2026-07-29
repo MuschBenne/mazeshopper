@@ -120,14 +120,13 @@ class ShoppingContext {
     /**
      * @param {string} name
      * @param {string} owner
-     * @param {string} profileId
      */
-    async createList(name, owner, profileId) {
+    async createList(name, owner) {
         try {
             const res = await fetch('/api/lists', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, owner, profileId })
+                body: JSON.stringify({ name, owner })
             });
             if (!res.ok) throw new Error();
             const { list } = await res.json();

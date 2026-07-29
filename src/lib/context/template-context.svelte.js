@@ -2,7 +2,7 @@ import { notificationContext } from './notification-context.svelte';
 
 /**
  * @typedef {{ itemId: string, name: string, spec: string, quantity: number, category: string }} TemplateItem
- * @typedef {{ id: string, owner: string, name: string, items: TemplateItem[], profileId: string | null }} Template
+ * @typedef {{ id: string, owner: string, name: string, items: TemplateItem[] }} Template
  */
 
 class TemplateContext {
@@ -37,16 +37,13 @@ class TemplateContext {
         return this.templates.find(t => t.id === id) ?? null;
     }
 
-    /**
-     * @param {string} name
-     * @param {string | null} profileId
-     */
-    async createTemplate(name, profileId) {
+    /** @param {string} name */
+    async createTemplate(name) {
         try {
             const res = await fetch('/api/templates', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, profileId })
+                body: JSON.stringify({ name })
             });
             if (res.status === 400) {
                 const { error } = await res.json();
@@ -65,29 +62,6 @@ class TemplateContext {
         }
     }
 
-    /**
-     * @param {string} templateId
-     * @param {string} profileId
-     */
-    async assignProfile(templateId, profileId) {
-        const t = this.getTemplate(templateId);
-        if (!t) return false;
-        const prev = t.profileId;
-        t.profileId = profileId;
-        try {
-            const res = await fetch(`/api/templates/${templateId}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ profileId })
-            });
-            if (!res.ok) throw new Error();
-            return true;
-        } catch {
-            t.profileId = prev;
-            notificationContext.show('Kunde inte tilldela profil. Försök igen.');
-            return false;
-        }
-    }
 
     /** @param {string} id */
     async deleteTemplate(id) {

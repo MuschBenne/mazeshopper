@@ -23,20 +23,18 @@ export async function POST({ request, cookies }) {
     if (!name || typeof name !== 'string' || !name.trim() || name.trim().length > 100) {
         return json({ error: 'invalid_name' }, { status: 400 });
     }
-    if (!profileId || typeof profileId !== 'string') {
-        return json({ error: 'invalid_profile' }, { status: 400 });
-    }
-
+    // profileId är kvar som frivilligt fält under övergången, men krävs inte
+    // längre: kategorierna kommer ur användarens palett, inte ur en profil.
     const db = await getDb();
     const result = await db.collection('lists').insertOne({
         name: name.trim(),
         owner: username,
-        profileId,
+        profileId: profileId ?? null,
         sharedWith: [],
         pendingInvites: [],
         items: []
     });
 
-    const list = { id: result.insertedId.toString(), name: name.trim(), owner: username, profileId, sharedWith: [], pendingInvites: [], items: [] };
+    const list = { id: result.insertedId.toString(), name: name.trim(), owner: username, profileId: profileId ?? null, sharedWith: [], pendingInvites: [], items: [] };
     return json({ list });
 }

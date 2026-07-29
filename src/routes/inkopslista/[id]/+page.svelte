@@ -67,8 +67,8 @@
         const saved = sessionStorage.getItem(`lastCategory_${id}`);
         if (saved) {
             selectedCategory = saved;
-        } else if (profileCategories.length === 1) {
-            selectedCategory = profileCategories[0].name;
+        } else if (pickerCategories.length === 1) {
+            selectedCategory = pickerCategories[0].name;
         } else {
             selectedCategory = '';
         }
@@ -119,18 +119,44 @@
         return () => clearTimeout(timer);
     });
 
-    // Profile categories come from the server load — covers both owned and shared lists.
-    const profileCategories = $derived(
-        /** @type {{ id: string, name: string, color: string }[]} */ (data.profileCategories ?? [])
+    // Kategorierna kommer ur ägarens palett via server-loaden, så alla som
+    // delar listan ser samma namn och färger.
+    const ownerCategories = $derived(
+        /** @type {{ id: string, name: string, color: string, group: string | null }[]} */ (data.categories ?? [])
+    );
+
+    // Grupperna som finns representerade i ägarens palett.
+    const groups = $derived([...new Set(ownerCategories.map(c => c.group).filter(Boolean))]);
+
+    // Listans grupp härleds från varorna som redan ligger i den, istället för
+    // att efterfrågas innan man fått skriva något. Är listan tom visas allt.
+    const derivedGroup = $derived.by(() => {
+        if (!list) return null;
+        for (const item of list.items) {
+            const group = ownerCategories.find(c => c.name === item.category)?.group;
+            if (group) return group;
+        }
+        return null;
+    });
+
+    // Användaren kan alltid välja bort filtret för en enskild inmatning.
+    let showAllCategories = $state(false);
+
+    const pickerCategories = $derived(
+        showAllCategories || !derivedGroup
+            ? ownerCategories
+            : ownerCategories.filter(c => c.group === derivedGroup)
     );
 
     const sortedCategories = $derived.by(() => {
         const store = storeContext.selectedStore;
-        // Only use the store's layout if it belongs to the same profile as the list.
-        const storeMatches = store && store.profileId === list?.profileId;
-        const base = (!storeMatches || Object.keys(store.categoryOrder).length === 0)
-            ? profileCategories
-            : [...profileCategories].sort((a, b) => {
+        // Rutten är namnbaserad och kategorier den saknar sorteras sist, så den
+        // gäller oavsett var kategorierna kommer ifrån. Villkoret som krävde
+        // samma profil gjorde att den man delade en lista med aldrig fick
+        // sortering — mottagarens varuhus hörde till mottagarens egna profiler.
+        const base = (!store || Object.keys(store.categoryOrder).length === 0)
+            ? pickerCategories
+            : [...pickerCategories].sort((a, b) => {
                 const pa = store.categoryOrder[a.name] ?? Infinity;
                 const pb = store.categoryOrder[b.name] ?? Infinity;
                 return pa - pb;
@@ -379,8 +405,16 @@
                     placeholder="Specifikation (valfritt)"
                     onkeydown={(e) => e.key === 'Enter' && addItem()}
                 />
+                {#if derivedGroup && groups.length > 1}
+                    <div class="group-hint">
+                        <span>Visar kategorier för <strong>{derivedGroup}</strong></span>
+                        <button class="btn-show-all-cats" onclick={() => showAllCategories = !showAllCategories}>
+                            {showAllCategories ? 'Filtrera igen' : 'Visa alla'}
+                        </button>
+                    </div>
+                {/if}
                 <div class="category-picker" class:picker-error={categoryError} class:picker-hint={newItem.trim().length > 0 && !selectedCategory && !categoryError}>
-                    {#each profileCategories as category}
+                    {#each pickerCategories as category}
                         <button
                             class="category-chip"
                             class:selected={selectedCategory === category.name}
@@ -405,7 +439,7 @@
             <ImportModal
                 onImport={(items) => shoppingContext.importItems(id, items)}
                 onClose={() => showImportModal = false}
-                {profileCategories}
+                {pickerCategories}
             />
         {/if}
 
@@ -433,7 +467,7 @@
                 {#each sections as section (section.category.id)}
                     <CategorySection
                         category={section.category}
-                        categories={profileCategories}
+                        categories={pickerCategories}
                         items={section.items}
                         {shoppingMode}
                         listId={id}
@@ -769,6 +803,28 @@
     }
 
     .add-card input:focus { border-color: #f97316; }
+
+    .group-hint {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        font-size: 0.8em;
+        color: var(--text-faint);
+    }
+
+    .btn-show-all-cats {
+        padding: 0.2rem 0.6rem;
+        border: 1px solid var(--border-input);
+        border-radius: 999px;
+        background: none;
+        color: var(--text-muted);
+        font-size: 0.95em;
+        cursor: pointer;
+        min-height: unset;
+    }
+
+    .btn-show-all-cats:hover { background: var(--bg-elevated); }
 
     .category-picker {
         display: flex;
