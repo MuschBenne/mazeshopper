@@ -2,7 +2,7 @@ import { json } from '@sveltejs/kit';
 import { getDb } from '$lib/server/db';
 import { getSessionUser } from '$lib/server/session';
 import { listAccessFilter } from '$lib/server/utils';
-import { normalizeUnit, scaleQuantity } from '$lib/units';
+import { normalizeUnit, sanitizeScale, scaleQuantity } from '$lib/units';
 import { ObjectId } from 'mongodb';
 
 export async function POST({ params, request, cookies }) {
@@ -23,8 +23,9 @@ export async function POST({ params, request, cookies }) {
     // Skalfaktor för recept: dubbla portioner ska ge dubbla mängder. Hur den
     // avrundas beror på enheten — se scaleQuantity. Enheten följer med till
     // listvaran, annars gick "3 dl grädde" in i listan som "×3 grädde".
-    const rawScale = Number(body.scale);
-    const scale = Number.isFinite(rawScale) && rawScale > 0 ? Math.min(99, rawScale) : 1;
+    // Klamringen ligger i $lib/units så att klientens optimistiska kopia
+    // räknar på exakt samma faktor.
+    const scale = sanitizeScale(body.scale);
 
     const items = body.items.map(/** @param {Record<string,unknown>} i */ i => {
         const unit = normalizeUnit(i.unit);

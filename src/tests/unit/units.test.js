@@ -2,12 +2,14 @@ import { describe, it, expect } from 'vitest';
 import {
     formatAmount,
     formatQuantity,
+    formatStepperAmount,
     isContinuousUnit,
     normalizeUnit,
     parseLeadingAmount,
     parseQuantityInput,
     roundToNiceStep,
     sanitizeQuantity,
+    sanitizeScale,
     scaleQuantity,
     stepForUnit
 } from '$lib/units';
@@ -52,6 +54,14 @@ describe('sanitizeQuantity', () => {
         expect(sanitizeQuantity(0.1 * 3)).toBe(0.3);
     });
 
+    // Avrundningen till två decimaler får inte kunna producera en nolla som
+    // slinker förbi kontrollen — 0 är varken en mängd eller "ingen mängd".
+    it('ser ett tal som avrundas bort som ingen mängd', () => {
+        expect(sanitizeQuantity(0.001)).toBeNull();
+        expect(sanitizeQuantity(0.004)).toBeNull();
+        expect(sanitizeQuantity(0.005)).toBe(0.01);
+    });
+
     it('taket är 9999', () => {
         expect(sanitizeQuantity(50000)).toBe(9999);
     });
@@ -80,8 +90,18 @@ describe('roundToNiceStep', () => {
         expect(roundToNiceStep(333)).toBe(330);
     });
 
+    // Med halvor som minsta steg blev en halverad mängd större än originalet.
+    // Fjärdedelar under 1 löser det utan att ge mått ingen kan mäta upp.
+    it('avrundar till närmaste fjärdedel under 1', () => {
+        expect(roundToNiceStep(0.75)).toBe(0.75);
+        expect(roundToNiceStep(0.125)).toBe(0.25);
+        expect(roundToNiceStep(0.4)).toBe(0.5);
+        expect(roundToNiceStep(0.99)).toBe(1);
+    });
+
     it('landar aldrig på noll — en nedskalad vara får inte försvinna', () => {
-        expect(roundToNiceStep(0.1)).toBe(0.5);
+        expect(roundToNiceStep(0.1)).toBe(0.25);
+        expect(roundToNiceStep(0.001)).toBe(0.25);
     });
 });
 
@@ -122,6 +142,26 @@ describe('scaleQuantity', () => {
         expect(scaleQuantity(6, '', NaN)).toBe(6);
         expect(scaleQuantity(6, '', 0)).toBe(6);
         expect(scaleQuantity(6, '', -2)).toBe(6);
+        expect(scaleQuantity(6, '', Infinity)).toBe(6);
+    });
+
+    // Halvering är lika vanligt som dubblering, och gick tidigare fel: 1,5 kg
+    // blev 1 kg istället för 0,75, och 0,25 tsk blev 0,5 — mer än originalet.
+    it('halverar utan att avrunda uppåt förbi originalet', () => {
+        expect(scaleQuantity(1.5, 'kg', 0.5)).toBe(0.75);
+        expect(scaleQuantity(0.25, 'tsk', 0.5)).toBe(0.25);
+        expect(scaleQuantity(0.5, 'kg', 0.5)).toBe(0.25);
+        expect(scaleQuantity(3, 'dl', 0.5)).toBe(1.5);
+    });
+
+    // Klamringen måste ligga inuti scaleQuantity, annars räknar den optimistiska
+    // kopian i klienten på en annan faktor än servern och talen hoppar.
+    it('klamrar skalfaktorn till 99 oavsett var den kommer ifrån', () => {
+        expect(scaleQuantity(1, 'kg', 500)).toBe(scaleQuantity(1, 'kg', 99));
+        expect(sanitizeScale(500)).toBe(99);
+        expect(sanitizeScale(-1)).toBe(1);
+        expect(sanitizeScale('abc')).toBe(1);
+        expect(sanitizeScale(2.5)).toBe(2.5);
     });
 });
 
@@ -160,6 +200,17 @@ describe('formatQuantity / formatAmount', () => {
         expect(formatAmount(1, '')).toBe('1');
         expect(formatAmount(null, '')).toBe('');
         expect(formatAmount(null, 'dl')).toBe('');
+    });
+
+    // Stegkolumnen i listan har minus och plus omkring sig och ska visa ett
+    // rent tal. Varor från tiden före enheter visade "3" och ska fortsätta
+    // göra det, inte plötsligt "×3".
+    it('visar stegkolumnen utan ×-form', () => {
+        expect(formatStepperAmount(3, '')).toBe('3');
+        expect(formatStepperAmount(1, '')).toBe('1');
+        expect(formatStepperAmount(1.5, 'kg')).toBe('1,5 kg');
+        expect(formatStepperAmount(null, '')).toBe('');
+        expect(formatStepperAmount(0, '')).toBe('');
     });
 });
 

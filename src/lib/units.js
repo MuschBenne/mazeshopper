@@ -72,7 +72,12 @@ export function sanitizeQuantity(value) {
     if (value === null || value === undefined || value === '') return null;
     const n = Number(value);
     if (!Number.isFinite(n) || n <= 0) return null;
-    return Math.min(9999, Math.round(n * 100) / 100);
+    // Avrundningen sker före nollkontrollen. Görs den efter slipper 0,001
+    // igenom och lagras som 0 — ett tal som varken är en mängd eller null, och
+    // som resten av koden inte har något svar på.
+    const rounded = Math.round(n * 100) / 100;
+    if (rounded <= 0) return null;
+    return Math.min(9999, rounded);
 }
 
 /**
@@ -80,14 +85,32 @@ export function sanitizeQuantity(value) {
  * enhetsomvandling sker — 1500 g förblir 1500 g.
  *
  * Trappan är grov med flit: 1,5 kg × 1,5 ska bli 2,5 kg, inte 2,25.
- * Golvet på 0,5 finns för att en nedskalning aldrig ska landa på noll och
- * tyst radera varan ur listan.
+ *
+ * Under 1 går steget ned till en fjärdedel. Med halvor som minsta steg blev
+ * ett halverat recept större än originalet: 1,5 kg × 0,5 avrundades till 1 kg,
+ * och 0,25 tsk × 0,5 till 0,5 tsk — mer än man började med. Fjärdedelen är
+ * dessutom ett mått som finns i köket. Golvet på 0,25 finns kvar för att en
+ * nedskalning aldrig ska landa på noll och tyst radera mängden.
  * @param {number} n
  */
 export function roundToNiceStep(n) {
-    if (n < 10) return Math.max(0.5, Math.round(n * 2) / 2);
+    if (n < 1) return Math.max(0.25, Math.round(n * 4) / 4);
+    if (n < 10) return Math.round(n * 2) / 2;
     if (n <= 100) return Math.round(n);
     return Math.round(n / 10) * 10;
+}
+
+/**
+ * Skalfaktorn vid receptimport, tvättad. Bor här och inte i API-handlern för
+ * att servern och den optimistiska kopian i klienten måste komma fram till
+ * samma tal — en klamring på bara ena sidan får mängderna att hoppa när
+ * serversvaret landar. Obrukbara faktorer blir 1, alltså "skala inte".
+ * @param {unknown} value
+ */
+export function sanitizeScale(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n) || n <= 0) return 1;
+    return Math.min(99, n);
 }
 
 /**
@@ -108,8 +131,9 @@ export function roundToNiceStep(n) {
 export function scaleQuantity(quantity, unit, scale = 1) {
     const base = sanitizeQuantity(quantity);
     if (base === null) return null;
-    if (!Number.isFinite(scale) || scale <= 0 || scale === 1) return base;
-    const scaled = base * scale;
+    const factor = sanitizeScale(scale);
+    if (factor === 1) return base;
+    const scaled = base * factor;
     return sanitizeQuantity(
         isContinuousUnit(unit) ? roundToNiceStep(scaled) : Math.max(1, Math.ceil(scaled))
     );
@@ -157,6 +181,23 @@ export function formatAmount(quantity, unit = '') {
     if (unit) return `${formatQuantity(q)} ${unit}`;
     if (q > 1) return `×${formatQuantity(q)}`;
     return formatQuantity(q);
+}
+
+/**
+ * Mängden i listans stegkolumn, alltid som ett rent tal.
+ *
+ * Där sitter minus och plus på var sin sida om talet och säger redan att det
+ * är ett antal, så ×-tecknet blir ett tecken för mycket: "− ×2 +" läses sämre
+ * än "− 2 +". Kolumnen skulle annars också blanda två skrivsätt, ett för ettan
+ * och ett för alla andra tal. ×-formen behövs där talet står ensamt bland
+ * kategorichips — i mallen, i importvyn och i historiken.
+ * @param {number | null | undefined} quantity
+ * @param {string} [unit]
+ */
+export function formatStepperAmount(quantity, unit = '') {
+    const q = sanitizeQuantity(quantity);
+    if (q === null) return '';
+    return unit ? `${formatQuantity(q)} ${unit}` : formatQuantity(q);
 }
 
 /**
