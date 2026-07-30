@@ -149,10 +149,11 @@ komponenter — avrundningen vid import måste vara identisk på servern och i d
 optimistiska kopian i `shopping-context`, annars hoppar talen när svaret landar.
 
 - Räknbara enheter (`''`, `förp`, `burk`, `pkt`, `knippe`) skalas med `Math.ceil`, minst 1.
-- Kontinuerliga (`g`, `hg`, `kg`, `ml`, `cl`, `dl`, `l`, `msk`, `tsk`, `krm`) skalas till närmaste trevliga steg: <10 → 0,5; 10–100 → heltal; >100 → tiotal.
+- Kontinuerliga (`g`, `hg`, `kg`, `ml`, `cl`, `dl`, `l`, `msk`, `tsk`, `krm`) skalas till närmaste trevliga steg: <1 → 0,25; 1–10 → 0,5; 10–100 → heltal; >100 → tiotal. Fjärdedelarna under 1 finns för att en halvering inte ska runda uppåt förbi originalet.
 - `quantity === null` skalas aldrig — "salt efter smak" ska inte bli "×2 salt".
+- Skalfaktorn tvättas av `sanitizeScale()` inuti `scaleQuantity()`, så servern och den optimistiska kopian aldrig kan råka klamra olika.
 - Ingen enhetsomvandling. 1500 g blir aldrig 1,5 kg.
-- Visning använder svenskt decimalkomma; internt lagras punkt.
+- Visning använder svenskt decimalkomma; internt lagras punkt. `formatAmount()` ger ×-formen för de kompakta metaraderna, `formatStepperAmount()` ett rent tal för listans stegkolumn där −/+ redan ramar in talet.
 
 ### Session
 - Livslängd 30 dagar, httpOnly cookie `session`
