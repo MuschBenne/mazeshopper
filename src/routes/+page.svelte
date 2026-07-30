@@ -1,8 +1,22 @@
 <script>
     import { authContext } from '$lib/context/auth-context.svelte';
     import { goto } from '$app/navigation';
+    import { page } from '$app/state';
 
-    let mode = $state(/** @type {'login' | 'register'} */ ('login'));
+    // En inbjudningslänk skickar hit med ?mode=register&next=/i/<token>, så att
+    // den som skapar konto hamnar tillbaka på inbjudan i stället för att tappa
+    // bort den i samma stund som kontot finns.
+    let mode = $state(
+        /** @type {'login' | 'register'} */ (page.url.searchParams.get('mode') === 'register' ? 'register' : 'login')
+    );
+
+    // Bara interna sökvägar accepteras. Utan kontrollen kan vem som helst
+    // skicka en länk som loggar in någon och sedan kastar dem till en
+    // främmande sajt.
+    const nextUrl = $derived.by(() => {
+        const next = page.url.searchParams.get('next') ?? '';
+        return next.startsWith('/') && !next.startsWith('//') ? next : '/inkopslista';
+    });
     let username = $state('');
     let password = $state('');
     let email = $state('');
@@ -34,7 +48,7 @@
                 if (result === 'invalid_email') { error = 'Ogiltig e-postadress.'; return; }
                 if (result === 'weak_password') { error = 'Lösenordet uppfyller inte kraven.'; return; }
             }
-            goto('/inkopslista');
+            goto(nextUrl);
         } finally {
             loading = false;
         }

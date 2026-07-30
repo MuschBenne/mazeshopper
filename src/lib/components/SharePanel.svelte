@@ -1,5 +1,6 @@
 <script>
     import { shoppingContext } from '$lib/context/shopping-context.svelte';
+    import { notificationContext } from '$lib/context/notification-context.svelte';
 
     /**
      * @type {{
@@ -10,6 +11,47 @@
      * }}
      */
     let { list, listId, username, onClose } = $props();
+
+    // Inbjudningslänken. Öppen och återkallningsbar: alla med länken kan gå
+    // med tills ägaren stänger av den.
+    /** @type {string | null} */
+    let inviteToken = $state(null);
+    let linkBusy = $state(false);
+    let origin = $state('');
+
+    $effect(() => { origin = location.origin; });
+
+    $effect(() => {
+        fetch(`/api/lists/${listId}/invite`)
+            .then(r => r.ok ? r.json() : null)
+            .then(d => { if (d) inviteToken = d.token; })
+            .catch(() => { /* panelen fungerar utan länken */ });
+    });
+
+    const inviteUrl = $derived(inviteToken ? `${origin}/i/${inviteToken}` : '');
+
+    /** @param {'POST' | 'DELETE'} method */
+    async function toggleLink(method) {
+        linkBusy = true;
+        try {
+            const res = await fetch(`/api/lists/${listId}/invite`, { method });
+            if (!res.ok) throw new Error();
+            inviteToken = method === 'POST' ? (await res.json()).token : null;
+        } catch {
+            notificationContext.show('Kunde inte ändra inbjudningslänken. Försök igen.');
+        } finally {
+            linkBusy = false;
+        }
+    }
+
+    async function copyLink() {
+        try {
+            await navigator.clipboard.writeText(inviteUrl);
+            notificationContext.show('Länken är kopierad.', 'success');
+        } catch {
+            notificationContext.show('Kunde inte kopiera. Markera länken och kopiera manuellt.');
+        }
+    }
 
     let shareInput = $state('');
     let shareError = $state('');
@@ -90,9 +132,106 @@
     </div>
     {#if shareError}<p class="share-msg error">{shareError}</p>{/if}
     {#if shareSuccess}<p class="share-msg success">{shareSuccess}</p>{/if}
+
+    <div class="link-section">
+        <span class="link-label">Eller dela med en länk</span>
+        {#if inviteToken}
+            <div class="link-row">
+                <input class="link-input" readonly value={inviteUrl} onclick={(e) => e.currentTarget.select()} />
+                <button class="btn-copy-link" onclick={copyLink}>Kopiera</button>
+            </div>
+            <div class="link-actions">
+                <p class="link-hint">Alla med länken kan gå med. Har de inget konto får de skapa ett.</p>
+                <button class="btn-revoke" onclick={() => toggleLink('DELETE')} disabled={linkBusy}>Stäng av</button>
+            </div>
+        {:else}
+            <button class="btn-create-link" onclick={() => toggleLink('POST')} disabled={linkBusy}>
+                {linkBusy ? 'Skapar…' : 'Skapa inbjudningslänk'}
+            </button>
+            <p class="link-hint">Skicka länken i en chatt — mottagaren behöver inget användarnamn.</p>
+        {/if}
+    </div>
 </div>
 
 <style>
+    .link-section {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        padding-top: 0.85rem;
+        border-top: 1px solid var(--border-subtle);
+    }
+
+    .link-label {
+        font-size: var(--text-xs);
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--text-faint);
+    }
+
+    .link-row {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .link-input {
+        flex: 1;
+        min-width: 0;
+        padding: 0.45rem 0.6rem;
+        border: 1px solid var(--border-input);
+        border-radius: var(--radius-sm);
+        background: var(--bg-elevated);
+        color: var(--text-muted);
+        font-size: var(--text-sm);
+    }
+
+    .link-actions {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.75rem;
+    }
+
+    .link-hint {
+        margin: 0;
+        font-size: var(--text-xs);
+        color: var(--text-faint);
+        line-height: 1.5;
+    }
+
+    .btn-copy-link,
+    .btn-create-link,
+    .btn-revoke {
+        padding: 0.45rem 0.9rem;
+        border: 1px solid var(--border-input);
+        border-radius: var(--radius-sm);
+        background: var(--bg-surface);
+        color: var(--text-secondary);
+        font-size: var(--text-sm);
+        cursor: pointer;
+        white-space: nowrap;
+        min-height: unset;
+    }
+
+    .btn-copy-link:hover,
+    .btn-create-link:hover,
+    .btn-revoke:hover { background: var(--bg-elevated); }
+
+    .btn-create-link {
+        align-self: flex-start;
+        border-style: dashed;
+    }
+
+    .btn-revoke {
+        color: var(--danger-text);
+        border-color: var(--danger-border);
+    }
+
+    .btn-copy-link:disabled,
+    .btn-create-link:disabled,
+    .btn-revoke:disabled { opacity: 0.5; cursor: default; }
+
     .share-panel {
         display: flex;
         flex-direction: column;

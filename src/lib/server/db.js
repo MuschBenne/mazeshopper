@@ -24,6 +24,8 @@ export async function ensureIndexes() {
         db.collection('sessions').createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
         db.collection('lists').createIndex({ owner: 1 }),
         db.collection('lists').createIndex({ sharedWith: 1 }),
+        // Inbjudningslänkar slår upp på token, aldrig på ägare.
+        db.collection('lists').createIndex({ inviteToken: 1 }, { unique: true, sparse: true }),
         db.collection('lists').createIndex({ profileId: 1 }),
         db.collection('stores').createIndex({ owner: 1 }),
         db.collection('invitations').createIndex({ toUser: 1, status: 1 }),
