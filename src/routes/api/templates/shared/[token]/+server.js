@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import { getDb } from '$lib/server/db';
 import { getSessionUser } from '$lib/server/session';
 import { serializeTemplate } from '$lib/server/utils';
+import { normalizeUnit, sanitizeQuantity } from '$lib/units';
 
 // Sparar ett delat recept som en egen kopia. Kopia, inte prenumeration: den
 // som sparar ska kunna ändra fritt utan att påverka originalet, och utan att
@@ -29,8 +30,8 @@ export async function POST({ params, cookies }) {
             itemId: crypto.randomUUID(),
             name: String(i.name ?? '').slice(0, 200),
             spec: String(i.spec ?? '').slice(0, 500),
-            quantity: i.quantity ?? 1,
-            unit: String(i.unit ?? '').slice(0, 20),
+            quantity: sanitizeQuantity(i.quantity),
+            unit: normalizeUnit(i.unit),
             category: String(i.category ?? '').slice(0, 50)
         }))
     };

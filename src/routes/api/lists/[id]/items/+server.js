@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import { getDb } from '$lib/server/db';
 import { getSessionUser } from '$lib/server/session';
 import { listAccessFilter } from '$lib/server/utils';
+import { normalizeUnit, sanitizeQuantity } from '$lib/units';
 import { ObjectId } from 'mongodb';
 
 /**
@@ -29,11 +30,14 @@ export async function POST({ params, request, cookies }) {
     const body = await request.json();
 
     // Only allow known fields — never trust the client blindly.
+    // Mängden får vara null: en vara utan angiven mängd ska förbli utan mängd,
+    // inte tyst bli "1 st".
     const item = {
         itemId: crypto.randomUUID(),
         name: String(body.name ?? '').trim().slice(0, 200),
         spec: String(body.spec ?? '').trim().slice(0, 500),
-        quantity: Number.isInteger(body.quantity) && body.quantity > 0 && body.quantity <= 9999 ? body.quantity : 1,
+        quantity: sanitizeQuantity(body.quantity),
+        unit: normalizeUnit(body.unit),
         bought: false,
         category: String(body.category ?? '').trim().slice(0, 50),
         addedBy: username

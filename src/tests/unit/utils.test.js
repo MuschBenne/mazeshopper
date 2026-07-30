@@ -127,8 +127,26 @@ describe('serializeList', () => {
             profileId: null,
             sharedWith: ['bob'],
             pendingInvites: [],
-            items: [{ itemId: '1', name: 'Mjölk', spec: '3%', quantity: 2, bought: false, category: 'Mejeri', addedBy: '' }]
+            items: [{ itemId: '1', name: 'Mjölk', spec: '3%', quantity: 2, unit: '', bought: false, category: 'Mejeri', addedBy: '' }]
         });
+    });
+
+    // Varor skapade innan enheter fanns saknar fältet helt. De är varor i
+    // styck och ska fortsätta renderas precis som förut.
+    it('behandlar varor utan unit som styck, och saknad mängd som ingen mängd', () => {
+        const doc = {
+            _id: { toString: () => '1' },
+            name: 'Gammal',
+            owner: 'alice',
+            items: [
+                { itemId: '1', name: 'Bröd', spec: '', quantity: 1, bought: false, category: '' },
+                { itemId: '2', name: 'Salt', spec: '', bought: false, category: '' }
+            ]
+        };
+        const items = serializeList(doc).items;
+        expect(items[0].unit).toBe('');
+        expect(items[0].quantity).toBe(1);
+        expect(items[1].quantity).toBeNull();
     });
 
     it('defaults missing sharedWith / pendingInvites to empty arrays', () => {

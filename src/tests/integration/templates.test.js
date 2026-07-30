@@ -61,6 +61,24 @@ describe('PATCH /api/templates/[id] — delningslänk', () => {
         expect(second.shareToken).toBe(first.shareToken);
     });
 
+    // unit fanns i schemat men gick aldrig att fylla i — redigeraren skickade
+    // det inte. Nu måste det ta sig hela vägen ned i dokumentet.
+    it('sparar enhet och decimalmängd på varorna', async () => {
+        const db = await getDb();
+        const id = await seedRecipe();
+        const { PATCH } = await import('../../routes/api/templates/[id]/+server.js');
+        await PATCH(makeBodyEvent('PATCH', { id: id.toString() }, {
+            items: [
+                { itemId: 'a', name: 'Grädde', spec: '', quantity: 2.5, unit: 'DL', category: 'Mejeri' },
+                { itemId: 'b', name: 'Salt', spec: 'efter smak', quantity: null, unit: '', category: '' }
+            ]
+        }));
+        const doc = await db.collection('templates').findOne({ _id: id });
+        expect(doc?.items[0]).toMatchObject({ quantity: 2.5, unit: 'dl' });
+        // Ingen mängd angiven är ett eget tillstånd — det får inte bli 1.
+        expect(doc?.items[1].quantity).toBeNull();
+    });
+
     it('klämmer portionerna till 1–99', async () => {
         const db = await getDb();
         const id = await seedRecipe();
@@ -97,6 +115,8 @@ describe('POST /api/templates/shared/[token]', () => {
         expect(template.shareToken).toBeNull();
         expect(template.items[0].name).toBe('Ägg');
         expect(template.items[0].category).toBe('Mejeri');
+        // "st" är styck och lagras som frånvaron av enhet.
+        expect(template.items[0].unit).toBe('');
         expect(template.items[0].itemId).not.toBe('a');
 
         expect(await db.collection('templates').countDocuments({ owner: OTHER })).toBe(1);

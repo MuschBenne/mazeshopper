@@ -1,7 +1,9 @@
 import { notificationContext } from './notification-context.svelte';
 
 /**
- * @typedef {{ itemId: string, name: string, spec: string, quantity: number, unit?: string, category: string }} TemplateItem
+ * `quantity: null` betyder att receptet inte anger någon mängd — salt "efter
+ * smak" ska inte multipliceras när portionerna dubblas. `unit: ''` är styck.
+ * @typedef {{ itemId: string, name: string, spec: string, quantity: number | null, unit?: string, category: string }} TemplateItem
  * @typedef {{ id: string, owner: string, name: string, kind: 'template' | 'recipe', servings: number | null, shareToken: string | null, items: TemplateItem[] }} Template
  */
 
@@ -171,13 +173,14 @@ class TemplateContext {
      * @param {string} templateId
      * @param {string} name
      * @param {string} spec
-     * @param {number} quantity
+     * @param {number | null} quantity
      * @param {string} category
+     * @param {string} [unit]
      */
-    async addItem(templateId, name, spec, quantity, category) {
+    async addItem(templateId, name, spec, quantity, category, unit = '') {
         const t = this.getTemplate(templateId);
         if (!t) return false;
-        const item = { itemId: crypto.randomUUID(), name, spec, quantity, category };
+        const item = { itemId: crypto.randomUUID(), name, spec, quantity, unit, category };
         t.items = [...t.items, item];
         try {
             const res = await fetch(`/api/templates/${templateId}`, {
@@ -219,7 +222,7 @@ class TemplateContext {
     /**
      * @param {string} templateId
      * @param {string} itemId
-     * @param {{ name?: string, spec?: string, quantity?: number, category?: string }} changes
+     * @param {{ name?: string, spec?: string, quantity?: number | null, unit?: string, category?: string }} changes
      */
     async updateItem(templateId, itemId, changes) {
         const t = this.getTemplate(templateId);

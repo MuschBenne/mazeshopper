@@ -77,7 +77,9 @@ export function serializeTemplate(doc) {
             itemId: i.itemId,
             name: i.name,
             spec: i.spec,
-            quantity: i.quantity,
+            // null betyder "ingen mängd angiven" och ska inte bli 1 —
+            // annars multipliceras saltet upp när receptet skalas.
+            quantity: i.quantity ?? null,
             unit: i.unit ?? '',
             category: i.category
         }))
@@ -101,7 +103,13 @@ export function generateShareToken() {
     return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-/** @param {any} doc */
+/**
+ * Varor saknade tidigare enhet helt, och `quantity` betydde antal paket.
+ * Dokument utan `unit` är alltså varor i styck — samma mönster som
+ * `addedBy ?? ''`. `quantity` får vara null: "ingen mängd angiven" är ett eget
+ * tillstånd, skilt från "en styck".
+ * @param {any} doc
+ */
 export function serializeList(doc) {
     return {
         id: doc._id.toString(),
@@ -114,7 +122,8 @@ export function serializeList(doc) {
             itemId: item.itemId,
             name: item.name,
             spec: item.spec,
-            quantity: item.quantity,
+            quantity: item.quantity ?? null,
+            unit: item.unit ?? '',
             bought: item.bought,
             category: item.category,
             addedBy: item.addedBy ?? ''

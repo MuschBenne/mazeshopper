@@ -3,6 +3,7 @@ import { getDb } from '$lib/server/db';
 import { getSessionUser } from '$lib/server/session';
 import { ObjectId } from 'mongodb';
 import { clampServings, generateShareToken } from '$lib/server/utils';
+import { normalizeUnit, sanitizeQuantity } from '$lib/units';
 
 /**
  * @param {import('mongodb').Db} db
@@ -41,8 +42,10 @@ export async function PATCH({ params, request, cookies }) {
             itemId: String(i.itemId ?? crypto.randomUUID()),
             name: String(i.name ?? '').trim().slice(0, 200),
             spec: String(i.spec ?? '').trim().slice(0, 500),
-            quantity: Number.isInteger(i.quantity) && /** @type {number} */ (i.quantity) > 0 && /** @type {number} */ (i.quantity) <= 9999 ? i.quantity : 1,
-            unit: String(i.unit ?? '').trim().slice(0, 20),
+            // Decimaler är tillåtna (1,5 kg), och null betyder att receptet
+            // inte anger någon mängd — "salt" ska inte bli "1 salt".
+            quantity: sanitizeQuantity(i.quantity),
+            unit: normalizeUnit(i.unit),
             category: String(i.category ?? '').trim().slice(0, 50)
         })).filter(/** @param {{ name: string }} i */ i => i.name);
     }

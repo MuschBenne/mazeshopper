@@ -1,8 +1,12 @@
 import { browser } from '$app/environment';
 import { notificationContext } from './notification-context.svelte';
+import { normalizeUnit, sanitizeQuantity, scaleQuantity, stepForUnit } from '$lib/units';
 
 /**
- * @typedef {{ itemId: string, name: string, spec: string, quantity: number, bought: boolean, category: string, addedBy?: string }} ShoppingItem
+ * `quantity: null` betyder "ingen mängd angiven" och `unit: ''` betyder styck.
+ * Varor som skapades innan enheter fanns saknar fältet helt och serializeList
+ * fyller i tomma strängen åt dem.
+ * @typedef {{ itemId: string, name: string, spec: string, quantity: number | null, unit?: string, bought: boolean, category: string, addedBy?: string }} ShoppingItem
  * @typedef {{ id: string, name: string, owner: string, profileId: string | null, sharedWith: string[], pendingInvites: string[], items: ShoppingItem[] }} ShoppingList
  * @typedef {{ id: string, listId: string, listName: string, fromUser: string, createdAt: string }} Invitation
  * @typedef {{ clearedAt: string, items: ShoppingItem[] }} BoughtEntry
@@ -422,13 +426,23 @@ class ShoppingContext {
      * @param {string} spec
      * @param {string} category
      * @param {string} [addedBy]
+     * @param {{ quantity?: number | null, unit?: string }} [amount]
      * @returns {Promise<boolean>}
      */
-    async addItem(listId, name, spec, category, addedBy = '') {
+    async addItem(listId, name, spec, category, addedBy = '', amount = {}) {
         const list = this.getList(listId);
         if (!list) return false;
         const itemId = crypto.randomUUID();
-        const item = { itemId, name, spec, quantity: 1, bought: false, category, addedBy };
+        const item = {
+            itemId,
+            name,
+            spec,
+            quantity: sanitizeQuantity(amount.quantity),
+            unit: normalizeUnit(amount.unit),
+            bought: false,
+            category,
+            addedBy
+        };
         // Optimistic update — show the item immediately before the server confirms.
         list.items = [...list.items, item];
         return await this.#mutating(listId, async () => {
@@ -473,29 +487,45 @@ class ShoppingContext {
     }
 
     /**
-     * Updates the item's name, spec, and category both locally and on the server.
+     * Updates the item's name, spec, category, quantity and unit both locally
+     * and on the server. Mängd och enhet skickas bara med när anroparen anger
+     * dem, så en redigering utan de fälten lämnar mängden orörd.
      * @param {string} listId
      * @param {string} itemId
      * @param {string} name
      * @param {string} spec
      * @param {string} category
+     * @param {{ quantity?: number | null, unit?: string }} [amount]
      */
-    async editItem(listId, itemId, name, spec, category) {
+    async editItem(listId, itemId, name, spec, category, amount) {
         const list = this.getList(listId);
         if (!list) return false;
         const item = list.items.find(i => i.itemId === itemId);
         if (!item) return false;
-        const prev = { name: item.name, spec: item.spec, category: item.category };
+        const prev = { name: item.name, spec: item.spec, category: item.category, quantity: item.quantity, unit: item.unit };
+
+        /** @type {Record<string, unknown>} */
+        const payload = { name: name.trim(), spec: spec.trim(), category };
+        if (amount) {
+            payload.quantity = sanitizeQuantity(amount.quantity);
+            payload.unit = normalizeUnit(amount.unit);
+        }
+
         // Optimistic update.
         item.name = name.trim();
         item.spec = spec.trim();
         item.category = category;
+        if (amount) {
+            item.quantity = /** @type {number | null} */ (payload.quantity);
+            item.unit = /** @type {string} */ (payload.unit);
+        }
+
         return await this.#mutating(listId, async () => {
             try {
                 const res = await fetch(`/api/lists/${listId}/items/${itemId}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name: name.trim(), spec: spec.trim(), category })
+                    body: JSON.stringify(payload)
                 });
                 if (!res.ok) throw new Error();
                 return true;
@@ -503,6 +533,8 @@ class ShoppingContext {
                 item.name = prev.name;
                 item.spec = prev.spec;
                 item.category = prev.category;
+                item.quantity = prev.quantity;
+                item.unit = prev.unit;
                 notificationContext.show('Kunde inte uppdatera vara. Försök igen.');
                 return false;
             }
@@ -510,6 +542,8 @@ class ShoppingContext {
     }
 
     /**
+     * Stegar mängden ett steg uppåt i varans egen enhet: 1 st, 0,5 l, 50 g.
+     * En vara utan angiven mängd får sitt första steg.
      * @param {string} listId
      * @param {string} itemId
      */
@@ -518,34 +552,14 @@ class ShoppingContext {
         if (!list) return;
         const item = list.items.find(i => i.itemId === itemId);
         if (!item) return;
-        const prevQty = item.quantity;
-        const newQty = prevQty + 1;
-        item.quantity = newQty;
-        await this.#mutating(listId, () => this.#saveQuantity(listId, itemId, item, prevQty, newQty));
+        const step = stepForUnit(item.unit ?? '');
+        await this.#setQuantity(listId, itemId, item, sanitizeQuantity((item.quantity ?? 0) + step));
     }
 
     /**
-     * @param {string} listId
-     * @param {string} itemId
-     * @param {ShoppingItem} item
-     * @param {number} prevQty
-     * @param {number} newQty
-     */
-    async #saveQuantity(listId, itemId, item, prevQty, newQty) {
-        try {
-            const res = await fetch(`/api/lists/${listId}/items/${itemId}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ quantity: newQty })
-            });
-            if (!res.ok) throw new Error();
-        } catch {
-            item.quantity = prevQty;
-            notificationContext.show('Kunde inte uppdatera antal. Försök igen.');
-        }
-    }
-
-    /**
+     * Ett steg nedåt. Under ett helt steg finns ingen meningsfull mängd kvar,
+     * så då tas mängden bort helt — samma tillstånd som en vara man skrev in
+     * utan mängd. Ett tryck på plus ger tillbaka den.
      * @param {string} listId
      * @param {string} itemId
      */
@@ -553,13 +567,34 @@ class ShoppingContext {
         const list = this.getList(listId);
         if (!list) return;
         const item = list.items.find(i => i.itemId === itemId);
-        if (!item) return;
-        // Prevent quantity from going below 1.
-        if (item.quantity <= 1) return;
-        const prevQty = item.quantity;
-        const newQty = prevQty - 1;
+        if (!item || item.quantity == null) return;
+        const step = stepForUnit(item.unit ?? '');
+        await this.#setQuantity(listId, itemId, item, sanitizeQuantity(item.quantity - step));
+    }
+
+    /**
+     * @param {string} listId
+     * @param {string} itemId
+     * @param {ShoppingItem} item
+     * @param {number | null} newQty
+     */
+    async #setQuantity(listId, itemId, item, newQty) {
+        const prevQty = item.quantity ?? null;
+        if (newQty === prevQty) return;
         item.quantity = newQty;
-        await this.#mutating(listId, () => this.#saveQuantity(listId, itemId, item, prevQty, newQty));
+        await this.#mutating(listId, async () => {
+            try {
+                const res = await fetch(`/api/lists/${listId}/items/${itemId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ quantity: newQty })
+                });
+                if (!res.ok) throw new Error();
+            } catch {
+                item.quantity = prevQty;
+                notificationContext.show('Kunde inte uppdatera mängden. Försök igen.');
+            }
+        });
     }
 
     /** @param {string} listId */
@@ -588,7 +623,7 @@ class ShoppingContext {
     /**
      * Bulk-imports items from a template into a list with optimistic update.
      * @param {string} listId
-     * @param {{ name: string, spec: string, quantity: number, category: string }[]} items
+     * @param {{ name: string, spec: string, quantity: number | null, unit?: string, category: string }[]} items
      * @param {number} [scale] Skalfaktor för recept — 1 för mallar.
      */
     async importItems(listId, items, scale = 1) {
@@ -598,8 +633,11 @@ class ShoppingContext {
         const optimisticItems = items.map(i => {
             const itemId = crypto.randomUUID();
             tempIds.add(itemId);
-            // Speglar serverns avrundning, annars hoppar antalet när svaret landar.
-            return { ...i, itemId, bought: false, quantity: Math.max(1, Math.ceil((i.quantity ?? 1) * scale)) };
+            // Samma avrundning som servern kör — den bor i $lib/units just för
+            // att de två inte ska kunna glida isär och få talen att hoppa när
+            // svaret landar.
+            const unit = normalizeUnit(i.unit);
+            return { ...i, itemId, bought: false, unit, quantity: scaleQuantity(i.quantity, unit, scale) };
         });
         list.items = [...list.items, ...optimisticItems];
         return await this.#mutating(listId, async () => {

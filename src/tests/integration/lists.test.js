@@ -190,6 +190,34 @@ describe('POST /api/lists/[id]/items', () => {
         expect(list?.items[0].addedBy).toBe(MOCK_USER);
     });
 
+    // Mängd och enhet är två olika saker: "3" betydde tidigare både tre paket
+    // och tre deciliter. Båda måste överleva ned i dokumentet.
+    it('sparar mängd och enhet, med decimaler', async () => {
+        const db = await getDb();
+        const { insertedId } = await db.collection('lists').insertOne({ name: 'L', owner: MOCK_USER, sharedWith: [], pendingInvites: [], items: [] });
+        const { POST } = await import('../../routes/api/lists/[id]/items/+server.js');
+        await POST(makeBodyEvent('POST', { id: insertedId.toString() }, {
+            name: 'Grädde', spec: '', quantity: 1.5, unit: 'DL', category: ''
+        }));
+
+        const list = await db.collection('lists').findOne({ _id: insertedId });
+        expect(list?.items[0].quantity).toBe(1.5);
+        expect(list?.items[0].unit).toBe('dl');
+    });
+
+    // Tomt mängdfält ska förbli tomt. Den gamla handlern gjorde tyst om det
+    // till 1, vilket är det som blev "×2 salt" när ett recept skalades.
+    it('låter en vara utan mängd förbli utan mängd', async () => {
+        const db = await getDb();
+        const { insertedId } = await db.collection('lists').insertOne({ name: 'L', owner: MOCK_USER, sharedWith: [], pendingInvites: [], items: [] });
+        const { POST } = await import('../../routes/api/lists/[id]/items/+server.js');
+        await POST(makeBodyEvent('POST', { id: insertedId.toString() }, { name: 'Salt', spec: '', category: '' }));
+
+        const list = await db.collection('lists').findOne({ _id: insertedId });
+        expect(list?.items[0].quantity).toBeNull();
+        expect(list?.items[0].unit).toBe('');
+    });
+
     it('still rejects an item without a name', async () => {
         const db = await getDb();
         const { insertedId } = await db.collection('lists').insertOne({ name: 'L', owner: MOCK_USER, sharedWith: [], pendingInvites: [], items: [] });
@@ -242,6 +270,51 @@ describe('POST /api/lists/[id]/import', () => {
             scale: 0.1
         }));
         expect((await res.json()).items[0].quantity).toBe(1);
+    });
+
+    // Hela poängen med enheten: den ska följa med hela vägen från receptet ned
+    // i listvaran, annars blir "3 dl grädde" till "×3 grädde".
+    it('tar med enheten ned i listvaran', async () => {
+        const db = await getDb();
+        const id = await seedList();
+        const { POST } = await import('../../routes/api/lists/[id]/import/+server.js');
+        const res = await POST(makeBodyEvent('POST', { id: id.toString() }, {
+            items: [{ name: 'Grädde', spec: '', quantity: 3, unit: 'dl', category: 'Mejeri' }]
+        }));
+        expect((await res.json()).items[0].unit).toBe('dl');
+
+        const list = await db.collection('lists').findOne({ _id: id });
+        expect(list?.items[0].unit).toBe('dl');
+        expect(list?.items[0].quantity).toBe(3);
+    });
+
+    // "Salt efter smak" har ingen mängd att dubbla. Den gamla koden gjorde
+    // saknad mängd till 1 och skalade den — dubbla portioner gav "×2 salt".
+    it('skalar inte en vara som saknar mängd', async () => {
+        const id = await seedList();
+        const { POST } = await import('../../routes/api/lists/[id]/import/+server.js');
+        const res = await POST(makeBodyEvent('POST', { id: id.toString() }, {
+            items: [{ name: 'Salt', spec: 'efter smak', quantity: null, unit: '', category: '' }],
+            scale: 2
+        }));
+        expect((await res.json()).items[0].quantity).toBeNull();
+    });
+
+    it('avrundar kontinuerliga enheter till trevliga steg istället för uppåt', async () => {
+        const id = await seedList();
+        const { POST } = await import('../../routes/api/lists/[id]/import/+server.js');
+        const res = await POST(makeBodyEvent('POST', { id: id.toString() }, {
+            items: [
+                { name: 'Potatis', spec: '', quantity: 1.5, unit: 'kg', category: '' },
+                { name: 'Ägg', spec: '', quantity: 3, unit: '', category: '' }
+            ],
+            scale: 1.5
+        }));
+        const data = await res.json();
+        // 1,5 kg × 1,5 blev 3 kg med det gamla Math.ceil — en fjärdedel för mycket.
+        expect(data.items[0].quantity).toBe(2.5);
+        // Räknbart avrundas fortfarande uppåt: hellre ett ägg för mycket.
+        expect(data.items[1].quantity).toBe(5);
     });
 
     it('ignores a nonsensical scale instead of wiping the quantities', async () => {
