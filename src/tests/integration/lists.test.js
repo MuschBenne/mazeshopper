@@ -317,6 +317,23 @@ describe('POST /api/lists/[id]/import', () => {
         expect(data.items[1].quantity).toBe(5);
     });
 
+    // Halvering är lika vanlig som dubblering. Med halvor som minsta steg blev
+    // 1,5 kg till 1 kg, och 0,25 tsk till 0,5 — mer än receptet börjat med.
+    it('halverar utan att runda uppåt förbi originalet', async () => {
+        const id = await seedList();
+        const { POST } = await import('../../routes/api/lists/[id]/import/+server.js');
+        const res = await POST(makeBodyEvent('POST', { id: id.toString() }, {
+            items: [
+                { name: 'Potatis', spec: '', quantity: 1.5, unit: 'kg', category: '' },
+                { name: 'Salt', spec: '', quantity: 0.25, unit: 'tsk', category: '' }
+            ],
+            scale: 0.5
+        }));
+        const data = await res.json();
+        expect(data.items[0].quantity).toBe(0.75);
+        expect(data.items[1].quantity).toBe(0.25);
+    });
+
     it('ignores a nonsensical scale instead of wiping the quantities', async () => {
         const id = await seedList();
         const { POST } = await import('../../routes/api/lists/[id]/import/+server.js');
@@ -325,5 +342,69 @@ describe('POST /api/lists/[id]/import', () => {
             scale: 'mycket'
         }));
         expect((await res.json()).items[0].quantity).toBe(6);
+    });
+});
+
+// ── PATCH /api/lists/[id]/items/[itemId] ──────────────────────────────────────
+//
+// Vägen en inline-redigering och stegknapparna tar. Den saknade täckning helt,
+// och det är här varor från tiden före enheter får sitt unit-fält för första
+// gången — dokumenten i databasen har inte fältet alls.
+
+describe('PATCH /api/lists/[id]/items/[itemId]', () => {
+    /** @param {any} item */
+    async function seedWithItem(item) {
+        const db = await getDb();
+        const { insertedId } = await db.collection('lists').insertOne({
+            name: 'L', owner: MOCK_USER, sharedWith: [], pendingInvites: [], items: [item]
+        });
+        return insertedId;
+    }
+
+    it('rättar enheten på en vara', async () => {
+        const db = await getDb();
+        const id = await seedWithItem({ itemId: 'a', name: 'Grädde', spec: '', quantity: 3, unit: 'kg', bought: false, category: '' });
+        const { PATCH } = await import('../../routes/api/lists/[id]/items/[itemId]/+server.js');
+        const res = await PATCH(makeBodyEvent('PATCH', { id: id.toString(), itemId: 'a' }, { unit: 'DL' }));
+        expect(res.status).toBe(200);
+
+        const list = await db.collection('lists').findOne({ _id: id });
+        expect(list?.items[0].unit).toBe('dl');
+        expect(list?.items[0].quantity).toBe(3);
+    });
+
+    // Dokument skrivna innan enheter fanns saknar fältet. $set måste skapa det.
+    it('ger en gammal vara utan unit-fält en enhet', async () => {
+        const db = await getDb();
+        const id = await seedWithItem({ itemId: 'a', name: 'Mjölk', spec: '', quantity: 2, bought: false, category: '' });
+        const { PATCH } = await import('../../routes/api/lists/[id]/items/[itemId]/+server.js');
+        await PATCH(makeBodyEvent('PATCH', { id: id.toString(), itemId: 'a' }, { quantity: 1.5, unit: 'l' }));
+
+        const list = await db.collection('lists').findOne({ _id: id });
+        expect(list?.items[0]).toMatchObject({ quantity: 1.5, unit: 'l' });
+    });
+
+    // Så här ångrar man en angiven mängd, och så här landar minusknappen när
+    // den stegat ned under ett helt steg.
+    it('tar bort mängden när quantity skickas som null', async () => {
+        const db = await getDb();
+        const id = await seedWithItem({ itemId: 'a', name: 'Salt', spec: '', quantity: 1, unit: '', bought: false, category: '' });
+        const { PATCH } = await import('../../routes/api/lists/[id]/items/[itemId]/+server.js');
+        await PATCH(makeBodyEvent('PATCH', { id: id.toString(), itemId: 'a' }, { quantity: null }));
+
+        const list = await db.collection('lists').findOne({ _id: id });
+        expect(list?.items[0].quantity).toBeNull();
+    });
+
+    // Fältet måste vara med i anropet för att röras. En bockning i handelsläget
+    // skickar bara `bought` och får inte nollställa mängden på vägen.
+    it('lämnar mängden orörd när anropet inte nämner den', async () => {
+        const db = await getDb();
+        const id = await seedWithItem({ itemId: 'a', name: 'Ägg', spec: '', quantity: 6, unit: '', bought: false, category: '' });
+        const { PATCH } = await import('../../routes/api/lists/[id]/items/[itemId]/+server.js');
+        await PATCH(makeBodyEvent('PATCH', { id: id.toString(), itemId: 'a' }, { bought: true }));
+
+        const list = await db.collection('lists').findOne({ _id: id });
+        expect(list?.items[0]).toMatchObject({ quantity: 6, bought: true });
     });
 });
