@@ -137,9 +137,22 @@ Minst 8 tecken, minst en bokstav (inkl. åäö), minst en siffra. Valideras av `
 - Listnamn / butiksnamn: max 100 tecken
 - Varunamn: max 200 tecken
 - Specifikation: max 500 tecken
-- Antal: 1–9999
+- Mängd: `0 < q <= 9999`, decimaler tillåtna. `null` = ingen mängd angiven
+- Enhet: max 20 tecken. Tom sträng = styck
 - Kategorinamn (i item): max 50 tecken
 - Kategorifärg: måste vara valid hex (#rrggbb), annars fallback `#e2e8f0`
+
+### Mängd och enhet
+`src/lib/units.js` är den enda källan för enheter, avrundning, formatering och
+tolkningen av "3 dl grädde". Modulen importeras av både API-handlers och
+komponenter — avrundningen vid import måste vara identisk på servern och i den
+optimistiska kopian i `shopping-context`, annars hoppar talen när svaret landar.
+
+- Räknbara enheter (`''`, `förp`, `burk`, `pkt`, `knippe`) skalas med `Math.ceil`, minst 1.
+- Kontinuerliga (`g`, `hg`, `kg`, `ml`, `cl`, `dl`, `l`, `msk`, `tsk`, `krm`) skalas till närmaste trevliga steg: <10 → 0,5; 10–100 → heltal; >100 → tiotal.
+- `quantity === null` skalas aldrig — "salt efter smak" ska inte bli "×2 salt".
+- Ingen enhetsomvandling. 1500 g blir aldrig 1,5 kg.
+- Visning använder svenskt decimalkomma; internt lagras punkt.
 
 ### Session
 - Livslängd 30 dagar, httpOnly cookie `session`
@@ -158,7 +171,7 @@ Max 10 försök per IP per 15 minuter, spåras i `login_attempts`-collection med
 |---|---|
 | `users` | username (unik, lowercase), email (sparse), password (bcrypt), emailVerified, categories[] ({id, name, color, group}) |
 | `sessions` | token (unik), username, expiresAt (TTL) |
-| `lists` | owner, sharedWith[], pendingInvites[], items[] (inkl. addedBy per vara) |
+| `lists` | owner, sharedWith[], pendingInvites[], items[] (inkl. addedBy, quantity, unit per vara) |
 | `templates` | owner, name, kind ('template'\|'recipe'), servings (recept), shareToken (sparse unik), items[] (itemId, name, spec, quantity, unit, category) |
 | `stores` | owner, name, categoryOrder{}, positions{} |
 | `listprofiles` | *utfasad* — läses bara vid engångsmigrering till `users.categories` |
