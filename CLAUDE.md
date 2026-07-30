@@ -202,7 +202,8 @@ Kategorier är en **platt palett per användare**, lagrad på användardokumente
 Mallar och recept delar `templates`-collection och skiljs åt av `kind`. Dokument utan fältet behandlas som `'template'` (samma mönster som `emailVerified ?? true`).
 
 - Ett recept är en mall med `servings`. Vid import skalas `quantity` mot antalet portioner man vill laga och avrundas uppåt.
-- `shareToken` (256 bitar, samma mönster som sessionstoken) ger en publik läsvy på `/r/{token}`. Att sluta dela tar bort token, så spridda länkar slutar fungera direkt.
+- Ett recept kan bära `instructions` (max 1500 tecken, ungefär 200 ord) och `sourceUrl` (endast http/https). Båda är valfria och visas aldrig i inköpslistan — de hör hemma i köket, inte i butiken.
+- `shareToken` (256 bitar, samma mönster som sessionstoken) ger en publik läsvy på `/r/{token}`. Den vyn är `noindex` och renderar tillagningen som ren text. Att sluta dela tar bort token, så spridda länkar slutar fungera direkt.
 - "Spara bland mina recept" kopierar dokumentet. Kategorier följer med som namn och visas via samma fallback som okända kategorier i delade listor.
 
 ## Tema

@@ -196,6 +196,32 @@
 
     const isRecipe = $derived(selected?.kind === 'recipe');
 
+    // Tillagningen sparas när fältet lämnas, inte vid varje tangenttryck.
+    let instructionsDraft = $state('');
+    let sourceUrlDraft = $state('');
+    let detailsOpen = $state(false);
+
+    $effect(() => {
+        instructionsDraft = selected?.instructions ?? '';
+        sourceUrlDraft = selected?.sourceUrl ?? '';
+    });
+
+    const MAX_INSTRUCTIONS = 1500;
+    const instructionsLeft = $derived(MAX_INSTRUCTIONS - instructionsDraft.length);
+
+    async function saveInstructions() {
+        if (!selectedId || instructionsDraft === (selected?.instructions ?? '')) return;
+        await templateContext.updateRecipeDetails(selectedId, { instructions: instructionsDraft });
+    }
+
+    async function saveSourceUrl() {
+        if (!selectedId || sourceUrlDraft === (selected?.sourceUrl ?? '')) return;
+        const ok = await templateContext.updateRecipeDetails(selectedId, { sourceUrl: sourceUrlDraft });
+        // Servern kastar adresser som inte är http(s), så spegla tillbaka det
+        // som faktiskt sparades i stället för att låta fältet ljuga.
+        if (ok) sourceUrlDraft = selected?.sourceUrl ?? '';
+    }
+
     // location finns inte under SSR — fältet fylls i vid hydrering.
     let origin = $state('');
     $effect(() => { origin = location.origin; });
@@ -262,6 +288,39 @@
                 <span class="qty-value" id="servings">{selected.servings}</span>
                 <button class="qty-btn" onclick={() => templateContext.setServings(selected.id, Math.min(99, (selected.servings ?? 4) + 1))}>+</button>
                 <span class="recipe-hint">Mängderna räknas om mot det här talet vid import.</span>
+            </div>
+        {/if}
+
+        {#if isRecipe}
+            <div class="details-block">
+                <button class="details-toggle" onclick={() => detailsOpen = !detailsOpen} aria-expanded={detailsOpen}>
+                    {detailsOpen ? 'Dölj' : (selected.instructions || selected.sourceUrl ? 'Visa tillagning' : 'Lägg till tillagning')}
+                </button>
+
+                {#if detailsOpen}
+                    <label class="details-label" for="instructions">Så här gör du <span class="optional">valfritt</span></label>
+                    <textarea
+                        id="instructions"
+                        class="instructions-input"
+                        rows="6"
+                        maxlength={MAX_INSTRUCTIONS}
+                        placeholder="Kort beskrivning av tillagningen. Syns för den du delar receptet med, aldrig i inköpslistan."
+                        bind:value={instructionsDraft}
+                        onblur={saveInstructions}
+                    ></textarea>
+                    <span class="char-count" class:tight={instructionsLeft < 150}>{instructionsLeft} tecken kvar</span>
+
+                    <label class="details-label" for="source-url">Länk till källan <span class="optional">valfritt</span></label>
+                    <input
+                        id="source-url"
+                        class="source-input"
+                        type="url"
+                        inputmode="url"
+                        placeholder="https://…"
+                        bind:value={sourceUrlDraft}
+                        onblur={saveSourceUrl}
+                    />
+                {/if}
             </div>
         {/if}
 
@@ -446,6 +505,59 @@
         border-radius: 999px;
         padding: 0.15rem 0.55rem;
     }
+
+    .details-block {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+    }
+
+    .details-toggle {
+        align-self: flex-start;
+        padding: 0.4rem 0.8rem;
+        border: 1px dashed var(--border-input);
+        border-radius: var(--radius-sm);
+        background: none;
+        color: var(--text-muted);
+        font-size: var(--text-sm);
+        cursor: pointer;
+        min-height: unset;
+    }
+
+    .details-toggle:hover { background: var(--bg-elevated); }
+
+    .details-label {
+        margin-top: 0.35rem;
+        font-size: var(--text-xs);
+        font-weight: 600;
+        color: var(--text-secondary);
+    }
+
+    .optional {
+        font-weight: 400;
+        color: var(--text-faint);
+    }
+
+    .instructions-input,
+    .source-input {
+        width: 100%;
+        padding: 0.55rem 0.7rem;
+        border: 1px solid var(--border-input);
+        border-radius: var(--radius-sm);
+        background: var(--bg-surface);
+        color: var(--text-primary);
+        font-size: var(--text-base);
+        font-family: inherit;
+        resize: vertical;
+    }
+
+    .char-count {
+        align-self: flex-end;
+        font-size: var(--text-xs);
+        color: var(--text-faint);
+    }
+
+    .char-count.tight { color: var(--warning-text); }
 
     .recipe-bar,
     .share-row {

@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import { getDb } from '$lib/server/db';
 import { getSessionUser } from '$lib/server/session';
-import { serializeTemplate } from '$lib/server/utils';
+import { serializeTemplate, sanitizeInstructions, sanitizeSourceUrl } from '$lib/server/utils';
 import { normalizeUnit, sanitizeQuantity } from '$lib/units';
 
 // Sparar ett delat recept som en egen kopia. Kopia, inte prenumeration: den
@@ -26,6 +26,8 @@ export async function POST({ params, cookies }) {
         name: String(source.name ?? '').slice(0, 100),
         kind: source.kind === 'recipe' ? 'recipe' : 'template',
         ...(source.kind === 'recipe' ? { servings: source.servings ?? 4 } : {}),
+        instructions: sanitizeInstructions(source.instructions),
+        sourceUrl: sanitizeSourceUrl(source.sourceUrl),
         items: (source.items ?? []).map(/** @param {any} i */ i => ({
             itemId: crypto.randomUUID(),
             name: String(i.name ?? '').slice(0, 200),

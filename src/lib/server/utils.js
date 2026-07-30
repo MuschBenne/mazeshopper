@@ -73,6 +73,8 @@ export function serializeTemplate(doc) {
         // skalas från vid import.
         servings: kind === 'recipe' ? (doc.servings ?? 4) : null,
         shareToken: doc.shareToken ?? null,
+        instructions: doc.instructions ?? '',
+        sourceUrl: doc.sourceUrl ?? '',
         items: (doc.items ?? []).map(/** @param {any} i */ i => ({
             itemId: i.itemId,
             name: i.name,
@@ -84,6 +86,37 @@ export function serializeTemplate(doc) {
             category: i.category
         }))
     };
+}
+
+/** @param {unknown} value */
+// Ungefär 200 ord på svenska. Knappheten är avsiktlig: det här ska rymma en
+// tillagning, inte växa till en receptbok.
+export const MAX_INSTRUCTIONS = 1500;
+export const MAX_SOURCE_URL = 500;
+
+/** @param {unknown} value */
+export function sanitizeInstructions(value) {
+    if (typeof value !== 'string') return '';
+    // Radbrytningar bevaras så man kan skriva styckvis. Ingen uppmärkning
+    // tolkas — texten renderas som ren text.
+    return value.replace(/\r\n/g, '\n').trim().slice(0, MAX_INSTRUCTIONS);
+}
+
+/**
+ * Bara http och https. Utan kontrollen kan en delad receptlänk bära en
+ * javascript:-adress som körs när någon klickar på den.
+ * @param {unknown} value
+ */
+export function sanitizeSourceUrl(value) {
+    if (typeof value !== 'string') return '';
+    const trimmed = value.trim().slice(0, MAX_SOURCE_URL);
+    if (!trimmed) return '';
+    try {
+        const url = new URL(trimmed);
+        return url.protocol === 'http:' || url.protocol === 'https:' ? trimmed : '';
+    } catch {
+        return '';
+    }
 }
 
 /** @param {unknown} value */

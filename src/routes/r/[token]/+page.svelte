@@ -46,7 +46,11 @@
     }
 </script>
 
-<svelte:head><title>{recipe.name} – MazeShopper</title></svelte:head>
+<svelte:head>
+    <title>{recipe.name} – MazeShopper</title>
+    <!-- Länken delas mellan personer, inte till världen. -->
+    <meta name="robots" content="noindex, nofollow" />
+</svelte:head>
 
 <div class="page">
     <div class="head">
@@ -93,6 +97,22 @@
             </ul>
         {/if}
     </div>
+
+    {#if recipe.instructions || recipe.sourceUrl}
+        <div class="card method">
+            {#if recipe.instructions}
+                <h2>Så här gör du</h2>
+                <!-- Ren text. Radbrytningar bevaras av white-space, ingen
+                     uppmärkning tolkas. -->
+                <p class="instructions">{recipe.instructions}</p>
+            {/if}
+            {#if recipe.sourceUrl}
+                <a class="source-link" href={recipe.sourceUrl} target="_blank" rel="noopener noreferrer nofollow">
+                    Recept från källan ↗
+                </a>
+            {/if}
+        </div>
+    {/if}
 
     {#if data.isOwn}
         <p class="note">Det här är ditt eget {isRecipe ? 'recept' : 'mall'}. <a href="/mallar">Öppna i redigeraren</a>.</p>
@@ -210,6 +230,37 @@
         text-align: center;
         color: var(--text-faint);
         font-size: 0.9em;
+    }
+
+    .method {
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+        padding: 1.25rem;
+        text-align: left;
+    }
+
+    .method h2 {
+        margin: 0;
+        font-size: var(--text-md);
+        font-weight: 700;
+    }
+
+    .instructions {
+        margin: 0;
+        /* Bevarar radbrytningar utan att tolka någon uppmärkning. */
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        line-height: 1.6;
+        font-size: var(--text-base);
+        color: var(--text-secondary);
+    }
+
+    .source-link {
+        align-self: flex-start;
+        font-size: var(--text-sm);
+        color: var(--violet-text);
+        overflow-wrap: anywhere;
     }
 
     .btn-save-copy {

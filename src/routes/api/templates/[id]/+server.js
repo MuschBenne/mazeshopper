@@ -2,7 +2,7 @@ import { json } from '@sveltejs/kit';
 import { getDb } from '$lib/server/db';
 import { getSessionUser } from '$lib/server/session';
 import { ObjectId } from 'mongodb';
-import { clampServings, generateShareToken } from '$lib/server/utils';
+import { clampServings, generateShareToken, sanitizeInstructions, sanitizeSourceUrl } from '$lib/server/utils';
 import { normalizeUnit, sanitizeQuantity } from '$lib/units';
 
 /**
@@ -35,6 +35,14 @@ export async function PATCH({ params, request, cookies }) {
 
     if (body.servings !== undefined) {
         update.servings = clampServings(body.servings);
+    }
+
+    if (body.instructions !== undefined) {
+        update.instructions = sanitizeInstructions(body.instructions);
+    }
+
+    if (body.sourceUrl !== undefined) {
+        update.sourceUrl = sanitizeSourceUrl(body.sourceUrl);
     }
 
     if (Array.isArray(body.items)) {

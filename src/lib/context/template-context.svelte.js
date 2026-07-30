@@ -4,7 +4,7 @@ import { notificationContext } from './notification-context.svelte';
  * `quantity: null` betyder att receptet inte anger någon mängd — salt "efter
  * smak" ska inte multipliceras när portionerna dubblas. `unit: ''` är styck.
  * @typedef {{ itemId: string, name: string, spec: string, quantity: number | null, unit?: string, category: string }} TemplateItem
- * @typedef {{ id: string, owner: string, name: string, kind: 'template' | 'recipe', servings: number | null, shareToken: string | null, items: TemplateItem[] }} Template
+ * @typedef {{ id: string, owner: string, name: string, kind: 'template' | 'recipe', servings: number | null, shareToken: string | null, instructions: string, sourceUrl: string, items: TemplateItem[] }} Template
  */
 
 class TemplateContext {
@@ -71,6 +71,33 @@ class TemplateContext {
         } catch {
             t.servings = prev;
             notificationContext.show('Kunde inte spara portioner. Försök igen.');
+            return false;
+        }
+    }
+
+    /**
+     * Tillagning och källänk. Valfria, och bara meningsfulla för recept —
+     * ett recept utan tillagning är bara en ingredienslista för mottagaren.
+     * @param {string} id
+     * @param {{ instructions?: string, sourceUrl?: string }} fields
+     */
+    async updateRecipeDetails(id, fields) {
+        const t = this.getTemplate(id);
+        if (!t) return false;
+        const prev = { instructions: t.instructions, sourceUrl: t.sourceUrl };
+        if (fields.instructions !== undefined) t.instructions = fields.instructions;
+        if (fields.sourceUrl !== undefined) t.sourceUrl = fields.sourceUrl;
+        try {
+            const res = await fetch(`/api/templates/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(fields)
+            });
+            if (!res.ok) throw new Error();
+            return true;
+        } catch {
+            Object.assign(t, prev);
+            notificationContext.show('Kunde inte spara. Försök igen.');
             return false;
         }
     }
