@@ -2,7 +2,7 @@
     // Renders all items belonging to a single category, with collapse, edit, and shopping-mode support.
     import { shoppingContext } from '$lib/context/shopping-context.svelte';
     import AmountField from '$lib/components/AmountField.svelte';
-    import { formatAmount, formatQuantity, parseQuantityInput } from '$lib/units';
+    import { formatQuantity, formatStepperAmount, parseQuantityInput } from '$lib/units';
     import { slide } from 'svelte/transition';
     import { flip } from 'svelte/animate';
 
@@ -127,8 +127,11 @@
                             >-</button>
                         {/if}
                         <!-- Tomt när ingen mängd är angiven: "salt" behöver inte
-                             stå som "1 salt" för att vara en fullgod rad. -->
-                        <span class="quantity">{formatAmount(item.quantity, item.unit)}</span>
+                             stå som "1 salt" för att vara en fullgod rad. Rent
+                             tal, ingen ×-form: knapparna omkring säger redan
+                             vad talet är, och varor från tiden före enheter ska
+                             se ut som de alltid gjort. -->
+                        <span class="quantity">{formatStepperAmount(item.quantity, item.unit)}</span>
                         {#if !shoppingMode}
                             <button
                                 aria-label="Öka mängden för {item.name}"
