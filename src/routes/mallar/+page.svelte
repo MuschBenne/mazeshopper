@@ -4,6 +4,10 @@
     import { templateContext } from '$lib/context/template-context.svelte';
     import { categoryContext } from '$lib/context/category-context.svelte';
     import { notificationContext } from '$lib/context/notification-context.svelte';
+    import { shoppingContext } from '$lib/context/shopping-context.svelte';
+    import AmountField from '$lib/components/AmountField.svelte';
+    import { formatAmount, formatQuantity, parseLeadingAmount, parseQuantityInput } from '$lib/units';
+    import { collectSpecSuggestions } from '$lib/suggestions';
 
     let { data } = $props();
 
@@ -28,7 +32,11 @@
     // Add-item form (inside editor)
     let newItemName = $state('');
     let newItemSpec = $state('');
-    let newItemQty = $state(1);
+    // Rå text, inte ett tal: "12 msk" ska gå att skriva, och tomt ska förbli
+    // tomt. Plus- och minusknapparna som stod här förut klarade varken det ena
+    // eller det andra.
+    let newItemAmount = $state('');
+    let newItemUnit = $state('');
     let newItemCategory = $state('');
     let addingItem = $state(false);
 
@@ -91,8 +99,14 @@
     let editingItemId = $state(null);
     let editItemName = $state('');
     let editItemSpec = $state('');
-    let editItemQty = $state(1);
+    let editItemAmount = $state('');
+    let editItemUnit = $state('');
     let editItemCategory = $state('');
+
+    // Förslag till spec-fältet ur allt användaren redan skrivit.
+    const specSuggestions = $derived(
+        collectSpecSuggestions(shoppingContext.lists, templateContext.templates)
+    );
 
     async function createTemplate() {
         const name = newTemplateName.trim();
@@ -104,18 +118,41 @@
         if (id) selectedId = id;
     }
 
+    // "3 dl grädde" i varunamnet delas upp i namn, mängd och enhet — men bara
+    // när mängdfältet står tomt, annars vinner det man skrivit där. Fälten
+    // fylls i synligt så en feltolkning går att rätta innan varan sparas.
+    function absorbAmountShortcut() {
+        if (newItemAmount.trim()) return false;
+        const parsed = parseLeadingAmount(newItemName);
+        if (!parsed) return false;
+        newItemName = parsed.name;
+        newItemAmount = formatQuantity(parsed.quantity);
+        newItemUnit = parsed.unit;
+        return true;
+    }
+
     async function addItem() {
         if (!selectedId) return;
+        // Delas namnet upp här stannar vi — nästa Enter lägger till varan.
+        if (absorbAmountShortcut()) return;
         // Kategori är valfri här likaväl som i listan — varor utan kategori
         // hamnar i "Utan kategori" när mallen importeras.
         if (!newItemName.trim()) return;
         addingItem = true;
-        const ok = await templateContext.addItem(selectedId, newItemName.trim(), newItemSpec.trim(), newItemQty, newItemCategory);
+        const ok = await templateContext.addItem(
+            selectedId,
+            newItemName.trim(),
+            newItemSpec.trim(),
+            parseQuantityInput(newItemAmount),
+            newItemCategory,
+            newItemUnit
+        );
         addingItem = false;
         if (ok) {
             newItemName = '';
             newItemSpec = '';
-            newItemQty = 1;
+            newItemAmount = '';
+            newItemUnit = '';
         }
     }
 
@@ -124,7 +161,8 @@
         editingItemId = item.itemId;
         editItemName = item.name;
         editItemSpec = item.spec;
-        editItemQty = item.quantity;
+        editItemAmount = item.quantity == null ? '' : formatQuantity(item.quantity);
+        editItemUnit = item.unit ?? '';
         editItemCategory = item.category;
     }
 
@@ -133,7 +171,8 @@
         await templateContext.updateItem(selectedId, editingItemId, {
             name: editItemName.trim(),
             spec: editItemSpec.trim(),
-            quantity: editItemQty,
+            quantity: parseQuantityInput(editItemAmount),
+            unit: editItemUnit,
             category: editItemCategory
         });
         editingItemId = null;
@@ -250,18 +289,14 @@
                                         placeholder="Vara"
                                         onkeydown={(e) => { if (e.key === 'Enter') saveEditItem(); else if (e.key === 'Escape') editingItemId = null; }}
                                     />
+                                    <AmountField bind:amount={editItemAmount} bind:unit={editItemUnit} onEnter={saveEditItem} />
                                     <input
                                         class="edit-input"
                                         bind:value={editItemSpec}
                                         placeholder="Specifikation (valfritt)"
+                                        list="spec-suggestions"
                                         onkeydown={(e) => { if (e.key === 'Enter') saveEditItem(); else if (e.key === 'Escape') editingItemId = null; }}
                                     />
-                                    <div class="edit-qty-row">
-                                        <label>Antal:</label>
-                                        <button class="qty-btn" onclick={() => editItemQty = Math.max(1, editItemQty - 1)}>−</button>
-                                        <span class="qty-value">{editItemQty}</span>
-                                        <button class="qty-btn" onclick={() => editItemQty = Math.min(9999, editItemQty + 1)}>+</button>
-                                    </div>
                                     <div class="category-picker">
                                         {#each categoriesWith(editItemCategory) as cat}
                                             <button
@@ -281,7 +316,7 @@
                                 <div class="item-info">
                                     <span class="item-name">{item.name}{item.spec ? ` – ${item.spec}` : ''}</span>
                                     <span class="item-meta">
-                                        {#if item.quantity > 1}<span class="item-qty">×{item.quantity}</span>{/if}
+                                        {#if formatAmount(item.quantity, item.unit)}<span class="item-qty">{formatAmount(item.quantity, item.unit)}</span>{/if}
                                         {#if item.category}
                                             {@const cat = editorCategories.find(c => c.name === item.category)}
                                             <span class="item-cat-chip" style="--chip-color: {cat?.color ?? '#e2e8f0'}">{item.category}</span>
@@ -305,19 +340,21 @@
             <input
                 bind:value={newItemName}
                 placeholder="Vara"
+                onblur={absorbAmountShortcut}
                 onkeydown={(e) => e.key === 'Enter' && addItem()}
             />
+            <AmountField bind:amount={newItemAmount} bind:unit={newItemUnit} onEnter={addItem} />
             <input
                 bind:value={newItemSpec}
                 placeholder="Specifikation (valfritt)"
+                list="spec-suggestions"
                 onkeydown={(e) => e.key === 'Enter' && addItem()}
             />
-            <div class="qty-row">
-                <label>Antal:</label>
-                <button class="qty-btn" onclick={() => newItemQty = Math.max(1, newItemQty - 1)}>−</button>
-                <span class="qty-value">{newItemQty}</span>
-                <button class="qty-btn" onclick={() => newItemQty = Math.min(9999, newItemQty + 1)}>+</button>
-            </div>
+            <datalist id="spec-suggestions">
+                {#each specSuggestions as suggestion (suggestion)}
+                    <option value={suggestion}></option>
+                {/each}
+            </datalist>
             {#if groups.length > 1}
                 <select
                     class="group-select"
@@ -805,14 +842,8 @@
 
     .add-card input:focus { border-color: var(--color-primary); }
 
-    .qty-row, .edit-qty-row {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        font-size: 0.9em;
-        color: var(--text-secondary);
-    }
-
+    /* Kvar för portionsraden. Varornas antal stegas inte längre med knappar —
+       tolv tryck för "12 msk" höll inte, och decimaler gick inte alls. */
     .qty-btn {
         width: 32px;
         height: 32px;

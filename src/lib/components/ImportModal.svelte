@@ -1,5 +1,6 @@
 <script>
     import { templateContext } from '$lib/context/template-context.svelte';
+    import { formatAmount, scaleQuantity } from '$lib/units';
     import { fade } from 'svelte/transition';
     import { fly } from 'svelte/transition';
 
@@ -52,6 +53,14 @@
         } else {
             selectedItems = new Set(previewTemplate.items.map(i => i.itemId));
         }
+    }
+
+    // Mängderna räknas om medan portionsreglaget vrids. Det är här man ska
+    // kunna se att det blir för mycket — inte efteråt, i listan.
+    /** @param {import('$lib/context/template-context.svelte').TemplateItem} item */
+    function previewAmount(item) {
+        const unit = item.unit ?? '';
+        return formatAmount(scaleQuantity(item.quantity, unit, scale), unit);
     }
 
     async function doImport() {
@@ -117,12 +126,13 @@
                 <ul class="item-list">
                     {#each previewTemplate.items as item (item.itemId)}
                         {@const cat = pickerCategories.find(c => c.name === item.category)}
+                        {@const amount = previewAmount(item)}
                         <li>
                             <label class="item-row">
                                 <input type="checkbox" checked={selectedItems.has(item.itemId)} onchange={() => toggleItem(item.itemId)} />
                                 <span class="item-name">{item.name}{item.spec ? ` – ${item.spec}` : ''}</span>
                                 <span class="item-right">
-                                    {#if item.quantity > 1}<span class="item-qty">×{item.quantity}</span>{/if}
+                                    {#if amount}<span class="item-qty">{amount}</span>{/if}
                                     {#if item.category}
                                         <span class="item-cat-chip" style="--chip-color: {cat?.color ?? '#e2e8f0'}">{item.category}</span>
                                     {/if}

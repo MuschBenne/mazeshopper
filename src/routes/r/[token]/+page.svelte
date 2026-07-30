@@ -2,6 +2,7 @@
     import { page } from '$app/state';
     import { notificationContext } from '$lib/context/notification-context.svelte';
     import { goto } from '$app/navigation';
+    import { formatAmount, scaleQuantity } from '$lib/units';
 
     let { data } = $props();
 
@@ -14,9 +15,12 @@
 
     const scale = $derived(isRecipe && recipe.servings ? servings / recipe.servings : 1);
 
-    /** @param {number} qty */
-    function scaled(qty) {
-        return Math.max(1, Math.ceil(qty * scale));
+    // Samma avrundning och formatering som vid import — den som läser här ska
+    // se exakt de mängder som hamnar i listan.
+    /** @param {{ quantity: number | null, unit?: string }} item */
+    function scaledAmount(item) {
+        const unit = item.unit ?? '';
+        return formatAmount(scaleQuantity(item.quantity, unit, scale), unit);
     }
 
     let saving = $state(false);
@@ -78,7 +82,7 @@
             <ul>
                 {#each recipe.items as item (item.itemId)}
                     <li>
-                        <span class="qty">{scaled(item.quantity)}{item.unit ? ` ${item.unit}` : '×'}</span>
+                        <span class="qty">{scaledAmount(item)}</span>
                         <span class="name">
                             {item.name}
                             {#if item.spec}<span class="spec">{item.spec}</span>{/if}

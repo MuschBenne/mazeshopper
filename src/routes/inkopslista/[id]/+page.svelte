@@ -7,6 +7,10 @@
     import SharePanel from "$lib/components/SharePanel.svelte";
     import CategorySection from "$lib/components/CategorySection.svelte";
     import ImportModal from "$lib/components/ImportModal.svelte";
+    import AmountField from "$lib/components/AmountField.svelte";
+    import { templateContext } from "$lib/context/template-context.svelte";
+    import { parseLeadingAmount, parseQuantityInput, formatQuantity, formatAmount } from "$lib/units";
+    import { collectSpecSuggestions } from "$lib/suggestions";
     import { untrack } from 'svelte';
     import { page } from '$app/state';
     import { goto } from '$app/navigation';
@@ -43,6 +47,9 @@
 
     let newItem = $state('');
     let spec = $state('');
+    // Rå text, inte ett tal: tomt ska förbli tomt och aldrig hoppa till 1.
+    let newAmount = $state('');
+    let newUnit = $state('');
     /** @type {HTMLInputElement | null} */
     let itemInputEl = $state(null);
     let selectedCategory = $state('');
@@ -299,10 +306,32 @@
 
     const listHistory = $derived(shoppingContext.recentlyBought[id] ?? []);
 
+    // Förslag till spec-fältet, hämtade ur det användaren redan skrivit.
+    const specSuggestions = $derived(
+        collectSpecSuggestions(shoppingContext.lists, templateContext.templates)
+    );
+
+    // "3 dl grädde" i varunamnet delas upp i namn, mängd och enhet. Bara när
+    // mängdfältet står tomt — har man fyllt i en mängd själv är det den som
+    // gäller. Tolkningen är ett hjälpmedel, inget lagringsformat.
+    function absorbAmountShortcut() {
+        if (newAmount.trim()) return false;
+        const parsed = parseLeadingAmount(newItem);
+        if (!parsed) return false;
+        newItem = parsed.name;
+        newAmount = formatQuantity(parsed.quantity);
+        newUnit = parsed.unit;
+        return true;
+    }
+
     // Kategori är valfri. Varor utan kategori hamnar i "Utan kategori", en hink
     // som redan finns för importerade varor — att kräva ett val innan man får
     // skriva sin första vara var ett steg utan motsvarande nytta.
     async function addItem() {
+        // Delas namnet upp här stannar vi — de ifyllda fälten ska hinna synas
+        // så att en feltolkning går att rätta innan varan hamnar i listan.
+        if (absorbAmountShortcut()) return;
+
         const name = newItem.trim();
         if (name.length === 0) return;
 
@@ -310,15 +339,23 @@
         // att låsas medan servern svarar. Det gör att flera varor kan matas in i
         // följd utan att vänta. Vid fel rullas varan tillbaka och en toast visas.
         const itemSpec = spec.trim();
+        const amount = { quantity: parseQuantityInput(newAmount), unit: newUnit };
+        const prevAmount = newAmount;
         newItem = '';
         spec = '';
+        // Enheten nollställs med mängden. Skulle "dl" ligga kvar blev nästa vara
+        // man skriver en mängd för plötsligt "2 dl bananer".
+        newAmount = '';
+        newUnit = '';
         itemInputEl?.focus();
-        const ok = await shoppingContext.addItem(id, name, itemSpec, selectedCategory, username);
+        const ok = await shoppingContext.addItem(id, name, itemSpec, selectedCategory, username, amount);
         // Ge tillbaka inmatningen vid fel, annars ber toasten användaren försöka
         // igen med tomma fält. Skriv bara över om inget nytt hunnit skrivas.
-        if (!ok && newItem === '' && spec === '') {
+        if (!ok && newItem === '' && spec === '' && newAmount === '') {
             newItem = name;
             spec = itemSpec;
+            newAmount = prevAmount;
+            newUnit = amount.unit;
         }
     }
 
@@ -332,6 +369,14 @@
         const ok = await shoppingContext.leaveList(id, username);
         if (ok) goto('/inkopslista');
         else confirmLeaveList = false;
+    }
+
+    // "grädde 3 dl" i historiken. Ett ensamt styck skriver vi inte ut — det
+    // säger inget som namnet inte redan säger.
+    /** @param {import('$lib/context/shopping-context.svelte').ShoppingItem} item */
+    function historyLabel(item) {
+        const amount = formatAmount(item.quantity, item.unit);
+        return amount && amount !== '1' ? `${item.name} ${amount}` : item.name;
     }
 
     /** @param {string} dateStr */
@@ -488,13 +533,21 @@
                     bind:this={itemInputEl}
                     bind:value={newItem}
                     placeholder="Vara"
+                    onblur={absorbAmountShortcut}
                     onkeydown={(e) => e.key === 'Enter' && addItem()}
                 />
+                <AmountField bind:amount={newAmount} bind:unit={newUnit} onEnter={addItem} />
                 <input
                     bind:value={spec}
                     placeholder="Specifikation (valfritt)"
+                    list="spec-suggestions"
                     onkeydown={(e) => e.key === 'Enter' && addItem()}
                 />
+                <datalist id="spec-suggestions">
+                    {#each specSuggestions as suggestion (suggestion)}
+                        <option value={suggestion}></option>
+                    {/each}
+                </datalist>
                 {#if groups.length > 1}
                     <!-- Rullgardinen talar för sig själv visuellt; etiketten
                          behövs bara för skärmläsare. -->
@@ -585,7 +638,7 @@
                             <div class="history-entry">
                                 <span class="history-date">{formatDate(entry.clearedAt)}</span>
                                 <span class="history-items">
-                                    {entry.items.map(i => i.name + (i.quantity > 1 ? ` ×${i.quantity}` : '')).join(', ')}
+                                    {entry.items.map(historyLabel).join(', ')}
                                 </span>
                             </div>
                         {/each}

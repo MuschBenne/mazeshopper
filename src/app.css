@@ -295,6 +295,79 @@ img, svg {
     font-weight: 700;
 }
 
+/* Mängd och enhet (AmountField). Samma visuella språk som kategoriväljaren,
+   men utan färgstapeln till vänster — enheter har ingen egen färg, och en tom
+   stapel såg ut som en kategori man glömt välja. Reglerna ligger här för att
+   fältet används av tre olika sidor och komponentens egna stilar inte når in
+   från sidornas scope. */
+.amount-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.amount-input {
+    width: 5.5rem;
+    flex-shrink: 0;
+    padding: 0.5rem 0.6rem;
+    border: 1px solid var(--border-input);
+    border-radius: var(--radius-md);
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    font-size: 0.95em;
+    outline: none;
+    transition: border-color var(--dur-fast) var(--ease-out);
+}
+
+.amount-input:focus { border-color: var(--color-primary); }
+
+.unit-picker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+}
+
+.unit-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.35rem 0.65rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-surface);
+    color: var(--text-secondary);
+    font-size: 0.82em;
+    font-weight: 500;
+    line-height: 1.2;
+    cursor: pointer;
+    min-height: unset;
+    transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+
+.unit-chip:hover { background: var(--bg-elevated); }
+
+.unit-chip.selected {
+    background: color-mix(in srgb, var(--color-primary) 22%, var(--bg-surface));
+    border-color: color-mix(in srgb, var(--color-primary) 60%, var(--border));
+    color: var(--text-primary);
+    font-weight: 700;
+}
+
+.unit-chip-other { font-style: italic; }
+
+.unit-custom {
+    width: 7rem;
+    padding: 0.35rem 0.6rem;
+    border: 1px solid var(--border-input);
+    border-radius: var(--radius-sm);
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    font-size: 0.85em;
+    outline: none;
+}
+
+.unit-custom:focus { border-color: var(--color-primary); }
+
 /* Standardkortet — låg identiskt duplicerat i fyra komponenter. Sidorna i
    inloggningsflödet har ett eget, tyngre kort och skriver över det här. */
 .card {

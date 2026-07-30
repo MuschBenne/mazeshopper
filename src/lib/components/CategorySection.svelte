@@ -1,6 +1,8 @@
 <script>
     // Renders all items belonging to a single category, with collapse, edit, and shopping-mode support.
     import { shoppingContext } from '$lib/context/shopping-context.svelte';
+    import AmountField from '$lib/components/AmountField.svelte';
+    import { formatAmount, formatQuantity, parseQuantityInput } from '$lib/units';
     import { slide } from 'svelte/transition';
     import { flip } from 'svelte/animate';
 
@@ -16,6 +18,10 @@
      */
     let { category, categories, items, shoppingMode, listId, showAddedBy = false } = $props();
 
+    // Spec-förslagen ligger i en <datalist> som listsidan renderar en gång —
+    // en egen kopia per vara vore samma lista om och om igen.
+    const SPEC_DATALIST = 'spec-suggestions';
+
     let collapsed = $state(false);
 
     // Tracks which item (if any) is currently being edited inline.
@@ -24,6 +30,8 @@
     let editName = $state('');
     let editSpec = $state('');
     let editCategory = $state('');
+    let editAmount = $state('');
+    let editUnit = $state('');
 
     // Items are displayed in their original insertion order — no re-sorting on check-off.
     const displayItems = $derived(items);
@@ -35,11 +43,18 @@
         editName = item.name;
         editSpec = item.spec;
         editCategory = item.category;
+        // Enheten måste gå att rätta här. Annars vore ett feltryck på "kg"
+        // permanent — varan skulle behöva tas bort och skrivas in på nytt.
+        editAmount = item.quantity == null ? '' : formatQuantity(item.quantity);
+        editUnit = item.unit ?? '';
     }
 
     async function saveEdit() {
         if (!editingItemId || editName.trim().length === 0) return;
-        await shoppingContext.editItem(listId, editingItemId, editName, editSpec, editCategory);
+        await shoppingContext.editItem(listId, editingItemId, editName, editSpec, editCategory, {
+            quantity: parseQuantityInput(editAmount),
+            unit: editUnit
+        });
         editingItemId = null;
     }
 
@@ -72,10 +87,12 @@
                             placeholder="Vara"
                             onkeydown={(e) => { if (e.key === 'Enter') saveEdit(); else if (e.key === 'Escape') cancelEdit(); }}
                         />
+                        <AmountField bind:amount={editAmount} bind:unit={editUnit} onEnter={saveEdit} />
                         <input
                             class="edit-input"
                             bind:value={editSpec}
                             placeholder="Specifikation (valfritt)"
+                            list={SPEC_DATALIST}
                             onkeydown={(e) => { if (e.key === 'Enter') saveEdit(); else if (e.key === 'Escape') cancelEdit(); }}
                         />
                         {#if categories.length > 0}
@@ -104,11 +121,19 @@
                     </span>
                     <div class="quantity-controls">
                         {#if !shoppingMode}
-                            <button onclick={() => shoppingContext.decreaseQuantity(listId, item.itemId)}>-</button>
+                            <button
+                                aria-label="Minska mängden för {item.name}"
+                                onclick={() => shoppingContext.decreaseQuantity(listId, item.itemId)}
+                            >-</button>
                         {/if}
-                        <span class="quantity">{item.quantity}</span>
+                        <!-- Tomt när ingen mängd är angiven: "salt" behöver inte
+                             stå som "1 salt" för att vara en fullgod rad. -->
+                        <span class="quantity">{formatAmount(item.quantity, item.unit)}</span>
                         {#if !shoppingMode}
-                            <button onclick={() => shoppingContext.increaseQuantity(listId, item.itemId)}>+</button>
+                            <button
+                                aria-label="Öka mängden för {item.name}"
+                                onclick={() => shoppingContext.increaseQuantity(listId, item.itemId)}
+                            >+</button>
                         {/if}
                         {#if shoppingMode}
                             <button
@@ -221,9 +246,12 @@
     }
 
     .quantity {
-        min-width: 1.4rem;
+        /* Rymmer "3,5 dl" utan att knapparna flyttar sig när mängden ändras. */
+        min-width: 3.2rem;
         text-align: center;
         font-size: 0.9em;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
     }
 
     .quantity-controls button {
