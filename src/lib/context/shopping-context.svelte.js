@@ -625,8 +625,11 @@ class ShoppingContext {
      * @param {string} listId
      * @param {{ name: string, spec: string, quantity: number | null, unit?: string, category: string }[]} items
      * @param {number} [scale] Skalfaktor för recept — 1 för mallar.
+     * @param {string} [addedBy] Vem som importerar. Servern sätter samma värde;
+     *   utan det här dyker raderna upp utan namn och får det först när svaret
+     *   landar, i listor där "visa vem som la till" är påslaget.
      */
-    async importItems(listId, items, scale = 1) {
+    async importItems(listId, items, scale = 1, addedBy = '') {
         const list = this.getList(listId);
         if (!list) return false;
         const tempIds = /** @type {Set<string>} */ (new Set());
@@ -635,9 +638,10 @@ class ShoppingContext {
             tempIds.add(itemId);
             // Samma avrundning som servern kör — den bor i $lib/units just för
             // att de två inte ska kunna glida isär och få talen att hoppa när
-            // svaret landar.
+            // svaret landar. Skalfaktorn klamras inuti scaleQuantity, så en
+            // orimlig faktor ger samma tal här som där.
             const unit = normalizeUnit(i.unit);
-            return { ...i, itemId, bought: false, unit, quantity: scaleQuantity(i.quantity, unit, scale) };
+            return { ...i, itemId, bought: false, unit, addedBy, quantity: scaleQuantity(i.quantity, unit, scale) };
         });
         list.items = [...list.items, ...optimisticItems];
         return await this.#mutating(listId, async () => {

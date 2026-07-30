@@ -121,6 +121,11 @@
     // "3 dl grädde" i varunamnet delas upp i namn, mängd och enhet — men bara
     // när mängdfältet står tomt, annars vinner det man skrivit där. Fälten
     // fylls i synligt så en feltolkning går att rätta innan varan sparas.
+    //
+    // Returnerar true när uppdelningen behöver granskas först. En utskriven
+    // enhet är entydig och varan går in direkt — ett recept skrivs in ingrediens
+    // efter ingrediens, och där kostar ett extra tryck per rad. Ett ensamt tal
+    // ("2 mjölk") kan höra till namnet, och då stannar vi.
     function absorbAmountShortcut() {
         if (newItemAmount.trim()) return false;
         const parsed = parseLeadingAmount(newItemName);
@@ -128,12 +133,12 @@
         newItemName = parsed.name;
         newItemAmount = formatQuantity(parsed.quantity);
         newItemUnit = parsed.unit;
-        return true;
+        return parsed.unit === '';
     }
 
     async function addItem() {
         if (!selectedId) return;
-        // Delas namnet upp här stannar vi — nästa Enter lägger till varan.
+        // Kräver uppdelningen granskning stannar vi — nästa Enter lägger till.
         if (absorbAmountShortcut()) return;
         // Kategori är valfri här likaväl som i listan — varor utan kategori
         // hamnar i "Utan kategori" när mallen importeras.
@@ -451,8 +456,6 @@
         font-size: 0.85em;
         color: var(--text-secondary);
     }
-
-    .qty-value { font-weight: 700; min-width: 1.5rem; text-align: center; }
 
     .recipe-hint { color: var(--text-faint); font-size: 0.95em; }
 

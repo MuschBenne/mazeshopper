@@ -314,6 +314,12 @@
     // "3 dl grädde" i varunamnet delas upp i namn, mängd och enhet. Bara när
     // mängdfältet står tomt — har man fyllt i en mängd själv är det den som
     // gäller. Tolkningen är ett hjälpmedel, inget lagringsformat.
+    //
+    // Returnerar true när uppdelningen behöver granskas innan varan läggs till.
+    // Står en enhet utskriven är tolkningen entydig och varan går in direkt:
+    // tio ingredienser i rad ska kosta tio tryck, inte tjugo. Ett ensamt tal
+    // ("2 mjölk") kan lika gärna höra till namnet, och där är pausen värd sitt
+    // tryck — de ifyllda fälten syns och går att rätta.
     function absorbAmountShortcut() {
         if (newAmount.trim()) return false;
         const parsed = parseLeadingAmount(newItem);
@@ -321,15 +327,15 @@
         newItem = parsed.name;
         newAmount = formatQuantity(parsed.quantity);
         newUnit = parsed.unit;
-        return true;
+        return parsed.unit === '';
     }
 
     // Kategori är valfri. Varor utan kategori hamnar i "Utan kategori", en hink
     // som redan finns för importerade varor — att kräva ett val innan man får
     // skriva sin första vara var ett steg utan motsvarande nytta.
     async function addItem() {
-        // Delas namnet upp här stannar vi — de ifyllda fälten ska hinna synas
-        // så att en feltolkning går att rätta innan varan hamnar i listan.
+        // Kräver uppdelningen granskning stannar vi här — de ifyllda fälten
+        // ska hinna synas så att en feltolkning går att rätta först.
         if (absorbAmountShortcut()) return;
 
         const name = newItem.trim();
@@ -585,7 +591,7 @@
 
         {#if showImportModal}
             <ImportModal
-                onImport={(items, scale) => shoppingContext.importItems(id, items, scale)}
+                onImport={(items, scale) => shoppingContext.importItems(id, items, scale, username)}
                 onClose={() => showImportModal = false}
                 {pickerCategories}
             />
