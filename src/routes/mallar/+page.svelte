@@ -214,12 +214,21 @@
         await templateContext.updateRecipeDetails(selectedId, { instructions: instructionsDraft });
     }
 
+    let sourceError = $state('');
+
     async function saveSourceUrl() {
+        sourceError = '';
         if (!selectedId || sourceUrlDraft === (selected?.sourceUrl ?? '')) return;
-        const ok = await templateContext.updateRecipeDetails(selectedId, { sourceUrl: sourceUrlDraft });
-        // Servern kastar adresser som inte är http(s), så spegla tillbaka det
-        // som faktiskt sparades i stället för att låta fältet ljuga.
-        if (ok) sourceUrlDraft = selected?.sourceUrl ?? '';
+        const typed = sourceUrlDraft.trim();
+        if (!await templateContext.updateRecipeDetails(selectedId, { sourceUrl: sourceUrlDraft })) return;
+
+        // Servern kastar allt som inte är en http(s)-adress. Blev det tomt
+        // trots att något skrevs ska det sägas, inte bara försvinna.
+        const stored = selected?.sourceUrl ?? '';
+        if (typed && !stored) {
+            sourceError = 'Det där var ingen länk. Adressen måste börja med https://';
+        }
+        sourceUrlDraft = stored;
     }
 
     // location finns inte under SSR — fältet fylls i vid hydrering.
@@ -318,8 +327,12 @@
                         inputmode="url"
                         placeholder="https://…"
                         bind:value={sourceUrlDraft}
+                        oninput={() => sourceError = ''}
                         onblur={saveSourceUrl}
                     />
+                    {#if sourceError}
+                        <p class="field-note" role="alert">{sourceError}</p>
+                    {/if}
                 {/if}
             </div>
         {/if}
@@ -558,6 +571,13 @@
     }
 
     .char-count.tight { color: var(--warning-text); }
+
+    .field-note {
+        margin: 0;
+        font-size: var(--text-xs);
+        color: var(--warning-text);
+        line-height: 1.5;
+    }
 
     .recipe-bar,
     .share-row {

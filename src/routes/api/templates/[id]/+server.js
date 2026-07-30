@@ -77,7 +77,15 @@ export async function PATCH({ params, request, cookies }) {
             ...(unset ? { $unset: unset } : {})
         }
     );
-    return json({ ok: true, shareToken: unset ? null : (update.shareToken ?? template.shareToken ?? null) });
+    return json({
+        ok: true,
+        shareToken: unset ? null : (update.shareToken ?? template.shareToken ?? null),
+        // Tillagning och källänk tvättas här, så klienten måste få veta vad som
+        // blev kvar. Annars står ett kastat värde still i fältet till nästa
+        // omladdning.
+        ...(update.instructions !== undefined ? { instructions: update.instructions } : {}),
+        ...(update.sourceUrl !== undefined ? { sourceUrl: update.sourceUrl } : {})
+    });
 }
 
 export async function DELETE({ params, cookies }) {

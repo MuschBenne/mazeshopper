@@ -94,6 +94,11 @@ class TemplateContext {
                 body: JSON.stringify(fields)
             });
             if (!res.ok) throw new Error();
+            // Servern tvättar bort adresser som inte är http(s). Ta emot det
+            // den faktiskt sparade i stället för att behålla vår egen gissning.
+            const saved = await res.json();
+            if (saved.instructions !== undefined) t.instructions = saved.instructions;
+            if (saved.sourceUrl !== undefined) t.sourceUrl = saved.sourceUrl;
             return true;
         } catch {
             Object.assign(t, prev);
