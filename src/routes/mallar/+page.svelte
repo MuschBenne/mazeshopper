@@ -2,8 +2,20 @@
 
 <script>
     import { templateContext } from '$lib/context/template-context.svelte';
-    import { listprofileContext } from '$lib/context/listprofile-context.svelte';
+    import { categoryContext } from '$lib/context/category-context.svelte';
     import { notificationContext } from '$lib/context/notification-context.svelte';
+    import { shoppingContext } from '$lib/context/shopping-context.svelte';
+    import AmountField from '$lib/components/AmountField.svelte';
+    import { formatAmount, formatQuantity, parseLeadingAmount, parseQuantityInput } from '$lib/units';
+    import { collectSpecSuggestions } from '$lib/suggestions';
+
+    let { data } = $props();
+
+    // Seedas före första render så mallarna finns direkt, istället för att
+    // hämtas efter hydrering.
+    $effect.pre(() => {
+        templateContext.seed(data.templates);
+    });
 
     // null = list view, string = editing a specific template
     /** @type {string | null} */
@@ -13,19 +25,18 @@
 
     // "Ny mall" form
     let newTemplateName = $state('');
-    let newTemplateProfileId = $state('');
     let creatingTemplate = $state(false);
-
-    $effect(() => {
-        if (!newTemplateProfileId && listprofileContext.profiles.length > 0) {
-            newTemplateProfileId = listprofileContext.profiles[0].id;
-        }
-    });
+    /** @type {'template' | 'recipe'} */
+    let newTemplateKind = $state('template');
 
     // Add-item form (inside editor)
     let newItemName = $state('');
     let newItemSpec = $state('');
-    let newItemQty = $state(1);
+    // Rå text, inte ett tal: "12 msk" ska gå att skriva, och tomt ska förbli
+    // tomt. Plus- och minusknapparna som stod här förut klarade varken det ena
+    // eller det andra.
+    let newItemAmount = $state('');
+    let newItemUnit = $state('');
     let newItemCategory = $state('');
     let addingItem = $state(false);
 
@@ -35,19 +46,52 @@
 
     let confirmDelete = $state(false);
 
-    // Profiltilldelning för mallar utan profileId
-    let assigningProfileId = $state('');
+    // Paletten är platt, så utan filter blir väljaren en vägg av alla
+    // kategorier. Samma gruppval som på listsidan, och samma minne av senast
+    // använda grupp — väljer du Bygg här står nästa nya lista också på Bygg.
+    /** @type {string | null} */
+    let groupChoice = $state(null);
+    let lastUsedGroup = $state('');
 
-    const editorCategories = $derived(
-        selected?.profileId
-            ? (listprofileContext.getProfile(selected.profileId)?.categories ?? [])
-            : []
+    $effect(() => {
+        lastUsedGroup = localStorage.getItem('mazeshopper_lastGroup') ?? '';
+    });
+
+    // En mall med varor i ställer in sig själv efter innehållet.
+    const derivedGroup = $derived.by(() => {
+        for (const item of selected?.items ?? []) {
+            const group = categoryContext.groupOf(item.category);
+            if (group) return group;
+        }
+        return null;
+    });
+
+    const groups = $derived(categoryContext.groups);
+
+    const activeGroup = $derived(
+        groupChoice ?? derivedGroup ?? (groups.includes(lastUsedGroup) ? lastUsedGroup : groups[0] ?? '')
     );
 
-    async function assignProfile() {
-        if (!selectedId || !assigningProfileId) return;
-        await templateContext.assignProfile(selectedId, assigningProfileId);
-        assigningProfileId = '';
+    const editorCategories = $derived(
+        !activeGroup
+            ? categoryContext.categories
+            // Ogrupperade kategorier hör hemma överallt och följer alltid med.
+            : categoryContext.categories.filter(c => c.group === activeGroup || !c.group)
+    );
+
+    /** @param {string} group */
+    function chooseGroup(group) {
+        groupChoice = group;
+        if (group) localStorage.setItem('mazeshopper_lastGroup', group);
+    }
+
+    // En vara som redan har en kategori utanför den valda gruppen ska ändå gå
+    // att se och behålla när man redigerar den.
+    /** @param {string} current */
+    function categoriesWith(current) {
+        if (!current || editorCategories.some(c => c.name === current)) return editorCategories;
+        const extra = categoryContext.categories.filter(c => c.name === current);
+        return [...editorCategories, ...extra];
     }
 
     // Inline item edit
@@ -55,33 +99,65 @@
     let editingItemId = $state(null);
     let editItemName = $state('');
     let editItemSpec = $state('');
-    let editItemQty = $state(1);
+    let editItemAmount = $state('');
+    let editItemUnit = $state('');
     let editItemCategory = $state('');
+
+    // Förslag till spec-fältet ur allt användaren redan skrivit.
+    const specSuggestions = $derived(
+        collectSpecSuggestions(shoppingContext.lists, templateContext.templates)
+    );
 
     async function createTemplate() {
         const name = newTemplateName.trim();
         if (!name) return;
         creatingTemplate = true;
-        const id = await templateContext.createTemplate(name, newTemplateProfileId || null);
+        const id = await templateContext.createTemplate(name, newTemplateKind);
         creatingTemplate = false;
         newTemplateName = '';
         if (id) selectedId = id;
     }
 
+    // "3 dl grädde" i varunamnet delas upp i namn, mängd och enhet — men bara
+    // när mängdfältet står tomt, annars vinner det man skrivit där. Fälten
+    // fylls i synligt så en feltolkning går att rätta innan varan sparas.
+    //
+    // Returnerar true när uppdelningen behöver granskas först. En utskriven
+    // enhet är entydig och varan går in direkt — ett recept skrivs in ingrediens
+    // efter ingrediens, och där kostar ett extra tryck per rad. Ett ensamt tal
+    // ("2 mjölk") kan höra till namnet, och då stannar vi.
+    function absorbAmountShortcut() {
+        if (newItemAmount.trim()) return false;
+        const parsed = parseLeadingAmount(newItemName);
+        if (!parsed) return false;
+        newItemName = parsed.name;
+        newItemAmount = formatQuantity(parsed.quantity);
+        newItemUnit = parsed.unit;
+        return parsed.unit === '';
+    }
+
     async function addItem() {
         if (!selectedId) return;
-        if (!newItemCategory) {
-            notificationContext.show('Välj en kategori innan du lägger till en vara.');
-            return;
-        }
+        // Kräver uppdelningen granskning stannar vi — nästa Enter lägger till.
+        if (absorbAmountShortcut()) return;
+        // Kategori är valfri här likaväl som i listan — varor utan kategori
+        // hamnar i "Utan kategori" när mallen importeras.
         if (!newItemName.trim()) return;
         addingItem = true;
-        const ok = await templateContext.addItem(selectedId, newItemName.trim(), newItemSpec.trim(), newItemQty, newItemCategory);
+        const ok = await templateContext.addItem(
+            selectedId,
+            newItemName.trim(),
+            newItemSpec.trim(),
+            parseQuantityInput(newItemAmount),
+            newItemCategory,
+            newItemUnit
+        );
         addingItem = false;
         if (ok) {
             newItemName = '';
             newItemSpec = '';
-            newItemQty = 1;
+            newItemAmount = '';
+            newItemUnit = '';
         }
     }
 
@@ -90,7 +166,8 @@
         editingItemId = item.itemId;
         editItemName = item.name;
         editItemSpec = item.spec;
-        editItemQty = item.quantity;
+        editItemAmount = item.quantity == null ? '' : formatQuantity(item.quantity);
+        editItemUnit = item.unit ?? '';
         editItemCategory = item.category;
     }
 
@@ -99,7 +176,8 @@
         await templateContext.updateItem(selectedId, editingItemId, {
             name: editItemName.trim(),
             spec: editItemSpec.trim(),
-            quantity: editItemQty,
+            quantity: parseQuantityInput(editItemAmount),
+            unit: editItemUnit,
             category: editItemCategory
         });
         editingItemId = null;
@@ -114,6 +192,64 @@
         if (!renameValue.trim()) return;
         await templateContext.renameTemplate(renamingId, renameValue.trim());
         renamingId = '';
+    }
+
+    const isRecipe = $derived(selected?.kind === 'recipe');
+
+    // Tillagningen sparas när fältet lämnas, inte vid varje tangenttryck.
+    let instructionsDraft = $state('');
+    let sourceUrlDraft = $state('');
+    let detailsOpen = $state(false);
+
+    $effect(() => {
+        instructionsDraft = selected?.instructions ?? '';
+        sourceUrlDraft = selected?.sourceUrl ?? '';
+    });
+
+    const MAX_INSTRUCTIONS = 1500;
+    const instructionsLeft = $derived(MAX_INSTRUCTIONS - instructionsDraft.length);
+
+    async function saveInstructions() {
+        if (!selectedId || instructionsDraft === (selected?.instructions ?? '')) return;
+        await templateContext.updateRecipeDetails(selectedId, { instructions: instructionsDraft });
+    }
+
+    let sourceError = $state('');
+
+    async function saveSourceUrl() {
+        sourceError = '';
+        if (!selectedId || sourceUrlDraft === (selected?.sourceUrl ?? '')) return;
+        const typed = sourceUrlDraft.trim();
+        if (!await templateContext.updateRecipeDetails(selectedId, { sourceUrl: sourceUrlDraft })) return;
+
+        // Servern kastar allt som inte är en http(s)-adress. Blev det tomt
+        // trots att något skrevs ska det sägas, inte bara försvinna.
+        const stored = selected?.sourceUrl ?? '';
+        if (typed && !stored) {
+            sourceError = 'Det där var ingen länk. Adressen måste börja med https://';
+        }
+        sourceUrlDraft = stored;
+    }
+
+    // location finns inte under SSR — fältet fylls i vid hydrering.
+    let origin = $state('');
+    $effect(() => { origin = location.origin; });
+
+    async function toggleShare() {
+        if (!selectedId || !selected) return;
+        await templateContext.setShared(selectedId, !selected.shareToken);
+    }
+
+    async function copyShareLink() {
+        if (!selected?.shareToken) return;
+        const url = `${location.origin}/r/${selected.shareToken}`;
+        try {
+            await navigator.clipboard.writeText(url);
+            notificationContext.show('Länken är kopierad.', 'success');
+        } catch {
+            // Utan klippbordsbehörighet är länken ändå synlig i fältet bredvid.
+            notificationContext.show('Kunde inte kopiera. Markera länken och kopiera manuellt.');
+        }
     }
 
     async function deleteTemplate() {
@@ -154,6 +290,66 @@
             {/if}
         </div>
 
+        {#if isRecipe}
+            <div class="recipe-bar">
+                <label for="servings">Portioner</label>
+                <button class="qty-btn" onclick={() => templateContext.setServings(selected.id, Math.max(1, (selected.servings ?? 4) - 1))}>−</button>
+                <span class="qty-value" id="servings">{selected.servings}</span>
+                <button class="qty-btn" onclick={() => templateContext.setServings(selected.id, Math.min(99, (selected.servings ?? 4) + 1))}>+</button>
+                <span class="recipe-hint">Mängderna räknas om mot det här talet vid import.</span>
+            </div>
+        {/if}
+
+        {#if isRecipe}
+            <div class="details-block">
+                <button class="details-toggle" onclick={() => detailsOpen = !detailsOpen} aria-expanded={detailsOpen}>
+                    {detailsOpen ? 'Dölj' : (selected.instructions || selected.sourceUrl ? 'Visa tillagning' : 'Lägg till tillagning')}
+                </button>
+
+                {#if detailsOpen}
+                    <label class="details-label" for="instructions">Så här gör du <span class="optional">valfritt</span></label>
+                    <textarea
+                        id="instructions"
+                        class="instructions-input"
+                        rows="6"
+                        maxlength={MAX_INSTRUCTIONS}
+                        placeholder="Kort beskrivning av tillagningen. Syns för den du delar receptet med, aldrig i inköpslistan."
+                        bind:value={instructionsDraft}
+                        onblur={saveInstructions}
+                    ></textarea>
+                    <span class="char-count" class:tight={instructionsLeft < 150}>{instructionsLeft} tecken kvar</span>
+
+                    <label class="details-label" for="source-url">Länk till källan <span class="optional">valfritt</span></label>
+                    <input
+                        id="source-url"
+                        class="source-input"
+                        type="url"
+                        inputmode="url"
+                        placeholder="https://…"
+                        bind:value={sourceUrlDraft}
+                        oninput={() => sourceError = ''}
+                        onblur={saveSourceUrl}
+                    />
+                    {#if sourceError}
+                        <p class="field-note" role="alert">{sourceError}</p>
+                    {/if}
+                {/if}
+            </div>
+        {/if}
+
+        <div class="share-row">
+            {#if selected.shareToken}
+                <input class="share-link" readonly value="{origin}/r/{selected.shareToken}" onclick={(e) => e.currentTarget.select()} />
+                <button class="btn-copy" onclick={copyShareLink}>Kopiera</button>
+                <button class="btn-unshare" onclick={toggleShare}>Sluta dela</button>
+            {:else}
+                <button class="btn-share-link" onclick={toggleShare}>
+                    Skapa delningslänk
+                </button>
+                <span class="recipe-hint">Vem som helst med länken kan läsa och spara en egen kopia.</span>
+            {/if}
+        </div>
+
         <!-- Items list -->
         <div class="card items-card">
             {#if selected.items.length === 0}
@@ -170,25 +366,21 @@
                                         placeholder="Vara"
                                         onkeydown={(e) => { if (e.key === 'Enter') saveEditItem(); else if (e.key === 'Escape') editingItemId = null; }}
                                     />
+                                    <AmountField bind:amount={editItemAmount} bind:unit={editItemUnit} onEnter={saveEditItem} />
                                     <input
                                         class="edit-input"
                                         bind:value={editItemSpec}
                                         placeholder="Specifikation (valfritt)"
+                                        list="spec-suggestions"
                                         onkeydown={(e) => { if (e.key === 'Enter') saveEditItem(); else if (e.key === 'Escape') editingItemId = null; }}
                                     />
-                                    <div class="edit-qty-row">
-                                        <label>Antal:</label>
-                                        <button class="qty-btn" onclick={() => editItemQty = Math.max(1, editItemQty - 1)}>−</button>
-                                        <span class="qty-value">{editItemQty}</span>
-                                        <button class="qty-btn" onclick={() => editItemQty = Math.min(9999, editItemQty + 1)}>+</button>
-                                    </div>
                                     <div class="category-picker">
-                                        {#each editorCategories as cat}
+                                        {#each categoriesWith(editItemCategory) as cat}
                                             <button
                                                 class="category-chip"
                                                 class:selected={editItemCategory === cat.name}
                                                 style="--chip-color: {cat.color}"
-                                                onclick={() => editItemCategory = cat.name}
+                                                onclick={() => editItemCategory = editItemCategory === cat.name ? '' : cat.name}
                                             >{cat.name}</button>
                                         {/each}
                                     </div>
@@ -201,7 +393,7 @@
                                 <div class="item-info">
                                     <span class="item-name">{item.name}{item.spec ? ` – ${item.spec}` : ''}</span>
                                     <span class="item-meta">
-                                        {#if item.quantity > 1}<span class="item-qty">×{item.quantity}</span>{/if}
+                                        {#if formatAmount(item.quantity, item.unit)}<span class="item-qty">{formatAmount(item.quantity, item.unit)}</span>{/if}
                                         {#if item.category}
                                             {@const cat = editorCategories.find(c => c.name === item.category)}
                                             <span class="item-cat-chip" style="--chip-color: {cat?.color ?? '#e2e8f0'}">{item.category}</span>
@@ -222,50 +414,50 @@
         <!-- Add item form -->
         <div class="card add-card">
             <p class="add-card-label">Lägg till vara i mallen</p>
-            {#if !selected.profileId}
-                <div class="no-profile-notice">
-                    <p>Tilldela en profil för att välja kategorier.</p>
-                    <div class="assign-row">
-                        <select bind:value={assigningProfileId} class="profile-select-sm">
-                            <option value="">Välj profil…</option>
-                            {#each listprofileContext.profiles as profile}
-                                <option value={profile.id}>{profile.name}</option>
-                            {/each}
-                        </select>
-                        <button class="btn-assign" onclick={assignProfile} disabled={!assigningProfileId}>Tilldela</button>
-                    </div>
-                </div>
-            {:else}
-                <input
-                    bind:value={newItemName}
-                    placeholder="Vara"
-                    onkeydown={(e) => e.key === 'Enter' && addItem()}
-                />
-                <input
-                    bind:value={newItemSpec}
-                    placeholder="Specifikation (valfritt)"
-                    onkeydown={(e) => e.key === 'Enter' && addItem()}
-                />
-                <div class="qty-row">
-                    <label>Antal:</label>
-                    <button class="qty-btn" onclick={() => newItemQty = Math.max(1, newItemQty - 1)}>−</button>
-                    <span class="qty-value">{newItemQty}</span>
-                    <button class="qty-btn" onclick={() => newItemQty = Math.min(9999, newItemQty + 1)}>+</button>
-                </div>
-                <div class="category-picker">
-                    {#each editorCategories as cat}
-                        <button
-                            class="category-chip"
-                            class:selected={newItemCategory === cat.name}
-                            style="--chip-color: {cat.color}"
-                            onclick={() => newItemCategory = cat.name}
-                        >{cat.name}</button>
+            <input
+                bind:value={newItemName}
+                placeholder="Vara"
+                onblur={absorbAmountShortcut}
+                onkeydown={(e) => e.key === 'Enter' && addItem()}
+            />
+            <AmountField bind:amount={newItemAmount} bind:unit={newItemUnit} onEnter={addItem} />
+            <input
+                bind:value={newItemSpec}
+                placeholder="Specifikation (valfritt)"
+                list="spec-suggestions"
+                onkeydown={(e) => e.key === 'Enter' && addItem()}
+            />
+            <datalist id="spec-suggestions">
+                {#each specSuggestions as suggestion (suggestion)}
+                    <option value={suggestion}></option>
+                {/each}
+            </datalist>
+            {#if groups.length > 1}
+                <select
+                    class="group-select"
+                    aria-label="Kategorigrupp"
+                    value={activeGroup}
+                    onchange={(e) => chooseGroup(e.currentTarget.value)}
+                >
+                    {#each groups as group}
+                        <option value={group}>{group}</option>
                     {/each}
-                </div>
-                <button class="btn-add" onclick={addItem} disabled={addingItem}>
-                    {addingItem ? 'Lägger till…' : 'Lägg till vara'}
-                </button>
+                    <option value="">Alla kategorier</option>
+                </select>
             {/if}
+            <div class="category-picker">
+                {#each editorCategories as cat}
+                    <button
+                        class="category-chip"
+                        class:selected={newItemCategory === cat.name}
+                        style="--chip-color: {cat.color}"
+                        onclick={() => newItemCategory = newItemCategory === cat.name ? '' : cat.name}
+                    >{cat.name}</button>
+                {/each}
+            </div>
+            <button class="btn-add" onclick={addItem} disabled={addingItem}>
+                {addingItem ? 'Lägger till…' : 'Lägg till vara'}
+            </button>
         </div>
 
     {:else}
@@ -277,18 +469,15 @@
             <div class="create-row">
                 <input
                     bind:value={newTemplateName}
-                    placeholder="Namn på ny mall"
+                    placeholder={newTemplateKind === 'recipe' ? 'Namn på nytt recept' : 'Namn på ny mall'}
                     onkeydown={(e) => e.key === 'Enter' && createTemplate()}
                 />
-                {#if listprofileContext.profiles.length > 1}
-                    <select bind:value={newTemplateProfileId} class="profile-select">
-                        {#each listprofileContext.profiles as profile}
-                            <option value={profile.id}>{profile.name}</option>
-                        {/each}
-                    </select>
-                {/if}
+                <select bind:value={newTemplateKind} class="kind-select" aria-label="Typ">
+                    <option value="template">Mall</option>
+                    <option value="recipe">Recept</option>
+                </select>
                 <button class="btn-create" onclick={createTemplate} disabled={creatingTemplate || !newTemplateName.trim()}>
-                    {creatingTemplate ? '…' : 'Skapa mall'}
+                    {creatingTemplate ? '…' : newTemplateKind === 'recipe' ? 'Skapa recept' : 'Skapa mall'}
                 </button>
             </div>
         </div>
@@ -304,7 +493,11 @@
                 {#each templateContext.templates as t (t.id)}
                     <button class="template-card" onclick={() => { selectedId = t.id; editingItemId = null; }}>
                         <span class="template-name">{t.name}</span>
-                        <span class="template-count">{t.items.length} {t.items.length === 1 ? 'vara' : 'varor'}</span>
+                        <span class="template-count">
+                            {t.items.length} {t.items.length === 1 ? 'vara' : 'varor'}
+                            {#if t.kind === 'recipe'}· {t.servings} port.{/if}
+                        </span>
+                        {#if t.kind === 'recipe'}<span class="kind-badge">Recept</span>{/if}
                     </button>
                 {/each}
             </div>
@@ -313,29 +506,125 @@
 </div>
 
 <style>
-    .page {
-        max-width: 680px;
-        margin: 0 auto;
-        padding: 1.5rem 1rem;
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
+    h1 { margin: 0; font-size: 1.5rem; }
+
+    .kind-badge {
+        font-size: 0.68em;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--violet-text);
+        background: var(--violet-light);
+        border-radius: 999px;
+        padding: 0.15rem 0.55rem;
     }
 
-    h1 { margin: 0; font-size: 1.5rem; }
+    .details-block {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+    }
+
+    .details-toggle {
+        align-self: flex-start;
+        padding: 0.4rem 0.8rem;
+        border: 1px dashed var(--border-input);
+        border-radius: var(--radius-sm);
+        background: none;
+        color: var(--text-muted);
+        font-size: var(--text-sm);
+        cursor: pointer;
+        min-height: unset;
+    }
+
+    .details-toggle:hover { background: var(--bg-elevated); }
+
+    .details-label {
+        margin-top: 0.35rem;
+        font-size: var(--text-xs);
+        font-weight: 600;
+        color: var(--text-secondary);
+    }
+
+    .optional {
+        font-weight: 400;
+        color: var(--text-faint);
+    }
+
+    .instructions-input,
+    .source-input {
+        width: 100%;
+        padding: 0.55rem 0.7rem;
+        border: 1px solid var(--border-input);
+        border-radius: var(--radius-sm);
+        background: var(--bg-surface);
+        color: var(--text-primary);
+        font-size: var(--text-base);
+        font-family: inherit;
+        resize: vertical;
+    }
+
+    .char-count {
+        align-self: flex-end;
+        font-size: var(--text-xs);
+        color: var(--text-faint);
+    }
+
+    .char-count.tight { color: var(--warning-text); }
+
+    .field-note {
+        margin: 0;
+        font-size: var(--text-xs);
+        color: var(--warning-text);
+        line-height: 1.5;
+    }
+
+    .recipe-bar,
+    .share-row {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        font-size: 0.85em;
+        color: var(--text-secondary);
+    }
+
+    .recipe-hint { color: var(--text-faint); font-size: 0.95em; }
+
+    .share-link {
+        flex: 1;
+        min-width: 12rem;
+        padding: 0.4rem 0.6rem;
+        border: 1px solid var(--border-input);
+        border-radius: 6px;
+        background: var(--bg-elevated);
+        color: var(--text-muted);
+        font-size: 0.85em;
+    }
+
+    .btn-copy,
+    .btn-unshare,
+    .btn-share-link {
+        padding: 0.4rem 0.8rem;
+        border: 1px solid var(--border-input);
+        border-radius: 6px;
+        background: var(--bg-surface);
+        color: var(--text-secondary);
+        font-size: 0.85em;
+        cursor: pointer;
+        min-height: unset;
+    }
+
+    .btn-copy:hover,
+    .btn-unshare:hover,
+    .btn-share-link:hover { background: var(--bg-elevated); }
+
+    .btn-unshare { color: var(--danger-text); border-color: var(--danger-border); }
 
     .subtitle {
         margin: 0;
         color: var(--text-muted);
         font-size: 0.9em;
-    }
-
-    .card {
-        background: var(--bg-surface);
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        box-shadow: var(--shadow-card);
-        padding: 1.25rem;
     }
 
     /* List view */
@@ -350,7 +639,7 @@
         flex: 1;
         padding: 0.55rem 0.8rem;
         border: 1px solid var(--border-input);
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         font-size: 0.95em;
         outline: none;
         transition: border-color 0.15s;
@@ -358,14 +647,14 @@
         color: var(--text-primary);
     }
 
-    .create-row input:focus { border-color: #f97316; }
+    .create-row input:focus { border-color: var(--color-primary); }
 
     .btn-create {
         padding: 0.55rem 1rem;
-        background: linear-gradient(135deg, #f97316, #c026d3);
+        background: var(--gradient-brand);
         color: #fff;
         border: none;
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         font-size: 0.9em;
         font-weight: 600;
         cursor: pointer;
@@ -376,10 +665,10 @@
     .btn-create:hover:not(:disabled) { opacity: 0.9; }
     .btn-create:disabled { opacity: 0.5; cursor: not-allowed; }
 
-    .profile-select {
+    .kind-select {
         padding: 0.55rem 0.8rem;
         border: 1px solid var(--border-input);
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         font-size: 0.95em;
         background: var(--bg-surface);
         color: var(--text-primary);
@@ -403,7 +692,7 @@
         min-height: 100px;
         background: var(--bg-surface);
         border: 2px solid var(--border);
-        border-radius: 12px;
+        border-radius: var(--radius-lg);
         padding: 1rem;
         cursor: pointer;
         text-align: center;
@@ -470,7 +759,7 @@
         flex: 1;
         padding: 0.4rem 0.7rem;
         border: 1px solid var(--border-input);
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         font-size: 1.1em;
         font-weight: 700;
         outline: none;
@@ -479,12 +768,12 @@
         color: var(--text-primary);
     }
 
-    .rename-input:focus { border-color: #f97316; }
+    .rename-input:focus { border-color: var(--color-primary); }
 
     .btn-rename {
         background: none;
         border: 1px solid var(--border);
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
         cursor: pointer;
         font-size: 0.8em;
         padding: 0.2rem 0.5rem;
@@ -499,7 +788,7 @@
         color: var(--danger-text);
         background: none;
         border: 1px solid var(--danger-border);
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
         padding: 0.25rem 0.6rem;
         cursor: pointer;
         white-space: nowrap;
@@ -541,7 +830,7 @@
         background: var(--danger-text);
         color: #fff;
         border: none;
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
         cursor: pointer;
         font-size: 0.85em;
         font-weight: 600;
@@ -604,7 +893,7 @@
     .item-cat-chip {
         font-size: 0.78em;
         padding: 0.15rem 0.55rem;
-        border-radius: 999px;
+        border-radius: var(--radius-pill);
         background: var(--chip-color, #e2e8f0);
         color: #374151;
         font-weight: 500;
@@ -621,7 +910,7 @@
         border: 1px solid var(--border);
         background: var(--bg-surface);
         color: var(--text-secondary);
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
         padding: 0.2rem 0.6rem;
         cursor: pointer;
         font-size: 0.8em;
@@ -644,7 +933,7 @@
     .edit-input {
         padding: 0.4rem 0.6rem;
         border: 1px solid var(--border-input);
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
         font-size: 0.9em;
         outline: none;
         transition: border-color 0.15s;
@@ -652,7 +941,7 @@
         color: var(--text-primary);
     }
 
-    .edit-input:focus { border-color: #f97316; }
+    .edit-input:focus { border-color: var(--color-primary); }
 
     .edit-actions {
         display: flex;
@@ -678,7 +967,7 @@
     .add-card input {
         padding: 0.6rem 0.8rem;
         border: 1px solid var(--border-input);
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         font-size: 0.95em;
         outline: none;
         transition: border-color 0.15s;
@@ -686,21 +975,15 @@
         color: var(--text-primary);
     }
 
-    .add-card input:focus { border-color: #f97316; }
+    .add-card input:focus { border-color: var(--color-primary); }
 
-    .qty-row, .edit-qty-row {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        font-size: 0.9em;
-        color: var(--text-secondary);
-    }
-
+    /* Kvar för portionsraden. Varornas antal stegas inte längre med knappar —
+       tolv tryck för "12 msk" höll inte, och decimaler gick inte alls. */
     .qty-btn {
         width: 32px;
         height: 32px;
         border: 1px solid var(--border-input);
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
         background: var(--bg-surface);
         cursor: pointer;
         font-size: 1em;
@@ -719,45 +1002,17 @@
         font-weight: 600;
     }
 
-    .category-picker {
-        display: flex;
-        flex-wrap: nowrap;
-        gap: 0.4rem;
-        overflow-x: auto;
-        padding: 3px 2px;
-        scrollbar-width: none;
-    }
 
-    .category-picker::-webkit-scrollbar { display: none; }
 
-    .category-chip {
-        padding: 0.3rem 0.7rem;
-        border-radius: 999px;
-        border: 1.5px solid color-mix(in srgb, var(--chip-color, #e5e7eb) 60%, var(--text-faint));
-        background: var(--chip-color, #f3f4f6);
-        cursor: pointer;
-        font-size: 0.82em;
-        font-weight: 500;
-        color: #374151;
-        opacity: 0.8;
-        transition: opacity 0.1s, box-shadow 0.1s;
-        min-height: unset;
-    }
 
-    .category-chip:hover { opacity: 1; }
 
-    .category-chip.selected {
-        opacity: 1;
-        box-shadow: 0 0 0 2px var(--text-secondary);
-        font-weight: 700;
-    }
 
     .btn-add {
         padding: 0.6rem;
-        background: linear-gradient(135deg, #f97316, #c026d3);
+        background: var(--gradient-brand);
         color: #fff;
         border: none;
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         font-size: 0.95em;
         font-weight: 600;
         cursor: pointer;
@@ -767,48 +1022,4 @@
     .btn-add:hover:not(:disabled) { opacity: 0.9; }
     .btn-add:disabled { opacity: 0.6; cursor: not-allowed; }
 
-    .no-profile-notice {
-        display: flex;
-        flex-direction: column;
-        gap: 0.6rem;
-    }
-
-    .no-profile-notice p {
-        margin: 0;
-        font-size: 0.88em;
-        color: var(--text-muted);
-    }
-
-    .assign-row {
-        display: flex;
-        gap: 0.5rem;
-    }
-
-    .profile-select-sm {
-        flex: 1;
-        padding: 0.45rem 0.7rem;
-        border: 1px solid var(--border-input);
-        border-radius: 8px;
-        font-size: 0.9em;
-        background: var(--bg-surface);
-        color: var(--text-primary);
-        outline: none;
-        cursor: pointer;
-    }
-
-    .btn-assign {
-        padding: 0.45rem 0.9rem;
-        background: linear-gradient(135deg, #f97316, #c026d3);
-        color: #fff;
-        border: none;
-        border-radius: 8px;
-        font-size: 0.88em;
-        font-weight: 600;
-        cursor: pointer;
-        white-space: nowrap;
-        transition: opacity 0.15s;
-    }
-
-    .btn-assign:hover:not(:disabled) { opacity: 0.9; }
-    .btn-assign:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>

@@ -1,8 +1,10 @@
 import { notificationContext } from './notification-context.svelte';
 
 /**
- * @typedef {{ itemId: string, name: string, spec: string, quantity: number, category: string }} TemplateItem
- * @typedef {{ id: string, owner: string, name: string, items: TemplateItem[], profileId: string | null }} Template
+ * `quantity: null` betyder att receptet inte anger någon mängd — salt "efter
+ * smak" ska inte multipliceras när portionerna dubblas. `unit: ''` är styck.
+ * @typedef {{ itemId: string, name: string, spec: string, quantity: number | null, unit?: string, category: string }} TemplateItem
+ * @typedef {{ id: string, owner: string, name: string, kind: 'template' | 'recipe', servings: number | null, shareToken: string | null, instructions: string, sourceUrl: string, items: TemplateItem[] }} Template
  */
 
 class TemplateContext {
@@ -13,7 +15,21 @@ class TemplateContext {
     // inte flimrar förbi vid varje sidladdning.
     loaded = $state(false);
 
+    // Sätts när mallarna kommit med från en server-load. Layouten anropar load()
+    // på varje sida, och utan den här flaggan vore det samma fråga en gång till.
+    #seeded = false;
+
+    /** @param {Template[]} templates */
+    seed(templates) {
+        // Kopieras så att optimistiska mutationer inte skriver i SvelteKits
+        // cachade load-data.
+        this.templates = [...templates];
+        this.loaded = true;
+        this.#seeded = true;
+    }
+
     async load() {
+        if (this.#seeded) return;
         try {
             const res = await fetch('/api/templates');
             if (res.ok) {
@@ -30,6 +46,92 @@ class TemplateContext {
     reset() {
         this.templates = [];
         this.loaded = false;
+        this.#seeded = false;
+    }
+
+    /**
+     * Antal portioner receptet är skrivet för. Mängderna räknas om mot det här
+     * talet vid import.
+     * @param {string} id
+     * @param {number} servings
+     */
+    async setServings(id, servings) {
+        const t = this.getTemplate(id);
+        if (!t) return false;
+        const prev = t.servings;
+        t.servings = servings;
+        try {
+            const res = await fetch(`/api/templates/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ servings })
+            });
+            if (!res.ok) throw new Error();
+            return true;
+        } catch {
+            t.servings = prev;
+            notificationContext.show('Kunde inte spara portioner. Försök igen.');
+            return false;
+        }
+    }
+
+    /**
+     * Tillagning och källänk. Valfria, och bara meningsfulla för recept —
+     * ett recept utan tillagning är bara en ingredienslista för mottagaren.
+     * @param {string} id
+     * @param {{ instructions?: string, sourceUrl?: string }} fields
+     */
+    async updateRecipeDetails(id, fields) {
+        const t = this.getTemplate(id);
+        if (!t) return false;
+        const prev = { instructions: t.instructions, sourceUrl: t.sourceUrl };
+        if (fields.instructions !== undefined) t.instructions = fields.instructions;
+        if (fields.sourceUrl !== undefined) t.sourceUrl = fields.sourceUrl;
+        try {
+            const res = await fetch(`/api/templates/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(fields)
+            });
+            if (!res.ok) throw new Error();
+            // Servern tvättar bort adresser som inte är http(s). Ta emot det
+            // den faktiskt sparade i stället för att behålla vår egen gissning.
+            const saved = await res.json();
+            if (saved.instructions !== undefined) t.instructions = saved.instructions;
+            if (saved.sourceUrl !== undefined) t.sourceUrl = saved.sourceUrl;
+            return true;
+        } catch {
+            Object.assign(t, prev);
+            notificationContext.show('Kunde inte spara. Försök igen.');
+            return false;
+        }
+    }
+
+    /**
+     * Slår på eller av den publika länken. Att stänga av tar bort token, så en
+     * länk som redan spridits slutar fungera.
+     * @param {string} id
+     * @param {boolean} shared
+     */
+    async setShared(id, shared) {
+        const t = this.getTemplate(id);
+        if (!t) return false;
+        const prev = t.shareToken;
+        try {
+            const res = await fetch(`/api/templates/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ shared })
+            });
+            if (!res.ok) throw new Error();
+            const { shareToken } = await res.json();
+            t.shareToken = shareToken ?? null;
+            return true;
+        } catch {
+            t.shareToken = prev;
+            notificationContext.show('Kunde inte ändra delningen. Försök igen.');
+            return false;
+        }
     }
 
     /** @param {string} id */
@@ -37,16 +139,13 @@ class TemplateContext {
         return this.templates.find(t => t.id === id) ?? null;
     }
 
-    /**
-     * @param {string} name
-     * @param {string | null} profileId
-     */
-    async createTemplate(name, profileId) {
+    /** @param {string} name */
+    async createTemplate(name, kind = 'template', servings = 4) {
         try {
             const res = await fetch('/api/templates', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, profileId })
+                body: JSON.stringify({ name, kind, servings })
             });
             if (res.status === 400) {
                 const { error } = await res.json();
@@ -62,30 +161,6 @@ class TemplateContext {
         } catch {
             notificationContext.show('Kunde inte skapa mall. Försök igen.');
             return null;
-        }
-    }
-
-    /**
-     * @param {string} templateId
-     * @param {string} profileId
-     */
-    async assignProfile(templateId, profileId) {
-        const t = this.getTemplate(templateId);
-        if (!t) return false;
-        const prev = t.profileId;
-        t.profileId = profileId;
-        try {
-            const res = await fetch(`/api/templates/${templateId}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ profileId })
-            });
-            if (!res.ok) throw new Error();
-            return true;
-        } catch {
-            t.profileId = prev;
-            notificationContext.show('Kunde inte tilldela profil. Försök igen.');
-            return false;
         }
     }
 
@@ -130,13 +205,14 @@ class TemplateContext {
      * @param {string} templateId
      * @param {string} name
      * @param {string} spec
-     * @param {number} quantity
+     * @param {number | null} quantity
      * @param {string} category
+     * @param {string} [unit]
      */
-    async addItem(templateId, name, spec, quantity, category) {
+    async addItem(templateId, name, spec, quantity, category, unit = '') {
         const t = this.getTemplate(templateId);
         if (!t) return false;
-        const item = { itemId: crypto.randomUUID(), name, spec, quantity, category };
+        const item = { itemId: crypto.randomUUID(), name, spec, quantity, unit, category };
         t.items = [...t.items, item];
         try {
             const res = await fetch(`/api/templates/${templateId}`, {
@@ -178,7 +254,7 @@ class TemplateContext {
     /**
      * @param {string} templateId
      * @param {string} itemId
-     * @param {{ name?: string, spec?: string, quantity?: number, category?: string }} changes
+     * @param {{ name?: string, spec?: string, quantity?: number | null, unit?: string, category?: string }} changes
      */
     async updateItem(templateId, itemId, changes) {
         const t = this.getTemplate(templateId);

@@ -5,7 +5,6 @@
     // plus any pending invitations that need to be accepted or declined.
     import { shoppingContext } from "$lib/context/shopping-context.svelte";
     import { authContext } from "$lib/context/auth-context.svelte";
-    import { listprofileContext } from "$lib/context/listprofile-context.svelte";
     import { goto } from '$app/navigation';
 
     let { data } = $props();
@@ -14,6 +13,7 @@
     // for the background load() triggered by the layout effect.
     $effect.pre(() => {
         shoppingContext.seedAll(data.lists);
+        shoppingContext.seedInvitations(data.invitations);
     });
 
     const username = $derived(authContext.user?.username ?? '');
@@ -25,19 +25,11 @@
     const pendingInvitations = $derived(shoppingContext.invitations);
 
     let newListName = $state('');
-    let selectedProfileId = $state('');
-
-    // Auto-select the first profile once profiles are loaded.
-    $effect(() => {
-        if (!selectedProfileId && listprofileContext.profiles.length > 0) {
-            selectedProfileId = listprofileContext.profiles[0].id;
-        }
-    });
 
     // Creates the list and immediately navigates to it so the user can start adding items.
     async function createList() {
-        if (newListName.trim().length === 0 || !selectedProfileId) return;
-        const id = await shoppingContext.createList(newListName, username, selectedProfileId);
+        if (newListName.trim().length === 0) return;
+        const id = await shoppingContext.createList(newListName, username);
         if (!id) return;
         newListName = '';
         goto(`/inkopslista/${id}`);
@@ -54,13 +46,6 @@
         placeholder="Namn på ny lista"
         onkeydown={(e) => e.key === 'Enter' && createList()}
     />
-    {#if listprofileContext.profiles.length > 1}
-        <select bind:value={selectedProfileId} class="profile-select">
-            {#each listprofileContext.profiles as profile}
-                <option value={profile.id}>{profile.name}</option>
-            {/each}
-        </select>
-    {/if}
     <button onclick={createList}>+ Skapa lista</button>
 </div>
 
@@ -83,7 +68,10 @@
 {/if}
 
 {#if myLists.length === 0}
-    <p class="empty-hint">Inga listor än — skapa din första ovan.</p>
+    <div class="empty-state">
+        <p class="empty-title">Inga listor än</p>
+        <p class="empty-hint">Skapa din första lista i fältet ovan — sedan kan du dela den med andra.</p>
+    </div>
 {:else}
     <div class="lists-grid">
         {#each myLists as list}
@@ -102,15 +90,6 @@
 </div>
 
 <style>
-    .page {
-        max-width: 680px;
-        margin: 0 auto;
-        padding: 1.5rem 1rem;
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-    }
-
     h1 { margin: 0; font-size: 1.5rem; }
 
     .subtitle {
@@ -132,7 +111,7 @@
         align-items: center;
         gap: 0.4rem;
         min-height: 120px;
-        border-radius: 12px;
+        border-radius: var(--radius-lg);
         border: 2px solid var(--border);
         background: var(--bg-surface);
         text-decoration: none;
@@ -162,7 +141,7 @@
         font-size: 0.72em;
         color: var(--violet-text);
         background: var(--violet-light);
-        border-radius: 999px;
+        border-radius: var(--radius-pill);
         padding: 0.15rem 0.55rem;
         text-align: center;
     }
@@ -172,7 +151,7 @@
         gap: 0.5rem;
         background: var(--bg-surface);
         border: 1px solid var(--border);
-        border-radius: 12px;
+        border-radius: var(--radius-lg);
         padding: 1rem;
     }
 
@@ -180,7 +159,7 @@
         flex: 1;
         padding: 0.55rem 0.8rem;
         border: 1px solid var(--border-input);
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         font-size: 0.95em;
         outline: none;
         transition: border-color 0.15s;
@@ -188,25 +167,14 @@
         color: var(--text-primary);
     }
 
-    .new-list-card input:focus { border-color: #f97316; }
-
-    .profile-select {
-        padding: 0.55rem 0.8rem;
-        border: 1px solid var(--border-input);
-        border-radius: 8px;
-        font-size: 0.95em;
-        background: var(--bg-surface);
-        color: var(--text-primary);
-        outline: none;
-        cursor: pointer;
-    }
+    .new-list-card input:focus { border-color: var(--color-primary); }
 
     .new-list-card button {
         padding: 0.55rem 1rem;
-        background: linear-gradient(135deg, #f97316, #c026d3);
+        background: var(--gradient-brand);
         color: #fff;
         border: none;
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         font-size: 0.9em;
         font-weight: 600;
         cursor: pointer;
@@ -279,7 +247,7 @@
         background: var(--success-text);
         color: #fff;
         border: none;
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
         font-size: 0.85em;
         font-weight: 600;
         cursor: pointer;
@@ -292,7 +260,7 @@
         background: var(--bg-surface);
         color: var(--danger-text);
         border: 1px solid var(--danger-border);
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
         font-size: 0.85em;
         font-weight: 600;
         cursor: pointer;

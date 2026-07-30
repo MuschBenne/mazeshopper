@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import { getDb } from '$lib/server/db';
 import { getSessionUser } from '$lib/server/session';
 import { listAccessFilter } from '$lib/server/utils';
+import { normalizeUnit, sanitizeQuantity } from '$lib/units';
 import { ObjectId } from 'mongodb';
 
 // Removes a single item from the list by its itemId.
@@ -23,7 +24,7 @@ export async function DELETE({ params, cookies }) {
     return json({ ok: true });
 }
 
-// Partially updates a single item. Accepts: bought, quantity, name, spec.
+// Partially updates a single item. Accepts: bought, quantity, unit, name, spec.
 // Uses MongoDB arrayFilters to target the specific item inside the embedded array.
 // Access check is merged into the updateOne filter to save a round-trip.
 export async function PATCH({ params, request, cookies }) {
@@ -32,11 +33,14 @@ export async function PATCH({ params, request, cookies }) {
 
     const body = await request.json();
 
-    // Only allow updating bought, quantity, name, spec, and category.
+    // Only allow updating bought, quantity, unit, name, spec, and category.
     /** @type {Record<string, any>} */
     const setFields = {};
     if (typeof body.bought === 'boolean') setFields['items.$[el].bought'] = body.bought;
-    if (Number.isInteger(body.quantity) && body.quantity > 0 && body.quantity <= 9999) setFields['items.$[el].quantity'] = body.quantity;
+    // Ett uttryckligt null tar bort mängden — det är så man ångrar en angiven
+    // mängd. Fältet måste däremot vara med i anropet för att röras alls.
+    if ('quantity' in body) setFields['items.$[el].quantity'] = sanitizeQuantity(body.quantity);
+    if (typeof body.unit === 'string') setFields['items.$[el].unit'] = normalizeUnit(body.unit);
     if (typeof body.name === 'string' && body.name.trim().length > 0) setFields['items.$[el].name'] = body.name.trim().slice(0, 200);
     if (typeof body.spec === 'string') setFields['items.$[el].spec'] = body.spec.trim().slice(0, 500);
     if (typeof body.category === 'string') setFields['items.$[el].category'] = body.category.trim().slice(0, 50);

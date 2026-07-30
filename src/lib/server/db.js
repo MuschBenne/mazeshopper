@@ -1,5 +1,12 @@
 import { MongoClient } from 'mongodb';
 import { MONGODB_URI } from '$env/static/private';
+import { env } from '$env/dynamic/private';
+
+// Databasnamnet är valfritt och faller tillbaka på produktionsnamnet, så
+// befintliga driftsättningar fungerar utan att variabeln sätts. Poängen är att
+// kunna peka lokal utveckling mot en egen databas i samma kluster — annars
+// skriver npm run dev i samma data som den driftsatta appen.
+const DB_NAME = env.MONGODB_DB || 'mazeshopper';
 
 /** @type {MongoClient | null} */
 let client = null;
@@ -17,6 +24,8 @@ export async function ensureIndexes() {
         db.collection('sessions').createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
         db.collection('lists').createIndex({ owner: 1 }),
         db.collection('lists').createIndex({ sharedWith: 1 }),
+        // Inbjudningslänkar slår upp på token, aldrig på ägare.
+        db.collection('lists').createIndex({ inviteToken: 1 }, { unique: true, sparse: true }),
         db.collection('lists').createIndex({ profileId: 1 }),
         db.collection('stores').createIndex({ owner: 1 }),
         db.collection('invitations').createIndex({ toUser: 1, status: 1 }),
@@ -27,6 +36,8 @@ export async function ensureIndexes() {
         db.collection('login_attempts').createIndex({ key: 1 }),
         db.collection('login_attempts').createIndex({ at: 1 }, { expireAfterSeconds: 900 }),
         db.collection('templates').createIndex({ owner: 1 }),
+        // Publika receptlänkar slår upp på token, aldrig på ägare.
+        db.collection('templates').createIndex({ shareToken: 1 }, { unique: true, sparse: true }),
         db.collection('listprofiles').createIndex({ owner: 1 }),
     ]);
     indexesEnsured = true;
@@ -50,5 +61,5 @@ export async function getDb() {
             throw err;
         }
     }
-    return client.db('mazeshopper');
+    return client.db(DB_NAME);
 }

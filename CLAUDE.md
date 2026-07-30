@@ -35,9 +35,12 @@ Se `.env.example`. Krävs för att appen ska starta:
 
 ```
 MONGODB_URI=          # MongoDB Atlas connection string
+MONGODB_DB=           # Valfritt databasnamn (default: mazeshopper)
 RESEND_API_KEY=       # API-nyckel för transaktionsmejl
 EMAIL_FROM=           # Avsändaradress, t.ex. noreply@dindomän.se
 ```
+
+**Lokal utveckling:** sätt `MONGODB_DB=mazeshopper_dev` i `.env`. Utan den skriver `npm run dev` i samma databas som den driftsatta appen — och vissa ändringar (indexskapande, migreringar i server-loads) sker automatiskt vid sidladdning, utan att du gör något aktivt.
 
 ## Arkitektur
 
@@ -60,20 +63,21 @@ src/
 │   │   └── Toast.svelte             # Toast-notifikationer
 │   ├── context/                     # Globala Svelte 5-singletons (module-exports)
 │   │   ├── auth-context.svelte.js          # Inloggningsstatus + auth-anrop
-│   │   ├── listprofile-context.svelte.js   # Listprofiler + kategorier (CRUD)
+│   │   ├── category-context.svelte.js      # Kategoripaletten (CRUD + gruppfilter)
 │   │   ├── notification-context.svelte.js  # Toast-kö
 │   │   ├── shopping-context.svelte.js      # Listor + inbjudningar
 │   │   ├── store-context.svelte.js         # Varuhus + layout
-│   │   ├── template-context.svelte.js      # Listmallar (CRUD + import till lista)
+│   │   ├── template-context.svelte.js      # Mallar och recept (CRUD + import till lista)
 │   │   └── theme-context.svelte.js         # Tema (system/ljust/mörkt, localStorage)
 │   └── server/
+│       ├── categories.js            # getUserCategories() (migrering), renameCategoryEverywhere()
+│       ├── category-defaults.js     # Standardpaletten som nya konton får
 │       ├── db.js                    # MongoClient singleton + ensureIndexes()
 │       ├── email.js                 # sendPasswordReset(), sendEmailVerification()
-│       ├── listprofile-defaults.js  # De 4 standardprofilerna som skapas vid registrering
 │       ├── session.js               # createSession(), getSessionUser(), deleteSession()
-│       └── utils.js                 # serializeList(), isValidPassword(), isValidEmail(), escapeRegex()
+│       └── utils.js                 # serializeList(), serializeTemplate(), listAccessFilter(), isValidPassword(), isValidEmail(), escapeRegex(), generateShareToken(), clampServings()
 ├── routes/
-│   ├── +layout.server.js   # Laddar session → skickar user till layout
+│   ├── +layout.server.js   # Laddar session + kategoripalett → skickar till layout
 │   ├── +layout.svelte      # Navbar, Toast, bootstrappar alla context:ar
 │   ├── +page.svelte        # Inloggning/registrering (startsida)
 │   ├── api/
@@ -82,29 +86,31 @@ src/
 │   │   │                   #       resend_verification, delete_account, exists
 │   │   │                   # GET: returnerar inloggad användare
 │   │   ├── invitations/    # GET inbjudningar, POST accept/decline
-│   │   ├── listprofiles/   # GET/POST listprofiler
-│   │   │   └── [id]/       # PATCH byt namn, DELETE (blockeras om listor/varuhus använder den)
-│   │   │       └── categories/        # POST lägg till kategori
-│   │   │           └── [catId]/       # PATCH redigera, DELETE ta bort (ej låsta)
-│   │   ├── lists/          # GET/POST listor (POST kräver profileId)
+│   │   ├── categories/     # GET/POST kategorier i paletten
+│   │   │   └── [id]/       # PATCH namn/färg/grupp (namnbyte kaskaderar), DELETE
+│   │   ├── lists/          # GET/POST listor (bara namn krävs)
 │   │   │   └── [id]/       # DELETE lista, GET enskild lista
-│   │   │       ├── import/ # POST importera varor från mall (addedBy sätts)
+│   │   │       ├── import/ # POST importera varor från mall/recept (scale + addedBy sätts)
 │   │   │       ├── items/  # POST item, DELETE alla/bought
 │   │   │       │   └── [itemId]/  # DELETE/PATCH enskild vara
 │   │   │       ├── share/  # POST/DELETE dela lista; delare kan ta bort sig själva (lämna)
 │   │   │       └── stream/ # GET SSE-ström för realtidsuppdateringar (maxDuration 300s)
-│   │   ├── stores/         # GET/POST varuhus (POST kräver profileId)
+│   │   ├── stores/         # GET/POST varuhus (bara namn krävs)
 │   │   │   └── [storeId]/  # PATCH layout, DELETE varuhus
-│   │   ├── templates/      # GET/POST/DELETE/PATCH listmallar
+│   │   ├── templates/      # GET/POST mallar och recept
+│   │   │   ├── [id]/       # PATCH namn/portioner/varor/delningslänk, DELETE
+│   │   │   └── shared/[token]/  # POST spara delat recept som egen kopia
 │   │   └── user/export/    # GET — returnerar all användardata som JSON
 │   ├── inkopslista/
-│   │   ├── +page.svelte         # Lista-översikt + skapa lista (med profilväljare)
+│   │   ├── +page.svelte         # Lista-översikt + skapa lista
 │   │   └── [id]/+page.svelte    # Listadetail — redigerings- och handelsläge
-│   ├── varuhus/            # Varuhushantering + StoreEditor (med profilväljare)
-│   ├── installningar/      # Listprofiler, e-post, dataexport, kontoborttagning
+│   ├── mallar/             # Mallar och recept: portioner, delningslänk, varor
+│   ├── varuhus/            # Varuhushantering + StoreEditor (gruppfilter)
+│   ├── installningar/      # Kategoripalett, tema, e-post, dataexport, kontoborttagning
 │   ├── integritetspolicy/  # GDPR-policy (Swedish)
 │   ├── anvandardvillkor/   # Användarvillkor
 │   ├── om/                 # Om-sida
+│   ├── r/[token]/          # Publik läsvy för delat recept (kräver ej inloggning)
 │   ├── glomt-losenord/     # Begär lösenordsåterställning
 │   ├── aterstall-losenord/ # Formulär för nytt lösenord (token i URL)
 │   └── verifiera-epost/    # Verifieringslänk via mejl
@@ -120,7 +126,9 @@ All state använder runes — ingen legacy `let`/`$:`. Kontextobjekt är class-i
 `shopping-context.svelte.js` uppdaterar UI direkt och rullar tillbaka vid serverfel. Alla mutationer visar toast via `notificationContext.show(...)` vid fel.
 
 ### API-handlers
-Alla `/api/**` routes returnerar `json(...)` från `@sveltejs/kit`. Auth-kontroll via `getSessionUser(cookies)` i varje handler — returnerar 401 om ej inloggad. Åtkomst till listor kontrolleras med `$or: [{ owner }, { sharedWith }]`.
+Alla `/api/**` routes returnerar `json(...)` från `@sveltejs/kit`. Auth-kontroll via `getSessionUser(cookies)` i varje handler — returnerar 401 om ej inloggad. Åtkomst till listor kontrolleras med `listAccessFilter(username)` i `lib/server/utils.js` (`$or: [{ owner }, { sharedWith }]`); mot ett dokument man redan har används `hasListAccess()`. Håll de två i synk.
+
+Undantag: `GET /r/[token]` är publik — en delningslänk ska gå att skicka till vem som helst.
 
 ### Lösenordsregler
 Minst 8 tecken, minst en bokstav (inkl. åäö), minst en siffra. Valideras av `isValidPassword()` i `api/auth/+server.js` och speglat i frontend.
@@ -129,9 +137,23 @@ Minst 8 tecken, minst en bokstav (inkl. åäö), minst en siffra. Valideras av `
 - Listnamn / butiksnamn: max 100 tecken
 - Varunamn: max 200 tecken
 - Specifikation: max 500 tecken
-- Antal: 1–9999
+- Mängd: `0 < q <= 9999`, decimaler tillåtna. `null` = ingen mängd angiven
+- Enhet: max 20 tecken. Tom sträng = styck
 - Kategorinamn (i item): max 50 tecken
 - Kategorifärg: måste vara valid hex (#rrggbb), annars fallback `#e2e8f0`
+
+### Mängd och enhet
+`src/lib/units.js` är den enda källan för enheter, avrundning, formatering och
+tolkningen av "3 dl grädde". Modulen importeras av både API-handlers och
+komponenter — avrundningen vid import måste vara identisk på servern och i den
+optimistiska kopian i `shopping-context`, annars hoppar talen när svaret landar.
+
+- Räknbara enheter (`''`, `förp`, `burk`, `pkt`, `knippe`) skalas med `Math.ceil`, minst 1.
+- Kontinuerliga (`g`, `hg`, `kg`, `ml`, `cl`, `dl`, `l`, `msk`, `tsk`, `krm`) skalas till närmaste trevliga steg: <1 → 0,25; 1–10 → 0,5; 10–100 → heltal; >100 → tiotal. Fjärdedelarna under 1 finns för att en halvering inte ska runda uppåt förbi originalet.
+- `quantity === null` skalas aldrig — "salt efter smak" ska inte bli "×2 salt".
+- Skalfaktorn tvättas av `sanitizeScale()` inuti `scaleQuantity()`, så servern och den optimistiska kopian aldrig kan råka klamra olika.
+- Ingen enhetsomvandling. 1500 g blir aldrig 1,5 kg.
+- Visning använder svenskt decimalkomma; internt lagras punkt. `formatAmount()` ger ×-formen för de kompakta metaraderna, `formatStepperAmount()` ett rent tal för listans stegkolumn där −/+ redan ramar in talet.
 
 ### Session
 - Livslängd 30 dagar, httpOnly cookie `session`
@@ -148,12 +170,12 @@ Max 10 försök per IP per 15 minuter, spåras i `login_attempts`-collection med
 
 | Collection | Innehåll |
 |---|---|
-| `users` | username (unik, lowercase), email (sparse), password (bcrypt), emailVerified |
+| `users` | username (unik, lowercase), email (sparse), password (bcrypt), emailVerified, categories[] ({id, name, color, group}) |
 | `sessions` | token (unik), username, expiresAt (TTL) |
-| `lists` | owner, profileId, sharedWith[], pendingInvites[], items[] (inkl. addedBy per vara) |
-| `templates` | owner, name, items[] (itemId, name, spec, quantity, category) |
-| `stores` | owner, profileId, name, categoryOrder{}, positions{} |
-| `listprofiles` | owner, name, categories[] ({id, name, color, locked?}), createdAt |
+| `lists` | owner, sharedWith[], pendingInvites[], items[] (inkl. addedBy, quantity, unit per vara) |
+| `templates` | owner, name, kind ('template'\|'recipe'), servings (recept), shareToken (sparse unik), items[] (itemId, name, spec, quantity, unit, category) |
+| `stores` | owner, name, categoryOrder{}, positions{} |
+| `listprofiles` | *utfasad* — läses bara vid engångsmigrering till `users.categories` |
 | `password_resets` | email, tokenHash, expiresAt (TTL 15 min) |
 | `email_verifications` | username, tokenHash, expiresAt (TTL 24h) |
 | `login_attempts` | key (IP), at (TTL 900s) |
@@ -161,15 +183,28 @@ Max 10 försök per IP per 15 minuter, spåras i `login_attempts`-collection med
 
 Indexes skapas av `ensureIndexes()` i `db.js`, körs vid serverstart via `hooks.server.js`.
 
-## Listprofiler
+## Kategorier
 
-Kategorier är kopplade till **listprofiler** — namngivna samlingar av kategorier. Varje lista och varuhus tillhör en profil.
+Kategorier är en **platt palett per användare**, lagrad på användardokumentet som `categories[]` med `{id, name, color, group}`.
 
-- Vid registrering skapas 4 standardprofiler: Livsmedel, Bygg & Järnhandel, Hem & Inredning, Generisk lista.
-- Kategorier bäddas in i profildokumentet (`categories[]`), inte som egna dokument.
-- "Generisk lista" har en inbyggd låst "Övrigt"-kategori (`locked: true`) som inte kan tas bort.
-- Delade listor: delade användare ser ägarens profilkategorier (laddas server-side i `[id]/+page.server.js`).
-- En profil kan inte tas bort om aktiva listor eller varuhus refererar till den.
+- `group` är en ren visningsetikett som filtrerar kategoriväljaren och varuhusredigeraren. Ingen lista, inget varuhus och ingen mall refererar den, så den kan aldrig vara "i bruk" och blockera en borttagning.
+- Varor lagrar sin kategori som **namn**, och varuhusrutter nycklas på namn. Ett namnbyte kaskaderar därför till ägarens listor, mallar och varuhus (`renameCategoryEverywhere` i `lib/server/categories.js`).
+- Kategori är valfri. Varor utan kategori hamnar i "Utan kategori".
+- På en lista **härleds gruppen från varorna som redan ligger i den** — inget profilval krävs innan man får skriva. Filtret går alltid att slå av.
+- Delade listor visar **ägarens** palett, laddad server-side i `[id]/+page.server.js`. Kategorinamn mottagaren saknar visas ändå, via fallbacken för okända kategorier.
+
+### Migrering från listprofiler
+
+`getUserCategories()` migrerar första gången en användare läses: unionen av alla profilers kategorier, skiftlägesokänsligt på namn, där första färgen vinner och det gamla profilnamnet blir grupp. Resultatet sparas, så omvandlingen sker en gång per konto. `listprofiles`-collectionen lämnas orörd.
+
+## Mallar och recept
+
+Mallar och recept delar `templates`-collection och skiljs åt av `kind`. Dokument utan fältet behandlas som `'template'` (samma mönster som `emailVerified ?? true`).
+
+- Ett recept är en mall med `servings`. Vid import skalas `quantity` mot antalet portioner man vill laga och avrundas uppåt.
+- Ett recept kan bära `instructions` (max 1500 tecken, ungefär 200 ord) och `sourceUrl` (endast http/https). Båda är valfria och visas aldrig i inköpslistan — de hör hemma i köket, inte i butiken.
+- `shareToken` (256 bitar, samma mönster som sessionstoken) ger en publik läsvy på `/r/{token}`. Den vyn är `noindex` och renderar tillagningen som ren text. Att sluta dela tar bort token, så spridda länkar slutar fungera direkt.
+- "Spara bland mina recept" kopierar dokumentet. Kategorier följer med som namn och visas via samma fallback som okända kategorier i delade listor.
 
 ## Tema
 
@@ -177,13 +212,13 @@ Manuell temainställning (system/ljust/mörkt) via `theme-context.svelte.js`. Sp
 
 ## Handelsläge
 
-I `inkopslista/[id]/+page.svelte` aktiveras handelsläge via `shoppingMode`-state. Pollning sker var 15:e sekund via `shoppingContext.refreshList(id)`. Efter 2+ på varandra följande misslyckade polls visas ett gult offline-banner (`pollFailures >= 2`). SSE-ström finns som alternativ via `GET /api/lists/[id]/stream`.
+I `inkopslista/[id]/+page.svelte` aktiveras handelsläge via `shoppingMode`-state. Realtidsuppdateringar kommer från SSE-strömmen `GET /api/lists/[id]/stream` — det finns ingen pollning. Servern stänger strömmen med jämna mellanrum (funktioner har maxlivslängd), så korta avbrott är normala; offline-bannern visas först när återanslutningen uteblivit i 6 sekunder.
 
 ## GDPR
 
 - Personuppgiftsansvarig: Benjamin Sjöstrand (benjamin@rosenbergab.com)
 - Laglig grund: avtal (Art. 6.1.b)
 - Åldersgräns: 16 år
-- Dataexport: `GET /api/user/export` returnerar JSON-fil (konto, listor, varuhus, listprofiler, mallar)
+- Dataexport: `GET /api/user/export` returnerar JSON-fil (konto inkl. kategoripalett, listor, varuhus, mallar, samt `listprofiles` så länge äldre konton har kvar dem)
 - Radering: `POST /api/auth` action `delete_account` tar bort allt
 - Policy: `/integritetspolicy`, villkor: `/anvandardvillkor`

@@ -3,7 +3,7 @@
      * @type {{
      *   store: { categoryOrder: {[k: string]: number} },
      *   categories: { id: string, name: string, color: string }[],
-     *   onSave: (layout: { positions: {[k: string]: {x: number, y: number}}, route: string[] }) => void
+     *   onSave: (layout: { positions: {[k: string]: {x: number, y: number}}, route: string[] }) => Promise<boolean>
      * }}
      */
     let { store, categories, onSave } = $props();
@@ -60,6 +60,20 @@
         route = route.filter(n => n !== name);
     }
 
+    /**
+     * Flyttar en rad i rutten. Används av både dragningen och pilknapparna, så
+     * de två sätten inte kan hamna ur synk med varandra.
+     * @param {number} from
+     * @param {number} to
+     */
+    function move(from, to) {
+        if (to < 0 || to >= route.length || from === to) return;
+        const next = [...route];
+        const [moved] = next.splice(from, 1);
+        next.splice(to, 0, moved);
+        route = next;
+    }
+
     /** @type {number | null} */
     let dragIndex = $state(null);
     /** @type {number | null} */
@@ -95,10 +109,7 @@
             dragOverIndex = null;
             return;
         }
-        const newRoute = [...route];
-        const [moved] = newRoute.splice(dragIndex, 1);
-        newRoute.splice(index, 0, moved);
-        route = newRoute;
+        move(dragIndex, index);
         dragIndex = null;
         dragOverIndex = null;
     }
@@ -141,25 +152,32 @@
     }
 
     function onListTouchEnd() {
-        if (touchDragIndex !== null && touchOverIndex !== null && touchOverIndex !== touchDragIndex) {
-            const newRoute = [...route];
-            const [moved] = newRoute.splice(touchDragIndex, 1);
-            newRoute.splice(touchOverIndex, 0, moved);
-            route = newRoute;
+        if (touchDragIndex !== null && touchOverIndex !== null) {
+            move(touchDragIndex, touchOverIndex);
         }
         touchDragIndex = null;
         touchOverIndex = null;
     }
 
     let saved = $state(false);
+    let saving = $state(false);
     /** @type {ReturnType<typeof setTimeout> | null} */
     let savedTimer = null;
 
-    function save() {
-        onSave({ positions: {}, route: [...route] });
-        saved = true;
-        if (savedTimer) clearTimeout(savedTimer);
-        savedTimer = setTimeout(() => { saved = false; }, 2000);
+    // Kvittensen får bara visas när servern faktiskt tagit emot ordningen.
+    // Annars ser en misslyckad sparning identisk ut med en lyckad, och felet
+    // upptäcks först nästa gång butiken sorteras.
+    async function save() {
+        if (saving) return;
+        saving = true;
+        try {
+            if (!await onSave({ positions: {}, route: [...route] })) return;
+            saved = true;
+            if (savedTimer) clearTimeout(savedTimer);
+            savedTimer = setTimeout(() => { saved = false; }, 2000);
+        } finally {
+            saving = false;
+        }
     }
 
     /** @param {string} name */
@@ -220,7 +238,13 @@
                 >
                     <span class="drag-handle" aria-hidden="true"
                         ontouchstart={(e) => onHandleTouchStart(e, i)}
-                    >⠿</span>
+                    >
+                        <svg width="12" height="18" viewBox="0 0 12 18" fill="currentColor">
+                            <circle cx="3" cy="3" r="1.4" /><circle cx="9" cy="3" r="1.4" />
+                            <circle cx="3" cy="9" r="1.4" /><circle cx="9" cy="9" r="1.4" />
+                            <circle cx="3" cy="15" r="1.4" /><circle cx="9" cy="15" r="1.4" />
+                        </svg>
+                    </span>
                     <span class="color-dot" style="background: {color}"></span>
                     <span class="cat-name">{name}</span>
                     <div class="badges">
@@ -230,6 +254,31 @@
                         {#if isLast && route.length > 1}
                             <span class="badge badge-end">Utgång</span>
                         {/if}
+                    </div>
+                    <!-- Pilknapparna är den pålitliga vägen: de kräver ingen
+                         sikte, fungerar med tangentbord och läses upp korrekt.
+                         Dragningen finns kvar för den som föredrar den. -->
+                    <div class="move-buttons">
+                        <button
+                            class="btn-move"
+                            onclick={() => move(i, i - 1)}
+                            disabled={isFirst}
+                            aria-label="Flytta {name} uppåt"
+                        >
+                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M3 9l4-4 4 4" />
+                            </svg>
+                        </button>
+                        <button
+                            class="btn-move"
+                            onclick={() => move(i, i + 1)}
+                            disabled={isLast}
+                            aria-label="Flytta {name} nedåt"
+                        >
+                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M3 5l4 4 4-4" />
+                            </svg>
+                        </button>
                     </div>
                     <button
                         class="btn-item-remove"
@@ -244,8 +293,8 @@
     {/if}
 
     <div class="save-row">
-        <button class="btn-save" class:saved onclick={save} disabled={route.length === 0}>
-            {saved ? '✓ Sparat!' : 'Spara rutt'}
+        <button class="btn-save" class:saved onclick={save} disabled={route.length === 0 || saving}>
+            {saved ? '✓ Sparat!' : saving ? 'Sparar…' : 'Spara rutt'}
         </button>
     </div>
 </div>
@@ -256,7 +305,7 @@
         padding: 0.875rem;
         background: var(--bg-elevated);
         border: 1px solid var(--border);
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         display: flex;
         flex-direction: column;
         gap: 0.75rem;
@@ -287,7 +336,7 @@
         gap: 0.35rem;
         padding: 0.3rem 0.6rem 0.3rem 0.45rem;
         border: 1px solid var(--border);
-        border-radius: 999px;
+        border-radius: var(--radius-pill);
         cursor: pointer;
         font-size: 0.88em;
         background: var(--bg-elevated);
@@ -305,7 +354,7 @@
     .picker-item input[type="checkbox"] {
         width: 14px;
         height: 14px;
-        accent-color: #f97316;
+        accent-color: var(--color-primary);
         cursor: pointer;
         flex-shrink: 0;
     }
@@ -332,7 +381,7 @@
     .picker-actions button {
         padding: 0.35rem 0.8rem;
         border: 1px solid var(--border-input);
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
         background: var(--bg-surface);
         cursor: pointer;
         font-size: 0.88em;
@@ -394,15 +443,53 @@
         box-shadow: 0 0 0 2px var(--warning-border);
     }
 
+    /* Greppet var ett tecken med 4px marginal — runt 20px träffyta, mot
+       rekommenderade 44. Ikonen är liten, men ytan runt den är full storlek. */
     .drag-handle {
-        font-size: 1.1em;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        min-height: 44px;
+        margin: -0.55rem 0 -0.55rem -0.65rem;
         color: var(--text-faint);
         cursor: grab;
         flex-shrink: 0;
-        line-height: 1;
-        padding: 0.25rem;
-        margin: -0.25rem;
         touch-action: none;
+    }
+
+    .drag-handle:active { cursor: grabbing; }
+
+    .move-buttons {
+        display: flex;
+        flex-direction: column;
+        flex-shrink: 0;
+        margin: -0.35rem 0;
+    }
+
+    .btn-move {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 34px;
+        height: 26px;
+        min-height: 26px;
+        padding: 0;
+        border: none;
+        background: none;
+        color: var(--text-muted);
+        cursor: pointer;
+        border-radius: var(--radius-sm);
+    }
+
+    .btn-move:hover:not(:disabled) {
+        background: var(--bg-elevated);
+        color: var(--text-primary);
+    }
+
+    .btn-move:disabled {
+        opacity: 0.25;
+        cursor: default;
     }
 
     @media (pointer: coarse) {
@@ -442,7 +529,7 @@
         font-size: 0.72em;
         font-weight: 600;
         padding: 0.15rem 0.45rem;
-        border-radius: 999px;
+        border-radius: var(--radius-pill);
         letter-spacing: 0.02em;
     }
 
@@ -498,8 +585,8 @@
     .btn-save {
         padding: 0.4rem 1.1rem;
         border: none;
-        border-radius: 6px;
-        background: linear-gradient(135deg, #f97316, #c026d3);
+        border-radius: var(--radius-sm);
+        background: var(--gradient-brand);
         color: #fff;
         font-size: 0.9em;
         font-weight: 600;

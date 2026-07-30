@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { escapeRegex, hasListAccess, isValidEmail, isValidPassword, listAccessFilter, serializeList } from '$lib/server/utils';
+import {
+    escapeRegex, hasListAccess, isValidEmail, isValidPassword, listAccessFilter,
+    serializeList, serializeTemplate, sanitizeInstructions, sanitizeSourceUrl, MAX_INSTRUCTIONS
+} from '$lib/server/utils';
 
 describe('escapeRegex', () => {
     it('escapes all regex special characters', () => {
@@ -127,8 +130,26 @@ describe('serializeList', () => {
             profileId: null,
             sharedWith: ['bob'],
             pendingInvites: [],
-            items: [{ itemId: '1', name: 'Mjölk', spec: '3%', quantity: 2, bought: false, category: 'Mejeri', addedBy: '' }]
+            items: [{ itemId: '1', name: 'Mjölk', spec: '3%', quantity: 2, unit: '', bought: false, category: 'Mejeri', addedBy: '' }]
         });
+    });
+
+    // Varor skapade innan enheter fanns saknar fältet helt. De är varor i
+    // styck och ska fortsätta renderas precis som förut.
+    it('behandlar varor utan unit som styck, och saknad mängd som ingen mängd', () => {
+        const doc = {
+            _id: { toString: () => '1' },
+            name: 'Gammal',
+            owner: 'alice',
+            items: [
+                { itemId: '1', name: 'Bröd', spec: '', quantity: 1, bought: false, category: '' },
+                { itemId: '2', name: 'Salt', spec: '', bought: false, category: '' }
+            ]
+        };
+        const items = serializeList(doc).items;
+        expect(items[0].unit).toBe('');
+        expect(items[0].quantity).toBe(1);
+        expect(items[1].quantity).toBeNull();
     });
 
     it('defaults missing sharedWith / pendingInvites to empty arrays', () => {
@@ -137,5 +158,67 @@ describe('serializeList', () => {
         expect(result.sharedWith).toEqual([]);
         expect(result.pendingInvites).toEqual([]);
         expect(result.items).toEqual([]);
+    });
+});
+
+
+describe('sanitizeInstructions', () => {
+    it('behåller radbrytningar men trimmar kanterna', () => {
+        expect(sanitizeInstructions('  Koka vattnet.\n\nHäll i riset.  '))
+            .toBe('Koka vattnet.\n\nHäll i riset.');
+    });
+
+    it('normaliserar radbrytningar från Windows', () => {
+        expect(sanitizeInstructions('Ett\r\nTvå')).toBe('Ett\nTvå');
+    });
+
+    it('kapar vid gränsen', () => {
+        expect(sanitizeInstructions('x'.repeat(MAX_INSTRUCTIONS + 500))).toHaveLength(MAX_INSTRUCTIONS);
+    });
+
+    it('ger tom sträng för allt som inte är text', () => {
+        for (const value of [undefined, null, 42, {}, []]) {
+            expect(sanitizeInstructions(value)).toBe('');
+        }
+    });
+});
+
+describe('sanitizeSourceUrl', () => {
+    it('släpper igenom http och https', () => {
+        expect(sanitizeSourceUrl('https://exempel.se/recept')).toBe('https://exempel.se/recept');
+        expect(sanitizeSourceUrl('http://exempel.se')).toBe('http://exempel.se');
+    });
+
+    it('kastar adresser som kan köra kod när någon klickar', () => {
+        expect(sanitizeSourceUrl('javascript:alert(1)')).toBe('');
+        expect(sanitizeSourceUrl('data:text/html,<script>')).toBe('');
+        expect(sanitizeSourceUrl('file:///etc/passwd')).toBe('');
+    });
+
+    it('kastar det som inte är en adress alls', () => {
+        expect(sanitizeSourceUrl('bara text')).toBe('');
+        expect(sanitizeSourceUrl('')).toBe('');
+        expect(sanitizeSourceUrl(null)).toBe('');
+    });
+});
+
+describe('serializeTemplate', () => {
+    it('tar med tillagning och källänk', () => {
+        const doc = serializeTemplate({
+            _id: { toString: () => 'abc' },
+            owner: 'benji', name: 'Pannkakor', kind: 'recipe', servings: 4,
+            instructions: 'Vispa ihop.', sourceUrl: 'https://exempel.se', items: []
+        });
+        expect(doc.instructions).toBe('Vispa ihop.');
+        expect(doc.sourceUrl).toBe('https://exempel.se');
+    });
+
+    it('ger tomma strängar för äldre recept utan fälten', () => {
+        const doc = serializeTemplate({
+            _id: { toString: () => 'abc' },
+            owner: 'benji', name: 'Gammal mall', items: []
+        });
+        expect(doc.instructions).toBe('');
+        expect(doc.sourceUrl).toBe('');
     });
 });

@@ -1,8 +1,22 @@
 <script>
     import { authContext } from '$lib/context/auth-context.svelte';
     import { goto } from '$app/navigation';
+    import { page } from '$app/state';
 
-    let mode = $state(/** @type {'login' | 'register'} */ ('login'));
+    // En inbjudningslänk skickar hit med ?mode=register&next=/i/<token>, så att
+    // den som skapar konto hamnar tillbaka på inbjudan i stället för att tappa
+    // bort den i samma stund som kontot finns.
+    let mode = $state(
+        /** @type {'login' | 'register'} */ (page.url.searchParams.get('mode') === 'register' ? 'register' : 'login')
+    );
+
+    // Bara interna sökvägar accepteras. Utan kontrollen kan vem som helst
+    // skicka en länk som loggar in någon och sedan kastar dem till en
+    // främmande sajt.
+    const nextUrl = $derived.by(() => {
+        const next = page.url.searchParams.get('next') ?? '';
+        return next.startsWith('/') && !next.startsWith('//') ? next : '/inkopslista';
+    });
     let username = $state('');
     let password = $state('');
     let email = $state('');
@@ -34,7 +48,7 @@
                 if (result === 'invalid_email') { error = 'Ogiltig e-postadress.'; return; }
                 if (result === 'weak_password') { error = 'Lösenordet uppfyller inte kraven.'; return; }
             }
-            goto('/inkopslista');
+            goto(nextUrl);
         } finally {
             loading = false;
         }
@@ -159,7 +173,7 @@
         font-weight: 800;
         margin: 0;
         letter-spacing: -1px;
-        background: linear-gradient(135deg, #f97316, #c026d3);
+        background: var(--gradient-brand);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
@@ -185,7 +199,7 @@
         gap: 0.85rem;
         background: var(--bg-surface);
         border: 1px solid var(--border);
-        border-radius: 12px;
+        border-radius: var(--radius-lg);
         padding: 0.9rem 1rem;
         box-shadow: var(--shadow-card);
     }
@@ -240,7 +254,7 @@
 
     .tabs button.active {
         color: var(--text-primary);
-        border-bottom: 2px solid #f97316;
+        border-bottom: 2px solid var(--color-primary);
         margin-bottom: -1px;
     }
 
@@ -254,7 +268,7 @@
     .fields input {
         padding: 0.65rem 0.9rem;
         border: 1px solid var(--border-input);
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         font-size: 0.95em;
         outline: none;
         transition: border-color 0.15s;
@@ -265,7 +279,7 @@
     }
 
     .fields input:focus {
-        border-color: #f97316;
+        border-color: var(--color-primary);
     }
 
     .pw-wrap {
@@ -304,10 +318,10 @@
     .btn-submit {
         margin-top: 0.25rem;
         padding: 0.7rem;
-        background: linear-gradient(135deg, #f97316, #c026d3);
+        background: var(--gradient-brand);
         color: #fff;
         border: none;
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         font-size: 1em;
         font-weight: 600;
         cursor: pointer;
@@ -352,7 +366,7 @@
     }
 
     .forgot-link:hover {
-        color: #f97316;
+        color: var(--color-primary);
         text-decoration: underline;
     }
 
@@ -386,6 +400,6 @@
         height: 1rem;
         cursor: pointer;
         flex-shrink: 0;
-        accent-color: #f97316;
+        accent-color: var(--color-primary);
     }
 </style>

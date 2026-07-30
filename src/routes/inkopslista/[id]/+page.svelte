@@ -7,6 +7,10 @@
     import SharePanel from "$lib/components/SharePanel.svelte";
     import CategorySection from "$lib/components/CategorySection.svelte";
     import ImportModal from "$lib/components/ImportModal.svelte";
+    import AmountField from "$lib/components/AmountField.svelte";
+    import { templateContext } from "$lib/context/template-context.svelte";
+    import { parseLeadingAmount, parseQuantityInput, formatQuantity, formatAmount } from "$lib/units";
+    import { collectSpecSuggestions } from "$lib/suggestions";
     import { untrack } from 'svelte';
     import { page } from '$app/state';
     import { goto } from '$app/navigation';
@@ -43,6 +47,9 @@
 
     let newItem = $state('');
     let spec = $state('');
+    // Rå text, inte ett tal: tomt ska förbli tomt och aldrig hoppa till 1.
+    let newAmount = $state('');
+    let newUnit = $state('');
     /** @type {HTMLInputElement | null} */
     let itemInputEl = $state(null);
     let selectedCategory = $state('');
@@ -53,7 +60,6 @@
     let showHistory = $state(false);
     let sseConnected = $state(false);
     let sseHasConnected = $state(false);
-    let categoryError = $state(false);
     let confirmDeleteList = $state(false);
     let confirmClearAll = $state(false);
     let confirmLeaveList = $state(false);
@@ -67,8 +73,8 @@
         const saved = sessionStorage.getItem(`lastCategory_${id}`);
         if (saved) {
             selectedCategory = saved;
-        } else if (profileCategories.length === 1) {
-            selectedCategory = profileCategories[0].name;
+        } else if (ownerCategories.length === 1) {
+            selectedCategory = ownerCategories[0].name;
         } else {
             selectedCategory = '';
         }
@@ -86,9 +92,11 @@
     });
 
     $effect(() => {
-        if (browser && selectedCategory) {
-            sessionStorage.setItem(`lastCategory_${id}`, selectedCategory);
-        }
+        if (!browser) return;
+        // Avmarkering ska också sparas, annars kommer den bortvalda kategorin
+        // tillbaka nästa gång listan öppnas.
+        if (selectedCategory) sessionStorage.setItem(`lastCategory_${id}`, selectedCategory);
+        else sessionStorage.removeItem(`lastCategory_${id}`);
     });
 
     // Connect to the SSE stream for this list so all collaborators see changes in real-time.
@@ -119,18 +127,125 @@
         return () => clearTimeout(timer);
     });
 
-    // Profile categories come from the server load — covers both owned and shared lists.
-    const profileCategories = $derived(
-        /** @type {{ id: string, name: string, color: string }[]} */ (data.profileCategories ?? [])
+    const boughtCount = $derived(list?.items.filter(i => i.bought).length ?? 0);
+    const totalCount = $derived(list?.items.length ?? 0);
+    const progressPct = $derived(totalCount > 0 ? Math.round((boughtCount / totalCount) * 100) : 0);
+
+    // Handelsläget behöver synas utanför den här sidan: header och nav ligger i
+    // layouten och går inte att nå härifrån. Attributet på <html> låter dem
+    // gömma sig, så att hela skärmen tillhör listan när man står i butiken.
+    $effect(() => {
+        if (!browser || !shoppingMode) return;
+        document.documentElement.dataset.shopping = 'true';
+        return () => { delete document.documentElement.dataset.shopping; };
+    });
+
+    // Skärmen ska inte slockna mitt i en handlingsrunda. Webbläsaren släpper
+    // låset när fliken döljs, så det måste tas om när man kommer tillbaka.
+    $effect(() => {
+        if (!browser || !shoppingMode) return;
+        const wakeLock = /** @type {any} */ (navigator).wakeLock;
+        if (!wakeLock) return;
+
+        /** @type {any} */
+        let lock = null;
+        let cancelled = false;
+
+        const acquire = async () => {
+            if (cancelled || lock || document.visibilityState !== 'visible') return;
+            try {
+                const held = await wakeLock.request('screen');
+                if (cancelled) held.release().catch(() => {});
+                else lock = held;
+            } catch { /* kan nekas vid t.ex. låg batterinivå — handlingen fungerar ändå */ }
+        };
+
+        const onVisibilityChange = () => {
+            if (document.visibilityState === 'visible') acquire();
+            else lock = null; // redan släppt av webbläsaren
+        };
+
+        document.addEventListener('visibilitychange', onVisibilityChange);
+        acquire();
+
+        return () => {
+            cancelled = true;
+            document.removeEventListener('visibilitychange', onVisibilityChange);
+            lock?.release().catch(() => {});
+        };
+    });
+
+    // Kategorierna kommer ur ägarens palett via server-loaden, så alla som
+    // delar listan ser samma namn och färger.
+    const ownerCategories = $derived(
+        /** @type {{ id: string, name: string, color: string, group: string | null }[]} */ (data.categories ?? [])
     );
+
+    // Grupperna som finns representerade i ägarens palett.
+    const groups = $derived([...new Set(ownerCategories.map(c => c.group).filter(Boolean))]);
+
+    // Listans grupp härleds från varorna som redan ligger i den, så en lista
+    // med innehåll ställer in sig själv.
+    const derivedGroup = $derived.by(() => {
+        if (!list) return null;
+        for (const item of list.items) {
+            const group = ownerCategories.find(c => c.name === item.category)?.group;
+            if (group) return group;
+        }
+        return null;
+    });
+
+    // Senast använda grupp, delad mellan listor. Gör att en ny tom lista
+    // gissar rätt för de allra flesta istället för att fråga.
+    let lastUsedGroup = $state('');
+
+    // Explicit val i rullgardinen. Tom sträng betyder "alla kategorier" och
+    // vinner därför över härledningen — null betyder "inget val gjort än".
+    /** @type {string | null} */
+    let groupChoice = $state(null);
+
+    $effect(() => {
+        if (!browser) return;
+        groupChoice = sessionStorage.getItem(`listGroup_${id}`);
+        lastUsedGroup = localStorage.getItem('mazeshopper_lastGroup') ?? '';
+    });
+
+    const activeGroup = $derived(
+        groupChoice ?? derivedGroup ?? (groups.includes(lastUsedGroup) ? lastUsedGroup : groups[0] ?? '')
+    );
+
+    const pickerCategories = $derived(
+        !activeGroup
+            ? ownerCategories
+            // Ogrupperade kategorier är universella och följer alltid med,
+            // annars gick "Övrigt" inte att välja så fort ett filter var aktivt.
+            : ownerCategories.filter(c => c.group === activeGroup || !c.group)
+    );
+
+    /** @param {string} group */
+    function chooseGroup(group) {
+        groupChoice = group;
+        if (!browser) return;
+        sessionStorage.setItem(`listGroup_${id}`, group);
+        if (group) localStorage.setItem('mazeshopper_lastGroup', group);
+    }
+
+    /** @param {{ name: string }} category */
+    function pickCategory(category) {
+        // Kategori är valfritt, så ett klick på den valda kategorin tar bort
+        // valet igen istället för att låsa fast det.
+        selectedCategory = selectedCategory === category.name ? '' : category.name;
+    }
 
     const sortedCategories = $derived.by(() => {
         const store = storeContext.selectedStore;
-        // Only use the store's layout if it belongs to the same profile as the list.
-        const storeMatches = store && store.profileId === list?.profileId;
-        const base = (!storeMatches || Object.keys(store.categoryOrder).length === 0)
-            ? profileCategories
-            : [...profileCategories].sort((a, b) => {
+        // Rutten är namnbaserad och kategorier den saknar sorteras sist, så den
+        // gäller oavsett var kategorierna kommer ifrån. Villkoret som krävde
+        // samma profil gjorde att den man delade en lista med aldrig fick
+        // sortering — mottagarens varuhus hörde till mottagarens egna profiler.
+        const base = (!store || Object.keys(store.categoryOrder).length === 0)
+            ? ownerCategories
+            : [...ownerCategories].sort((a, b) => {
                 const pa = store.categoryOrder[a.name] ?? Infinity;
                 const pb = store.categoryOrder[b.name] ?? Infinity;
                 return pa - pb;
@@ -191,12 +306,38 @@
 
     const listHistory = $derived(shoppingContext.recentlyBought[id] ?? []);
 
+    // Förslag till spec-fältet, hämtade ur det användaren redan skrivit.
+    const specSuggestions = $derived(
+        collectSpecSuggestions(shoppingContext.lists, templateContext.templates)
+    );
+
+    // "3 dl grädde" i varunamnet delas upp i namn, mängd och enhet. Bara när
+    // mängdfältet står tomt — har man fyllt i en mängd själv är det den som
+    // gäller. Tolkningen är ett hjälpmedel, inget lagringsformat.
+    //
+    // Returnerar true när uppdelningen behöver granskas innan varan läggs till.
+    // Står en enhet utskriven är tolkningen entydig och varan går in direkt:
+    // tio ingredienser i rad ska kosta tio tryck, inte tjugo. Ett ensamt tal
+    // ("2 mjölk") kan lika gärna höra till namnet, och där är pausen värd sitt
+    // tryck — de ifyllda fälten syns och går att rätta.
+    function absorbAmountShortcut() {
+        if (newAmount.trim()) return false;
+        const parsed = parseLeadingAmount(newItem);
+        if (!parsed) return false;
+        newItem = parsed.name;
+        newAmount = formatQuantity(parsed.quantity);
+        newUnit = parsed.unit;
+        return parsed.unit === '';
+    }
+
+    // Kategori är valfri. Varor utan kategori hamnar i "Utan kategori", en hink
+    // som redan finns för importerade varor — att kräva ett val innan man får
+    // skriva sin första vara var ett steg utan motsvarande nytta.
     async function addItem() {
-        if (selectedCategory === '') {
-            categoryError = true;
-            return;
-        }
-        categoryError = false;
+        // Kräver uppdelningen granskning stannar vi här — de ifyllda fälten
+        // ska hinna synas så att en feltolkning går att rätta först.
+        if (absorbAmountShortcut()) return;
+
         const name = newItem.trim();
         if (name.length === 0) return;
 
@@ -204,15 +345,23 @@
         // att låsas medan servern svarar. Det gör att flera varor kan matas in i
         // följd utan att vänta. Vid fel rullas varan tillbaka och en toast visas.
         const itemSpec = spec.trim();
+        const amount = { quantity: parseQuantityInput(newAmount), unit: newUnit };
+        const prevAmount = newAmount;
         newItem = '';
         spec = '';
+        // Enheten nollställs med mängden. Skulle "dl" ligga kvar blev nästa vara
+        // man skriver en mängd för plötsligt "2 dl bananer".
+        newAmount = '';
+        newUnit = '';
         itemInputEl?.focus();
-        const ok = await shoppingContext.addItem(id, name, itemSpec, selectedCategory, username);
+        const ok = await shoppingContext.addItem(id, name, itemSpec, selectedCategory, username, amount);
         // Ge tillbaka inmatningen vid fel, annars ber toasten användaren försöka
         // igen med tomma fält. Skriv bara över om inget nytt hunnit skrivas.
-        if (!ok && newItem === '' && spec === '') {
+        if (!ok && newItem === '' && spec === '' && newAmount === '') {
             newItem = name;
             spec = itemSpec;
+            newAmount = prevAmount;
+            newUnit = amount.unit;
         }
     }
 
@@ -226,6 +375,14 @@
         const ok = await shoppingContext.leaveList(id, username);
         if (ok) goto('/inkopslista');
         else confirmLeaveList = false;
+    }
+
+    // "grädde 3 dl" i historiken. Ett ensamt styck skriver vi inte ut — det
+    // säger inget som namnet inte redan säger.
+    /** @param {import('$lib/context/shopping-context.svelte').ShoppingItem} item */
+    function historyLabel(item) {
+        const amount = formatAmount(item.quantity, item.unit);
+        return amount && amount !== '1' ? `${item.name} ${amount}` : item.name;
     }
 
     /** @param {string} dateStr */
@@ -275,13 +432,13 @@
                         title="Visa vem som lade till varorna"
                     >Tillagd av</button>
                 {/if}
-                <button
-                    class="btn-shopping-mode"
-                    class:active={shoppingMode}
-                    onclick={() => { shoppingMode = !shoppingMode; showSharePanel = false; }}
-                >
-                    {shoppingMode ? 'Avsluta' : 'Handla'}
-                </button>
+                {#if !shoppingMode}
+                    <!-- Avsluta-knappen bor nere vid tummen under handlingen. -->
+                    <button
+                        class="btn-shopping-mode"
+                        onclick={() => { shoppingMode = true; showSharePanel = false; }}
+                    >Handla</button>
+                {/if}
             </div>
         </div>
 
@@ -307,13 +464,31 @@
             </div>
         {/if}
 
-        <!-- Offline indicator: shown after 2+ consecutive poll failures in shopping mode -->
+        <!-- Offline indicator: shown when the SSE stream stays down past the grace period -->
         {#if showOffline}
             <div class="offline-badge" role="alert" transition:fade={{ duration: 250 }}>Ingen anslutning – listan uppdateras inte</div>
         {/if}
 
         <!-- Shopping mode: store selector + actions -->
         {#if shoppingMode}
+            <!-- Förloppet är den enda återkopplingen under handlingen och låg
+                 tidigare gömt under en rad grå text. Fäst det överst istället. -->
+            <div
+                class="shopping-topbar"
+                role="progressbar"
+                aria-label="Handlingsförlopp"
+                aria-valuenow={progressPct}
+                aria-valuemin="0"
+                aria-valuemax="100"
+            >
+                <div class="shopping-topbar-fill" style="width: {progressPct}%"></div>
+            </div>
+
+            <button
+                class="btn-exit-shopping"
+                onclick={() => { shoppingMode = false; showSharePanel = false; }}
+            >Avsluta handling</button>
+
             {#if storeContext.stores.length > 0}
                 <div class="store-selector">
                     <span class="store-label">Varuhus:</span>
@@ -328,16 +503,8 @@
                     </div>
                 </div>
             {/if}
-            {@const boughtCount = list.items.filter(i => i.bought).length}
-            {@const totalCount = list.items.length}
-            {@const pct = totalCount > 0 ? Math.round((boughtCount / totalCount) * 100) : 0}
             {#if totalCount > 0}
-                <div class="progress-row">
-                    <span class="progress-text">{boughtCount} av {totalCount} varor köpta</span>
-                    <div class="progress-track">
-                        <div class="progress-fill" style="width: {pct}%"></div>
-                    </div>
-                </div>
+                <p class="progress-text">{boughtCount} av {totalCount} varor köpta</p>
             {/if}
             <div class="list-actions">
                 <button
@@ -372,28 +539,49 @@
                     bind:this={itemInputEl}
                     bind:value={newItem}
                     placeholder="Vara"
+                    onblur={absorbAmountShortcut}
                     onkeydown={(e) => e.key === 'Enter' && addItem()}
                 />
+                <AmountField bind:amount={newAmount} bind:unit={newUnit} onEnter={addItem} />
                 <input
                     bind:value={spec}
                     placeholder="Specifikation (valfritt)"
+                    list="spec-suggestions"
                     onkeydown={(e) => e.key === 'Enter' && addItem()}
                 />
-                <div class="category-picker" class:picker-error={categoryError} class:picker-hint={newItem.trim().length > 0 && !selectedCategory && !categoryError}>
-                    {#each profileCategories as category}
+                <datalist id="spec-suggestions">
+                    {#each specSuggestions as suggestion (suggestion)}
+                        <option value={suggestion}></option>
+                    {/each}
+                </datalist>
+                {#if groups.length > 1}
+                    <!-- Rullgardinen talar för sig själv visuellt; etiketten
+                         behövs bara för skärmläsare. -->
+                    <select
+                        class="group-select"
+                        aria-label="Kategorigrupp"
+                        value={activeGroup}
+                        onchange={(e) => chooseGroup(e.currentTarget.value)}
+                    >
+                        {#each groups as group}
+                            <option value={group}>{group}</option>
+                        {/each}
+                        <option value="">Alla kategorier</option>
+                    </select>
+                {/if}
+
+                <div class="category-picker">
+                    {#each pickerCategories as category}
                         <button
                             class="category-chip"
                             class:selected={selectedCategory === category.name}
                             style="--chip-color: {category.color}"
-                            onclick={() => { selectedCategory = category.name; categoryError = false; }}
+                            onclick={() => pickCategory(category)}
                         >
                             {category.name}
                         </button>
                     {/each}
                 </div>
-                {#if categoryError}
-                    <p class="field-error" role="alert">Välj en kategori innan du lägger till en vara.</p>
-                {/if}
                 <button class="btn-add" onclick={addItem}>Lägg till vara</button>
                 <button class="btn-import-template" onclick={() => showImportModal = true}>
                     Importera mall
@@ -403,9 +591,9 @@
 
         {#if showImportModal}
             <ImportModal
-                onImport={(items) => shoppingContext.importItems(id, items)}
+                onImport={(items, scale) => shoppingContext.importItems(id, items, scale, username)}
                 onClose={() => showImportModal = false}
-                {profileCategories}
+                {pickerCategories}
             />
         {/if}
 
@@ -433,7 +621,7 @@
                 {#each sections as section (section.category.id)}
                     <CategorySection
                         category={section.category}
-                        categories={profileCategories}
+                        categories={pickerCategories}
                         items={section.items}
                         {shoppingMode}
                         listId={id}
@@ -456,7 +644,7 @@
                             <div class="history-entry">
                                 <span class="history-date">{formatDate(entry.clearedAt)}</span>
                                 <span class="history-items">
-                                    {entry.items.map(i => i.name + (i.quantity > 1 ? ` ×${i.quantity}` : '')).join(', ')}
+                                    {entry.items.map(historyLabel).join(', ')}
                                 </span>
                             </div>
                         {/each}
@@ -469,23 +657,6 @@
 {/if}
 
 <style>
-    .page {
-        max-width: 680px;
-        margin: 0 auto;
-        padding: 1.5rem 1rem;
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-    }
-
-    .card {
-        background: var(--bg-surface);
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        box-shadow: var(--shadow-card);
-        padding: 1.25rem;
-    }
-
     /* Header */
     .list-header {
         display: flex;
@@ -524,7 +695,7 @@
         color: var(--violet-text);
         background: none;
         border: 1px solid var(--violet-border);
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
         padding: 0.25rem 0.6rem;
         cursor: pointer;
         white-space: nowrap;
@@ -537,7 +708,7 @@
         color: var(--danger-text);
         background: none;
         border: 1px solid var(--danger-border);
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
         padding: 0.25rem 0.6rem;
         cursor: pointer;
         white-space: nowrap;
@@ -550,7 +721,7 @@
         color: var(--text-secondary);
         background: none;
         border: 1px solid var(--border-input);
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
         padding: 0.25rem 0.6rem;
         cursor: pointer;
         white-space: nowrap;
@@ -571,7 +742,7 @@
         background: none;
         color: var(--text-secondary);
         border: 1.5px solid var(--border);
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         padding: 0.28rem 0.75rem;
         cursor: pointer;
         line-height: 1.4;
@@ -580,13 +751,6 @@
     }
 
     .btn-shopping-mode:hover { background: var(--bg-elevated); }
-
-    .btn-shopping-mode.active {
-        background: var(--text-primary);
-        border-color: var(--text-primary);
-        color: var(--bg-page);
-        font-weight: 700;
-    }
 
     .shared-notice-row {
         display: flex;
@@ -599,7 +763,7 @@
         font-size: 0.85em;
         color: var(--violet-text);
         background: var(--violet-light);
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         padding: 0.5rem 0.9rem;
         margin: 0;
     }
@@ -610,7 +774,7 @@
         background: none;
         border: 1px solid var(--danger-text);
         color: var(--danger-text);
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         cursor: pointer;
         font-weight: 500;
     }
@@ -622,7 +786,7 @@
     .offline-badge {
         background: var(--warning-bg);
         border: 1px solid var(--warning-border);
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         color: var(--warning-text);
         font-size: 0.82em;
         padding: 0.45rem 0.9rem;
@@ -655,7 +819,7 @@
 
     .store-chip {
         padding: 0.3rem 0.75rem;
-        border-radius: 999px;
+        border-radius: var(--radius-pill);
         border: 1.5px solid var(--border-input);
         background: var(--bg-surface);
         color: var(--text-secondary);
@@ -667,39 +831,56 @@
         min-height: unset;
     }
 
-    .store-chip:hover { border-color: #f97316; color: #f97316; }
+    .store-chip:hover { border-color: var(--color-primary); color: var(--color-primary); }
 
     .store-chip.selected {
-        background: #f97316;
-        border-color: #f97316;
+        background: var(--color-primary);
+        border-color: var(--color-primary);
         color: #fff;
         font-weight: 600;
     }
 
     /* Progress indicator */
-    .progress-row {
-        display: flex;
-        flex-direction: column;
-        gap: 0.35rem;
-    }
-
     .progress-text {
+        margin: 0;
         font-size: 0.82em;
         color: var(--text-muted);
     }
 
-    .progress-track {
-        height: 5px;
-        border-radius: 999px;
+    /* Fäst överst i handelsläget, där appskalet är borttaget. */
+    .shopping-topbar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 6px;
         background: var(--border);
-        overflow: hidden;
+        z-index: 90;
     }
 
-    .progress-fill {
+    .shopping-topbar-fill {
         height: 100%;
-        border-radius: 999px;
-        background: linear-gradient(90deg, #f97316, #c026d3);
+        background: linear-gradient(90deg, var(--color-primary), var(--color-accent));
         transition: width 0.4s ease;
+    }
+
+    /* Nås med tummen; hamnar ovanför hemknappsområdet på telefoner. */
+    .btn-exit-shopping {
+        position: fixed;
+        left: 50%;
+        transform: translateX(-50%);
+        bottom: max(1rem, calc(env(safe-area-inset-bottom) + 0.5rem));
+        z-index: 95;
+        min-height: 44px;
+        padding: 0.6rem 1.5rem;
+        border: none;
+        border-radius: 999px;
+        background: var(--text-primary);
+        color: var(--bg-surface);
+        font-size: 0.9em;
+        font-weight: 600;
+        cursor: pointer;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.22);
     }
 
     /* List actions */
@@ -710,7 +891,7 @@
 
     .btn-clear-bought, .btn-clear-all {
         padding: 0.3rem 0.75rem;
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
         cursor: pointer;
         font-size: 0.85em;
         border: 1px solid;
@@ -740,7 +921,7 @@
     .btn-confirm-sm {
         padding: 0.2rem 0.55rem;
         border: none;
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
         font-size: 0.85em;
         font-weight: 600;
         cursor: pointer;
@@ -760,7 +941,7 @@
     .add-card input {
         padding: 0.6rem 0.8rem;
         border: 1px solid var(--border-input);
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         font-size: 0.95em;
         outline: none;
         transition: border-color 0.15s;
@@ -768,55 +949,26 @@
         color: var(--text-primary);
     }
 
-    .add-card input:focus { border-color: #f97316; }
+    .add-card input:focus { border-color: var(--color-primary); }
 
-    .category-picker {
-        display: flex;
-        flex-wrap: nowrap;
-        gap: 0.4rem;
-        overflow-x: auto;
-        padding: 3px 2px;
-        scrollbar-width: none;
-    }
 
-    .category-picker::-webkit-scrollbar { display: none; }
 
-    .category-chip {
-        padding: 0.3rem 0.7rem;
-        border-radius: 999px;
-        border: 1.5px solid color-mix(in srgb, var(--chip-color, #e5e7eb) 60%, var(--text-faint));
-        background: var(--chip-color, #f3f4f6);
-        cursor: pointer;
-        font-size: 0.82em;
-        font-weight: 500;
-        color: #374151;
-        opacity: 0.8;
-        transition: opacity 0.1s, box-shadow 0.1s;
-    }
 
-    .category-chip:hover { opacity: 1; }
 
-    .category-chip.selected {
-        opacity: 1;
-        box-shadow: 0 0 0 2px var(--text-secondary);
-        font-weight: 700;
-    }
 
-    .picker-error { outline: 1.5px solid var(--danger-text); border-radius: 6px; padding: 0.25rem; }
-    .picker-hint { outline: 1.5px solid #f97316; border-radius: 6px; padding: 0.25rem; }
 
-    .field-error {
-        margin: 0;
-        font-size: 0.82em;
-        color: var(--danger-text);
-    }
+
+
+
+
+
 
     .btn-add {
         padding: 0.6rem;
-        background: linear-gradient(135deg, #f97316, #c026d3);
+        background: var(--gradient-brand);
         color: #fff;
         border: none;
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         font-size: 0.95em;
         font-weight: 600;
         cursor: pointer;
@@ -830,7 +982,7 @@
         padding: 0.5rem;
         background: none;
         border: 1px dashed var(--border-input);
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         font-size: 0.88em;
         color: var(--text-muted);
         cursor: pointer;
@@ -838,8 +990,8 @@
     }
 
     .btn-import-template:hover {
-        border-color: #f97316;
-        color: #f97316;
+        border-color: var(--color-primary);
+        color: var(--color-primary);
         background: var(--bg-elevated);
     }
 
@@ -854,7 +1006,7 @@
         width: 100%;
         padding: 0.55rem 2.2rem 0.55rem 0.9rem;
         border: 1px solid var(--border-input);
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         font-size: 0.9em;
         outline: none;
         background: var(--bg-surface);
@@ -862,7 +1014,7 @@
         transition: border-color 0.15s;
     }
 
-    .search-input:focus { border-color: #f97316; }
+    .search-input:focus { border-color: var(--color-primary); }
 
     .btn-clear-search {
         position: absolute;
@@ -883,7 +1035,7 @@
     .items-card {
         padding: 0;
         overflow: hidden;
-        border-radius: 12px;
+        border-radius: var(--radius-lg);
     }
 
     .empty-list, .empty-search {
@@ -964,7 +1116,13 @@
 
     /* Shopping mode overrides */
     .page.shopping-mode {
-        padding: 0.75rem 0.5rem;
+        /* Plats för den fästa förloppsraden överst och avsluta-knappen nederst. */
+        padding: 1rem 0.5rem calc(4.5rem + env(safe-area-inset-bottom));
+    }
+
+    /* Hela skärmen tillhör listan här, så knapparna får full träffyta. */
+    .page.shopping-mode :global(button) {
+        min-height: 44px;
     }
 
     .page.shopping-mode .list-header h1 {

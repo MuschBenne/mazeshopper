@@ -5,7 +5,7 @@
     import { shoppingContext } from '$lib/context/shopping-context.svelte';
     import { storeContext } from '$lib/context/store-context.svelte';
     import { templateContext } from '$lib/context/template-context.svelte';
-    import { listprofileContext } from '$lib/context/listprofile-context.svelte';
+    import { categoryContext } from '$lib/context/category-context.svelte';
     import Toast from '$lib/components/Toast.svelte';
     import { themeContext } from '$lib/context/theme-context.svelte';
     import { goto } from '$app/navigation';
@@ -21,6 +21,12 @@
         authContext.user = data.user;
     });
 
+    // Kategoripaletten kommer från server-loaden och seedas före de övriga
+    // hämtningarna, så sidorna aldrig renderar med en tom kategoriväljare.
+    $effect.pre(() => {
+        if (data.categories) categoryContext.seed(data.categories);
+    });
+
     // Load all user data when logged in, or clear it when logged out.
     // This runs reactively whenever authContext.user changes.
     $effect(() => {
@@ -28,12 +34,12 @@
             shoppingContext.load();
             storeContext.load();
             templateContext.load();
-            listprofileContext.load();
+            categoryContext.load();
         } else {
             shoppingContext.reset();
             storeContext.reset();
             templateContext.reset();
-            listprofileContext.reset();
+            categoryContext.reset();
         }
     });
 
@@ -95,6 +101,14 @@
 <Toast />
 
 <style>
+    /* Handelsläget ska äga hela skärmen. Listsidan sätter attributet på <html>
+       eftersom header och nav ligger här i layouten, utanför dess räckvidd. */
+    :global(html[data-shopping='true']) header,
+    :global(html[data-shopping='true']) .nav-wrapper,
+    :global(html[data-shopping='true']) .verify-banner {
+        display: none;
+    }
+
     header {
         display: flex;
         align-items: center;
@@ -113,7 +127,7 @@
         font-weight: 800;
         font-size: 1.15rem;
         text-decoration: none;
-        background: linear-gradient(135deg, #f97316, #c026d3);
+        background: var(--gradient-brand);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
@@ -133,12 +147,12 @@
         transition: color 0.15s;
     }
 
-    .username:hover { color: #f97316; }
+    .username:hover { color: var(--color-primary); }
 
     .btn-logout {
         padding: 0.45rem 1rem;
         border: 1px solid var(--border);
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
         background: var(--bg-surface);
         font-size: 0.88em;
         cursor: pointer;
@@ -152,7 +166,7 @@
     .btn-about {
         padding: 0.3rem 0.75rem;
         border: 1px solid var(--border);
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
         background: var(--bg-surface);
         font-size: 0.85em;
         color: var(--text-secondary);
@@ -233,8 +247,8 @@
     }
 
     nav a.active {
-        color: #f97316;
-        border-bottom-color: #f97316;
+        color: var(--color-primary);
+        border-bottom-color: var(--color-primary);
         font-weight: 600;
     }
 </style>

@@ -56,17 +56,14 @@ class StoreContext {
         return i === null ? null : this.stores[i];
     }
 
-    /**
-     * @param {string} name
-     * @param {string} profileId
-     */
-    async addStore(name, profileId) {
+    /** @param {string} name */
+    async addStore(name) {
         if (name.trim().length === 0) return false;
         try {
             const res = await fetch('/api/stores', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, profileId })
+                body: JSON.stringify({ name })
             });
             if (!res.ok) throw new Error();
             const { store } = await res.json();
@@ -105,21 +102,34 @@ class StoreContext {
     /**
      * Saves the store's drag-and-drop layout and derives the category order
      * from the route array (the order in which categories appear in the store).
+     * Returnerar false om servern nekade — anroparen får då inte påstå att
+     * rutten sparats, eftersom nästa handlingsrunda annars sorteras efter en
+     * ordning som aldrig nådde databasen.
      * @param {number} storeIndex
      * @param {{[category: string]: {x: number, y: number}}} positions
      * @param {string[]} route
+     * @returns {Promise<boolean>}
      */
     async setStoreLayout(storeIndex, positions, route) {
         const store = this.stores[storeIndex];
+        if (!store) return false;
         /** @type {{[category: string]: number}} */
         const categoryOrder = {};
         route.forEach((name, i) => { categoryOrder[name] = i + 1; });
-        await fetch(`/api/stores/${store.id}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ positions, categoryOrder })
-        });
         this.stores[storeIndex] = { ...store, positions, categoryOrder };
+        try {
+            const res = await fetch(`/api/stores/${store.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ positions, categoryOrder })
+            });
+            if (!res.ok) throw new Error();
+            return true;
+        } catch {
+            this.stores[storeIndex] = store;
+            notificationContext.show('Kunde inte spara varuhusets ordning. Försök igen.');
+            return false;
+        }
     }
 
     /** @param {string | null} id */

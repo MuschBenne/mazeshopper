@@ -28,28 +28,28 @@
                 <span class="step-num">1</span>
                 <div>
                     <strong>Skapa ett konto</strong>
-                    <p>Registrera dig med ett användarnamn och lösenord. Dela sedan listan med familj eller sambo.</p>
+                    <p>Registrera dig med ett användarnamn och lösenord. Dela sedan listan med familj eller sambo — de behöver bara ett eget konto.</p>
                 </div>
             </li>
             <li>
                 <span class="step-num">2</span>
                 <div>
                     <strong>Lägg till ditt varuhus</strong>
-                    <p>Gå till Varuhus och skapa din butik. Rita sedan en rutt genom kategorirutorna i den ordning du passerar avdelningarna.</p>
+                    <p>Gå till Varuhus och skapa din butik. Lägg sedan kategorierna i den ordning du passerar avdelningarna — dra dem, eller flytta med pilknapparna.</p>
                 </div>
             </li>
             <li>
                 <span class="step-num">3</span>
                 <div>
                     <strong>Bygg listan</strong>
-                    <p>Lägg till varor och välj kategori. Listan sorteras direkt efter din butiks rutt.</p>
+                    <p>Skriv in varorna. Kategori är valfritt, men sätter du en sorteras listan direkt efter din butiks rutt.</p>
                 </div>
             </li>
             <li>
                 <span class="step-num">4</span>
                 <div>
                     <strong>Handla</strong>
-                    <p>Tryck på 🛒 för att aktivera handelsläget — ett rent gränssnitt utan knappar. Kryssa av varor med ett tryck, varuhuset väljs direkt i vyn.</p>
+                    <p>Tryck Handla så tar listan över hela skärmen. Bocka av med ett tryck och se hur långt du kommit i raden överst.</p>
                 </div>
             </li>
         </ol>
@@ -62,35 +62,42 @@
                 <span>🛒</span>
                 <div>
                     <strong>Handelsläge</strong>
-                    <p>Rensar bort allt utom listan. Stora knappar, tydlig vy — perfekt med handskar eller i farten.</p>
+                    <p>Menyer och rubriker försvinner — bara listan är kvar. Stora knappar, förloppet överst, och skärmen slocknar inte medan du handlar.</p>
                 </div>
             </div>
             <div class="feature">
                 <span>🗺️</span>
                 <div>
                     <strong>Butiksrutt</strong>
-                    <p>Rita en gång, spara för alltid. Listan ordnas automatiskt nästa gång du öppnar den med det varuhuset valt.</p>
+                    <p>Sätt ordningen en gång, spara för alltid. Listan ordnas automatiskt nästa gång du öppnar den med det varuhuset valt — också för den du delar med.</p>
                 </div>
             </div>
             <div class="feature">
                 <span>👥</span>
                 <div>
                     <strong>Delade listor</strong>
-                    <p>Bjud in vem som helst med ett användarnamn. Alla ser listan och kan pricka av varor.</p>
+                    <p>Bjud in vem som helst med ett användarnamn. Ni ser samma lista i realtid — bockar någon av en vara syns det direkt hos de andra.</p>
+                </div>
+            </div>
+            <div class="feature">
+                <span>🍲</span>
+                <div>
+                    <strong>Recept</strong>
+                    <p>Spara ett recept med antal portioner. Vid import räknas mängderna om efter hur många ni ska bli. Dela med en länk — mottagaren får en egen kopia att ändra i.</p>
                 </div>
             </div>
             <div class="feature">
                 <span>📋</span>
                 <div>
-                    <strong>Listprofiler</strong>
-                    <p>Skapa separata profiler för olika typer av handel — livsmedel, bygg, hem. Varje profil har egna kategorier, färger och varuhusrutter.</p>
+                    <strong>Mallar</strong>
+                    <p>Återkommande varor som veckohandlingen eller städskåpet. Skapa en gång och importera till vilken lista som helst.</p>
                 </div>
             </div>
             <div class="feature">
                 <span>🏷️</span>
                 <div>
                     <strong>Kategorier</strong>
-                    <p>Anpassa kategorier och färger per profil under Inställningar. Ger bättre överblick och gör ruttritningen mer exakt.</p>
+                    <p>Egna kategorier med egna färger under Inställningar. Gruppera dem efter typ av handel — livsmedel, bygg, hem — så visas bara de som hör till.</p>
                 </div>
             </div>
         </div>
@@ -138,7 +145,7 @@
         font-weight: 800;
         letter-spacing: -0.5px;
         width: fit-content;
-        background: linear-gradient(90deg, #f97316, #c026d3);
+        background: linear-gradient(90deg, var(--color-primary), var(--color-accent));
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
@@ -185,7 +192,7 @@
         align-items: flex-start;
         background: var(--bg-surface);
         border: 1px solid var(--border);
-        border-radius: 12px;
+        border-radius: var(--radius-lg);
         padding: 0.9rem 1rem;
     }
 
@@ -193,7 +200,7 @@
         width: 28px;
         height: 28px;
         border-radius: 50%;
-        background: linear-gradient(135deg, #f97316, #c026d3);
+        background: var(--gradient-brand);
         color: #fff;
         font-size: 0.85em;
         font-weight: 700;
@@ -229,7 +236,7 @@
         align-items: flex-start;
         background: var(--bg-surface);
         border: 1px solid var(--border);
-        border-radius: 12px;
+        border-radius: var(--radius-lg);
         padding: 0.85rem 1rem;
     }
 
@@ -261,7 +268,7 @@
     .btn-cta {
         display: inline-block;
         padding: 0.75rem 2rem;
-        background: linear-gradient(135deg, #f97316, #c026d3);
+        background: var(--gradient-brand);
         color: #fff;
         border-radius: 10px;
         font-weight: 600;
@@ -276,7 +283,7 @@
         display: inline-block;
         padding: 0.55rem 1.25rem;
         border: 1px solid var(--border);
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         font-size: 0.9em;
         color: var(--text-secondary);
         text-decoration: none;

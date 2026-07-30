@@ -8,6 +8,25 @@
     --radius-sm: 6px;
     --radius-md: 8px;
     --radius-lg: 12px;
+    --radius-pill: 999px;
+
+    /* Varumärkesgradienten låg tidigare inskriven på 19 ställen i 13 filer. */
+    --gradient-brand: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+
+    /* Typskala i rem. Sidorna använde em, som kompounderar olika beroende på
+       förälder — samma "liten text" hamnade därför på olika storlek per sida. */
+    --text-xs:   0.75rem;
+    --text-sm:   0.85rem;
+    --text-base: 0.95rem;
+    --text-md:   1.05rem;
+    --text-lg:   1.25rem;
+    --text-xl:   1.5rem;
+
+    /* Rörelse */
+    --ease-out:  cubic-bezier(0.2, 0.8, 0.2, 1);
+    --dur-fast:  0.12s;
+    --dur-base:  0.2s;
+    --dur-slow:  0.4s;
 
     /* Shadows */
     --shadow-card: 0 1px 4px rgba(0,0,0,0.05);
@@ -178,13 +197,194 @@ input, select, textarea, button {
     font-family: inherit;
 }
 
-/* Touch targets — minimum 44px */
+/* Touch targets. 36px är medvetet under rekommenderade 44px: knapparna sitter
+   ofta tätt i redigeringsvyerna. Handelsläget höjer dem till 44px, eftersom man
+   där siktar med tummen i rörelse. */
 button {
     min-height: 36px;
 }
 
 img, svg {
     max-width: 100%;
+}
+
+/* Respektera systeminställningen för minskad rörelse. Appen animerar bland
+   annat varulistan, toasts och förloppsraden — allt det ska stå stilla för
+   den som bett om det, utan att något slutar fungera. */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* Sidlayouter — låg tidigare identiskt duplicerade i elva komponenter. */
+.page {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 1.5rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+/* Löptext: policy och villkor. */
+.page-doc {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 2rem 1rem 4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.75rem;
+    color: var(--text-primary);
+}
+
+/* Gruppfilter ovanför kategoriväljaren. Används av både listsidan och
+   mallredigeraren. */
+.group-select {
+    align-self: flex-start;
+    max-width: 100%;
+    padding: 0.4rem 0.6rem;
+    border: 1px solid var(--border-input);
+    border-radius: var(--radius-sm);
+    background: var(--bg-surface);
+    color: var(--text-secondary);
+    font-size: 0.85em;
+    cursor: pointer;
+}
+
+/* Kategoriväljare — låg i tre nästan identiska kopior.
+   Färgen sitter i en stapel till vänster istället för i bakgrunden: namnen är
+   olika långa, och en färgad yta som varierar i bredd blev rörig. Stapeln är
+   lika bred oavsett, så raden får en tydlig vänsterkant att läsa längs. */
+.category-picker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.category-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.35rem 0.7rem;
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--chip-color, var(--border-input));
+    border-radius: var(--radius-sm);
+    background: var(--bg-surface);
+    color: var(--text-secondary);
+    font-size: 0.82em;
+    font-weight: 500;
+    line-height: 1.2;
+    cursor: pointer;
+    min-height: unset;
+    transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+
+.category-chip:hover {
+    background: var(--bg-elevated);
+}
+
+.category-chip.selected {
+    /* Svag ton av kategorins egen färg, så valet syns utan att skrika. */
+    background: color-mix(in srgb, var(--chip-color, #e5e7eb) 30%, var(--bg-surface));
+    border-color: color-mix(in srgb, var(--chip-color, #e5e7eb) 60%, var(--text-faint));
+    border-left-width: 8px;
+    color: var(--text-primary);
+    font-weight: 700;
+}
+
+/* Mängd och enhet (AmountField). Samma visuella språk som kategoriväljaren,
+   men utan färgstapeln till vänster — enheter har ingen egen färg, och en tom
+   stapel såg ut som en kategori man glömt välja. Reglerna ligger här för att
+   fältet används av tre olika sidor och komponentens egna stilar inte når in
+   från sidornas scope. */
+.amount-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.amount-input {
+    width: 5.5rem;
+    flex-shrink: 0;
+    padding: 0.5rem 0.6rem;
+    border: 1px solid var(--border-input);
+    border-radius: var(--radius-md);
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    font-size: 0.95em;
+    outline: none;
+    transition: border-color var(--dur-fast) var(--ease-out);
+}
+
+.amount-input:focus { border-color: var(--color-primary); }
+
+.unit-picker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+}
+
+.unit-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.35rem 0.65rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-surface);
+    color: var(--text-secondary);
+    font-size: 0.82em;
+    font-weight: 500;
+    line-height: 1.2;
+    cursor: pointer;
+    min-height: unset;
+    transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+
+.unit-chip:hover { background: var(--bg-elevated); }
+
+.unit-chip.selected {
+    background: color-mix(in srgb, var(--color-primary) 22%, var(--bg-surface));
+    border-color: color-mix(in srgb, var(--color-primary) 60%, var(--border));
+    color: var(--text-primary);
+    font-weight: 700;
+}
+
+.unit-chip-other { font-style: italic; }
+
+.unit-custom {
+    width: 7rem;
+    padding: 0.35rem 0.6rem;
+    border: 1px solid var(--border-input);
+    border-radius: var(--radius-sm);
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    font-size: 0.85em;
+    outline: none;
+}
+
+.unit-custom:focus { border-color: var(--color-primary); }
+
+/* Standardkortet — låg identiskt duplicerat i fyra komponenter. Sidorna i
+   inloggningsflödet har ett eget, tyngre kort och skriver över det här. */
+.card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-card);
+    padding: 1.25rem;
+}
+
+/* Ensamt kort mitt på skärmen: inloggningsflödets sidor. */
+.page-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: calc(100vh - 56px);
+    padding: 1.5rem 1rem;
 }
 
 /* Keyboard focus ring — only shown for keyboard navigation, not mouse clicks */

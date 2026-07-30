@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import { getDb } from '$lib/server/db';
 import { getSessionUser } from '$lib/server/session';
 import { listAccessFilter } from '$lib/server/utils';
+import { normalizeUnit, sanitizeScale, scaleQuantity } from '$lib/units';
 import { ObjectId } from 'mongodb';
 
 export async function POST({ params, request, cookies }) {
@@ -19,15 +20,26 @@ export async function POST({ params, request, cookies }) {
     const body = await request.json();
     if (!Array.isArray(body.items)) return json({ error: 'invalid_items' }, { status: 400 });
 
-    const items = body.items.map(/** @param {Record<string,unknown>} i */ i => ({
-        itemId: crypto.randomUUID(),
-        name: String(i.name ?? '').trim().slice(0, 200),
-        spec: String(i.spec ?? '').trim().slice(0, 500),
-        quantity: Number.isInteger(i.quantity) && /** @type {number} */ (i.quantity) > 0 && /** @type {number} */ (i.quantity) <= 9999 ? i.quantity : 1,
-        bought: false,
-        category: String(i.category ?? '').trim().slice(0, 50),
-        addedBy: username
-    })).filter(/** @param {{ name: string }} i */ i => i.name);
+    // Skalfaktor för recept: dubbla portioner ska ge dubbla mängder. Hur den
+    // avrundas beror på enheten — se scaleQuantity. Enheten följer med till
+    // listvaran, annars gick "3 dl grädde" in i listan som "×3 grädde".
+    // Klamringen ligger i $lib/units så att klientens optimistiska kopia
+    // räknar på exakt samma faktor.
+    const scale = sanitizeScale(body.scale);
+
+    const items = body.items.map(/** @param {Record<string,unknown>} i */ i => {
+        const unit = normalizeUnit(i.unit);
+        return {
+            itemId: crypto.randomUUID(),
+            name: String(i.name ?? '').trim().slice(0, 200),
+            spec: String(i.spec ?? '').trim().slice(0, 500),
+            quantity: scaleQuantity(i.quantity, unit, scale),
+            unit,
+            bought: false,
+            category: String(i.category ?? '').trim().slice(0, 50),
+            addedBy: username
+        };
+    }).filter(/** @param {{ name: string }} i */ i => i.name);
 
     if (items.length === 0) return json({ ok: true, count: 0, items: [] });
 
