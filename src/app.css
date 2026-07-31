@@ -50,6 +50,10 @@
     --border-subtle: #f3f4f6;
     --border-faint:  #f9fafb;
 
+    /* Pilen i en select. Måste vara en färdig data-URI per tema — en
+       background-image kan inte plocka upp currentColor. */
+    --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+
     /* Danger */
     --danger-text:       #dc2626;
     --danger-text-hover: #b91c1c;
@@ -104,6 +108,8 @@
         --border-subtle: #1e293b;
         --border-faint:  #0f172a;
 
+        --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+
         --danger-text:       #f87171;
         --danger-text-hover: #ef4444;
         --danger-bg:         #1c0606;
@@ -148,6 +154,8 @@ html.theme-dark {
     --border-input:  #475569;
     --border-subtle: #1e293b;
     --border-faint:  #0f172a;
+
+    --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
 
     --danger-text:       #f87171;
     --danger-text-hover: #ef4444;
@@ -195,6 +203,23 @@ body {
 input, select, textarea, button {
     font-size: 16px;
     font-family: inherit;
+}
+
+/* iOS ritar en select själv om den får behålla sitt systemutseende: en glansig,
+   halvgenomskinlig platta som struntar i vår bakgrundsfärg och förblir ljus även
+   i mörkt tema. `appearance: none` flyttar över ritandet till oss — och då måste
+   vi rita pilen själva, för den försvinner i samma veva.
+
+   Reglerna som stylar enskilda select:ar (`.group-select`, `.kind-select`) måste
+   sätta `background-color`, aldrig `background`-kortformen. Kortformen nollställer
+   background-image och äter upp pilen. */
+select {
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: var(--select-chevron);
+    background-repeat: no-repeat;
+    background-position: right 0.6rem center;
+    background-size: 0.75em;
 }
 
 /* Touch targets. 36px är medvetet under rekommenderade 44px: knapparna sitter
@@ -246,10 +271,11 @@ img, svg {
 .group-select {
     align-self: flex-start;
     max-width: 100%;
-    padding: 0.4rem 0.6rem;
+    /* Extra luft till höger — pilen ritas där. */
+    padding: 0.4rem 1.9rem 0.4rem 0.6rem;
     border: 1px solid var(--border-input);
     border-radius: var(--radius-sm);
-    background: var(--bg-surface);
+    background-color: var(--bg-surface);
     color: var(--text-secondary);
     font-size: 0.85em;
     cursor: pointer;

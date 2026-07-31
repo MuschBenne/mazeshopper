@@ -375,10 +375,10 @@
     }
 
     .group-select {
-        padding: 0.25rem 0.5rem;
+        padding: 0.25rem 1.6rem 0.25rem 0.5rem;
         border: 1px solid var(--border-input);
         border-radius: 6px;
-        background: var(--bg-surface);
+        background-color: var(--bg-surface);
         color: var(--text-muted);
         font-size: 0.8em;
         cursor: pointer;
