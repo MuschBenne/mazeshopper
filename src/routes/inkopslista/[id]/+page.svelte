@@ -8,6 +8,15 @@
     import CategorySection from "$lib/components/CategorySection.svelte";
     import ImportModal from "$lib/components/ImportModal.svelte";
     import AmountField from "$lib/components/AmountField.svelte";
+    import Button from "$lib/components/ui/Button.svelte";
+    import ProgressBar from "$lib/components/ui/ProgressBar.svelte";
+    import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+    import MapPin from '@lucide/svelte/icons/map-pin';
+    import ChevronDown from '@lucide/svelte/icons/chevron-down';
+    import Ellipsis from '@lucide/svelte/icons/ellipsis';
+    import Plus from '@lucide/svelte/icons/plus';
+    import Search from '@lucide/svelte/icons/search';
+    import X from '@lucide/svelte/icons/x';
     import { templateContext } from "$lib/context/template-context.svelte";
     import { parseLeadingAmount, parseQuantityInput, formatQuantity, formatAmount } from "$lib/units";
     import { collectSpecSuggestions } from "$lib/suggestions";
@@ -129,7 +138,6 @@
 
     const boughtCount = $derived(list?.items.filter(i => i.bought).length ?? 0);
     const totalCount = $derived(list?.items.length ?? 0);
-    const progressPct = $derived(totalCount > 0 ? Math.round((boughtCount / totalCount) * 100) : 0);
 
     // Handelsläget behöver synas utanför den här sidan: header och nav ligger i
     // layouten och går inte att nå härifrån. Attributet på <html> låter dem
@@ -390,72 +398,202 @@
         const d = new Date(dateStr);
         return d.toLocaleDateString('sv-SE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
     }
+
+    // ── Presentation ────────────────────────────────────────────────────────
+
+    const remainingCount = $derived(totalCount - boughtCount);
+    const hasRoute = $derived(Object.keys(storeContext.selectedStore?.categoryOrder ?? {}).length > 0);
+
+    // Stoppnumret är avdelningens plats i det valda varuhusets rutt (1, 2, 3 …).
+    // Varuhusen sparar ingen riktig gångnumrering, så numret står för ordningen
+    // man går i — inte för skylten i taket. Utan rutt visas inget nummer.
+    /** @param {{ name: string }} category */
+    function stopFor(category) {
+        return storeContext.selectedStore?.categoryOrder[category.name] ?? null;
+    }
+
+    // Första avdelningen med något kvar att plocka. Allt före den är klart,
+    // allt efter är kommande stopp.
+    const currentSectionIndex = $derived(
+        sections.findIndex(s => s.items.some(i => !i.bought))
+    );
+
+    const sectionStates = $derived(
+        sections.map((s, i) =>
+            s.items.every(item => item.bought) ? 'done'
+            : i === currentSectionIndex ? 'current'
+            : 'upcoming'
+        )
+    );
+    const doneSections = $derived(sectionStates.filter(st => st === 'done').length);
+
+    // Menyn samlar listans mindre vanliga åtgärder bakom en knapp, så att
+    // huvudet bara bär det man behöver medan man handlar.
+    let menuOpen = $state(false);
+    /** @type {HTMLElement | null} */
+    let menuEl = $state(null);
+
+    /** @param {MouseEvent} e */
+    function closeMenuOnOutsideClick(e) {
+        if (menuOpen && menuEl && !menuEl.contains(/** @type {Node} */ (e.target))) menuOpen = false;
+    }
+
+    // "Lägg till" i bottenpanelen: hoppa upp till fältet och börja skriva.
+    function focusAddField() {
+        itemInputEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        itemInputEl?.focus({ preventScroll: true });
+    }
+
+    function startShopping() {
+        shoppingMode = true;
+        showSharePanel = false;
+        menuOpen = false;
+    }
+
+    function stopShopping() {
+        shoppingMode = false;
+        showSharePanel = false;
+        menuOpen = false;
+    }
 </script>
 
 <svelte:head><title>{list?.name ? `${list.name} – MazeShopper` : 'MazeShopper'}</title></svelte:head>
+
+<svelte:window
+    onclick={closeMenuOnOutsideClick}
+    onkeydown={(e) => { if (e.key === 'Escape') menuOpen = false; }}
+/>
 
 {#if !list}
     <div class="page">
         <p>Listan hittades inte. <a href="/inkopslista">Tillbaka</a></p>
     </div>
 {:else}
-    <div class="page" class:shopping-mode={shoppingMode}>
+    <div class="page list-page" class:shopping-mode={shoppingMode}>
 
-        <!-- Header -->
-        <div class="list-header">
-            {#if !shoppingMode}
-                <a class="back" href="/inkopslista">← Listor</a>
-            {/if}
-            <h1>{list.name}</h1>
-            <div class="header-actions">
-                {#if !shoppingMode && isOwner}
-                    <button class="btn-share" onclick={() => { showSharePanel = !showSharePanel; }}>
-                        Dela
-                    </button>
-                {/if}
-                {#if !shoppingMode && isOwner}
-                    {#if confirmDeleteList}
-                        <span class="confirm-inline">
-                            <span>Ta bort?</span>
-                            <button class="btn-confirm-sm btn-confirm-sm--danger" onclick={deleteList}>Ja</button>
-                            <button class="btn-cancel" onclick={() => confirmDeleteList = false}>Nej</button>
-                        </span>
-                    {:else}
-                        <button class="btn-delete-list" onclick={() => confirmDeleteList = true}>Ta bort</button>
-                    {/if}
-                {/if}
-                {#if isShared}
-                    <button
-                        class="btn-added-by"
-                        class:active={showAddedBy}
-                        onclick={() => (showAddedBy = !showAddedBy)}
-                        title="Visa vem som lade till varorna"
-                    >Tillagd av</button>
-                {/if}
+        <!-- Huvudet ligger fast medan listan scrollar under det. -->
+        <div class="list-top">
+            <div class="top-row">
                 {#if !shoppingMode}
-                    <!-- Avsluta-knappen bor nere vid tummen under handlingen. -->
-                    <button
-                        class="btn-shopping-mode"
-                        onclick={() => { shoppingMode = true; showSharePanel = false; }}
-                    >Handla</button>
+                    <a class="back" href="/inkopslista" aria-label="Tillbaka till listor">
+                        <ArrowLeft size={20} aria-hidden="true" />
+                    </a>
                 {/if}
-            </div>
-        </div>
 
-        {#if !isOwner && !shoppingMode}
-            <div class="shared-notice-row">
-                <p class="shared-notice">Delad lista av <strong>{list.owner}</strong></p>
-                {#if confirmLeaveList}
-                    <span class="confirm-inline">
-                        <span>Lämna listan?</span>
-                        <button class="btn-confirm-sm btn-confirm-sm--danger" onclick={leaveList}>Ja</button>
-                        <button class="btn-cancel" onclick={() => confirmLeaveList = false}>Nej</button>
-                    </span>
-                {:else}
-                    <button class="btn-leave-list" onclick={() => confirmLeaveList = true}>Lämna lista</button>
+                {#if storeContext.stores.length > 0}
+                    <label class="store-chip">
+                        <MapPin size={16} aria-hidden="true" />
+                        <span class="sr-only">Varuhus</span>
+                        <select
+                            value={storeContext.selectedStore?.id ?? ''}
+                            onchange={(e) => storeContext.selectStore(e.currentTarget.value || null)}
+                        >
+                            <option value="">Ingen rutt</option>
+                            {#each storeContext.stores as store (store.id)}
+                                <option value={store.id}>{store.name}</option>
+                            {/each}
+                        </select>
+                        <ChevronDown size={16} aria-hidden="true" />
+                    </label>
                 {/if}
+
+                <div class="menu" bind:this={menuEl}>
+                    <button
+                        class="menu-button"
+                        aria-label="Fler val för listan"
+                        aria-expanded={menuOpen}
+                        aria-controls="list-menu"
+                        onclick={() => (menuOpen = !menuOpen)}
+                    >
+                        <Ellipsis size={22} aria-hidden="true" />
+                    </button>
+
+                    {#if menuOpen}
+                        <div id="list-menu" class="menu-panel" transition:fly={{ y: -4, duration: 150 }}>
+                            {#if !shoppingMode && isOwner}
+                                <button class="menu-item" onclick={() => { showSharePanel = !showSharePanel; menuOpen = false; }}>
+                                    Dela listan
+                                </button>
+                            {/if}
+                            {#if isShared}
+                                <button
+                                    class="menu-item"
+                                    aria-pressed={showAddedBy}
+                                    onclick={() => (showAddedBy = !showAddedBy)}
+                                >
+                                    Visa vem som lade till
+                                    <span class="menu-state">{showAddedBy ? 'På' : 'Av'}</span>
+                                </button>
+                            {/if}
+                            {#if shoppingMode}
+                                <button
+                                    class="menu-item"
+                                    onclick={() => { shoppingContext.clearBought(id); menuOpen = false; }}
+                                    disabled={!list.items.some(i => i.bought)}
+                                >Rensa köpta varor</button>
+                                {#if confirmClearAll}
+                                    <div class="menu-confirm">
+                                        <span>Töm hela listan?</span>
+                                        <button class="btn-confirm-sm btn-confirm-sm--danger" onclick={() => { shoppingContext.clearAll(id); confirmClearAll = false; menuOpen = false; }}>Ja</button>
+                                        <button class="btn-cancel" onclick={() => confirmClearAll = false}>Nej</button>
+                                    </div>
+                                {:else}
+                                    <button
+                                        class="menu-item menu-item--danger"
+                                        onclick={() => confirmClearAll = true}
+                                        disabled={list.items.length === 0}
+                                    >Töm hela listan</button>
+                                {/if}
+                            {/if}
+                            {#if !shoppingMode && isOwner}
+                                {#if confirmDeleteList}
+                                    <div class="menu-confirm">
+                                        <span>Ta bort listan?</span>
+                                        <button class="btn-confirm-sm btn-confirm-sm--danger" onclick={deleteList}>Ja</button>
+                                        <button class="btn-cancel" onclick={() => confirmDeleteList = false}>Nej</button>
+                                    </div>
+                                {:else}
+                                    <button class="menu-item menu-item--danger" onclick={() => confirmDeleteList = true}>Ta bort listan</button>
+                                {/if}
+                            {/if}
+                            {#if !shoppingMode && !isOwner}
+                                {#if confirmLeaveList}
+                                    <div class="menu-confirm">
+                                        <span>Lämna listan?</span>
+                                        <button class="btn-confirm-sm btn-confirm-sm--danger" onclick={leaveList}>Ja</button>
+                                        <button class="btn-cancel" onclick={() => confirmLeaveList = false}>Nej</button>
+                                    </div>
+                                {:else}
+                                    <button class="menu-item menu-item--danger" onclick={() => confirmLeaveList = true}>Lämna listan</button>
+                                {/if}
+                            {/if}
+                        </div>
+                    {/if}
+                </div>
             </div>
-        {/if}
+
+            <h1>{list.name}</h1>
+            <p class="summary">
+                <span class="mono">{totalCount} {totalCount === 1 ? 'vara' : 'varor'}</span>
+                {#if !isOwner}<span> · delad av <strong>{list.owner}</strong></span>{/if}
+            </p>
+
+            {#if totalCount > 0}
+                <div class="progress-block">
+                    {#if shoppingMode && sections.length > 0}
+                        <ProgressBar
+                            value={doneSections}
+                            max={sections.length}
+                            label="Avdelningar klara"
+                            segments={sectionStates}
+                        />
+                    {:else}
+                        <ProgressBar value={boughtCount} max={totalCount} label="Varor i korgen" />
+                    {/if}
+                    <p class="progress-text"><span class="mono">{boughtCount}</span> av <span class="mono">{totalCount}</span> i korgen</p>
+                </div>
+            {/if}
+        </div>
 
         <!-- Share panel -->
         {#if showSharePanel && isOwner && !shoppingMode}
@@ -469,81 +607,24 @@
             <div class="offline-badge" role="alert" transition:fade={{ duration: 250 }}>Ingen anslutning – listan uppdateras inte</div>
         {/if}
 
-        <!-- Shopping mode: store selector + actions -->
-        {#if shoppingMode}
-            <!-- Förloppet är den enda återkopplingen under handlingen och låg
-                 tidigare gömt under en rad grå text. Fäst det överst istället. -->
-            <div
-                class="shopping-topbar"
-                role="progressbar"
-                aria-label="Handlingsförlopp"
-                aria-valuenow={progressPct}
-                aria-valuemin="0"
-                aria-valuemax="100"
-            >
-                <div class="shopping-topbar-fill" style="width: {progressPct}%"></div>
-            </div>
-
-            <button
-                class="btn-exit-shopping"
-                onclick={() => { shoppingMode = false; showSharePanel = false; }}
-            >Avsluta handling</button>
-
-            {#if storeContext.stores.length > 0}
-                <div class="store-selector">
-                    <span class="store-label">Varuhus:</span>
-                    <div class="store-chips">
-                        {#each storeContext.stores as store, i}
-                            <button
-                                class="store-chip"
-                                class:selected={storeContext.selectedStoreIndex === i}
-                                onclick={() => storeContext.selectStore(storeContext.selectedStoreIndex === i ? null : store.id)}
-                            >{store.name}</button>
-                        {/each}
-                    </div>
-                </div>
-            {/if}
-            {#if totalCount > 0}
-                <p class="progress-text">{boughtCount} av {totalCount} varor köpta</p>
-            {/if}
-            <div class="list-actions">
-                <button
-                    class="btn-clear-bought"
-                    onclick={() => shoppingContext.clearBought(id)}
-                    disabled={!list.items.some(i => i.bought)}
-                >
-                    Rensa köpta varor
-                </button>
-                {#if confirmClearAll}
-                    <span class="confirm-inline">
-                        <span>Töm allt?</span>
-                        <button class="btn-confirm-sm btn-confirm-sm--danger" onclick={() => { shoppingContext.clearAll(id); confirmClearAll = false; }}>Ja</button>
-                        <button class="btn-cancel" onclick={() => confirmClearAll = false}>Nej</button>
-                    </span>
-                {:else}
-                    <button
-                        class="btn-clear-all"
-                        onclick={() => confirmClearAll = true}
-                        disabled={list.items.length === 0}
-                    >
-                        Töm hela listan
-                    </button>
-                {/if}
-            </div>
-        {/if}
-
         <!-- Edit mode: add item form -->
         {#if !shoppingMode}
-            <div class="card add-card">
+            <div class="add-card">
+                <label class="sr-only" for="new-item">Vara</label>
                 <input
+                    id="new-item"
+                    class="add-input"
                     bind:this={itemInputEl}
                     bind:value={newItem}
-                    placeholder="Vara"
+                    placeholder="Vara, t.ex. 3 dl grädde"
                     onblur={absorbAmountShortcut}
                     onkeydown={(e) => e.key === 'Enter' && addItem()}
                 />
                 <AmountField bind:amount={newAmount} bind:unit={newUnit} onEnter={addItem} />
+                <label class="sr-only" for="new-spec">Specifikation</label>
                 <input
+                    id="new-spec"
+                    class="add-input"
                     bind:value={spec}
                     placeholder="Specifikation (valfritt)"
                     list="spec-suggestions"
@@ -582,10 +663,12 @@
                         </button>
                     {/each}
                 </div>
-                <button class="btn-add" onclick={addItem}>Lägg till vara</button>
-                <button class="btn-import-template" onclick={() => showImportModal = true}>
-                    Importera mall
-                </button>
+                <div class="add-actions">
+                    <Button variant="secondary" onclick={addItem}>Lägg till vara</Button>
+                    <button class="btn-import-template" onclick={() => showImportModal = true}>
+                        Importera mall
+                    </button>
+                </div>
             </div>
         {/if}
 
@@ -600,25 +683,29 @@
         <!-- Search -->
         {#if list.items.length > 4}
             <div class="search-row" transition:slide={{ duration: 150 }}>
+                <Search size={18} aria-hidden="true" />
                 <input
                     bind:value={search}
                     placeholder="Sök vara…"
+                    aria-label="Sök vara"
                     class="search-input"
                 />
                 {#if search}
-                    <button class="btn-clear-search" onclick={() => (search = '')}>×</button>
+                    <button class="btn-clear-search" aria-label="Rensa sökningen" onclick={() => (search = '')}>
+                        <X size={18} aria-hidden="true" />
+                    </button>
                 {/if}
             </div>
         {/if}
 
         <!-- Items list -->
-        <div class="card items-card">
+        <div class="items">
             {#if filteredItems.length === 0 && list.items.length > 0}
                 <p class="empty-search">Inga varor matchar "{search}"</p>
             {:else if list.items.length === 0}
                 <p class="empty-list">Listan är tom. Lägg till varor ovan.</p>
             {:else}
-                {#each sections as section (section.category.id)}
+                {#each sections as section, i (section.category.id)}
                     <CategorySection
                         category={section.category}
                         categories={pickerCategories}
@@ -626,6 +713,8 @@
                         {shoppingMode}
                         listId={id}
                         {showAddedBy}
+                        stop={stopFor(section.category)}
+                        upcoming={shoppingMode && sectionStates[i] === 'upcoming'}
                     />
                 {/each}
             {/if}
@@ -633,16 +722,16 @@
 
         <!-- Recently bought history (edit mode only) -->
         {#if !shoppingMode && listHistory.length > 0}
-            <div class="card history-card">
-                <button class="history-toggle" onclick={() => (showHistory = !showHistory)}>
-                    <span>Senast inhandlat</span>
-                    <span class="history-arrow">{showHistory ? '▼' : '▶'}</span>
+            <div class="history">
+                <button class="history-toggle" aria-expanded={showHistory} onclick={() => (showHistory = !showHistory)}>
+                    <span class="section-label">Senast inhandlat</span>
+                    <span class="history-chevron" class:open={showHistory}><ChevronDown size={18} aria-hidden="true" /></span>
                 </button>
                 {#if showHistory}
                     <div class="history-entries">
                         {#each listHistory as entry}
                             <div class="history-entry">
-                                <span class="history-date">{formatDate(entry.clearedAt)}</span>
+                                <span class="history-date mono">{formatDate(entry.clearedAt)}</span>
                                 <span class="history-items">
                                     {entry.items.map(historyLabel).join(', ')}
                                 </span>
@@ -653,134 +742,235 @@
             </div>
         {/if}
 
+        <!-- Fast bottenpanel. Huvudhandlingen sitter där tummen når den. -->
+        <div class="bottom-bar">
+            {#if shoppingMode}
+                <span class="remaining mono">{remainingCount} kvar</span>
+                <Button onclick={stopShopping}>Avsluta handling</Button>
+            {:else}
+                <Button variant="secondary" onclick={focusAddField}>
+                    {#snippet before()}<Plus size={18} aria-hidden="true" />{/snippet}
+                    Lägg till
+                </Button>
+                <Button onclick={startShopping}>
+                    {hasRoute ? 'Gå rutten' : 'Handla'}
+                </Button>
+            {/if}
+        </div>
+
     </div>
 {/if}
 
 <style>
-    /* Header */
-    .list-header {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
+    /* ── Huvud ─────────────────────────────────────────────────────────── */
+
+    .list-page {
+        gap: 0.75rem;
+        /* Plats för bottenpanelen så sista varan inte hamnar bakom den. */
+        padding-bottom: calc(var(--bottom-bar-height) + env(safe-area-inset-bottom) + 1.5rem);
     }
 
-    .list-header h1 {
-        margin: 0;
-        flex: 1;
-        font-size: 1.5rem;
+    /* Ligger fast under appens huvud (56px). I handelsläget är appens huvud
+       borta, och då ligger listans huvud fast högst upp. */
+    .list-top {
+        position: sticky;
+        top: 56px;
+        z-index: 50;
+        margin: -1.5rem -1rem 0;
+        padding: 1rem 1rem 0.75rem;
+        background: var(--color-paper);
+        border-bottom: 1px solid var(--color-line);
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .shopping-mode .list-top {
+        top: 0;
+        padding-top: max(1rem, env(safe-area-inset-top));
+    }
+
+    .top-row {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        min-height: 44px;
+    }
+
+    .back {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 44px;
+        margin-left: -0.6rem;
+        color: var(--color-ink);
+        border-radius: var(--radius-md);
+    }
+
+    .back:hover { background: var(--bg-elevated); }
+
+    /* Butiksvalet som en liten skylt. En riktig <select> under ytan, så
+       tangentbord och skärmläsare får systemets egen väljare. */
+    .store-chip {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        height: 36px;
+        max-width: 60%;
+        padding: 0 0.75rem;
+        border: 1px solid var(--color-line);
+        border-radius: var(--radius-pill);
+        background: var(--color-surface);
+        color: var(--color-ink);
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .store-chip:hover { border-color: var(--color-border); }
+
+    .store-chip:focus-within {
+        outline: 2px solid var(--color-green);
+        outline-offset: 2px;
+    }
+
+    .store-chip select {
+        appearance: none;
+        -webkit-appearance: none;
         min-width: 0;
+        border: none;
+        background: none;
+        background-image: none;
+        color: inherit;
+        font: inherit;
+        padding: 0;
+        cursor: pointer;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
     }
 
-    .header-actions {
-        display: flex;
-        gap: 0.5rem;
+    /* Ringen ritas på hela chippet istället. */
+    .store-chip select:focus-visible { box-shadow: none; }
+
+    .menu {
+        position: relative;
+        margin-left: auto;
+    }
+
+    .menu-button {
+        display: inline-flex;
         align-items: center;
-        flex-shrink: 0;
-    }
-
-    .back {
-        text-decoration: none;
-        color: var(--text-muted);
-        font-size: 0.95em;
-        white-space: nowrap;
-    }
-
-    .back:hover { color: var(--text-primary); }
-
-    .btn-share {
-        font-size: 0.8em;
-        color: var(--violet-text);
-        background: none;
-        border: 1px solid var(--violet-border);
-        border-radius: var(--radius-sm);
-        padding: 0.25rem 0.6rem;
-        cursor: pointer;
-        white-space: nowrap;
-    }
-
-    .btn-share:hover { background: var(--violet-light); }
-
-    .btn-delete-list {
-        font-size: 0.8em;
-        color: var(--danger-text);
-        background: none;
-        border: 1px solid var(--danger-border);
-        border-radius: var(--radius-sm);
-        padding: 0.25rem 0.6rem;
-        cursor: pointer;
-        white-space: nowrap;
-    }
-
-    .btn-delete-list:hover { background: var(--danger-bg); }
-
-    .btn-added-by {
-        font-size: 0.8em;
-        color: var(--text-secondary);
-        background: none;
-        border: 1px solid var(--border-input);
-        border-radius: var(--radius-sm);
-        padding: 0.25rem 0.6rem;
-        cursor: pointer;
-        white-space: nowrap;
-        transition: background 0.15s, color 0.15s, border-color 0.15s;
-    }
-
-    .btn-added-by:hover { background: var(--bg-elevated); border-color: var(--text-muted); }
-
-    .btn-added-by.active {
-        color: var(--violet-text);
-        border-color: var(--violet-border);
-        background: var(--violet-light);
-    }
-
-    .btn-shopping-mode {
-        font-size: 0.85rem;
-        font-weight: 600;
-        background: none;
-        color: var(--text-secondary);
-        border: 1.5px solid var(--border);
+        justify-content: center;
+        width: 44px;
+        height: 44px;
+        margin-right: -0.6rem;
+        padding: 0;
+        border: none;
         border-radius: var(--radius-md);
-        padding: 0.28rem 0.75rem;
+        background: none;
+        color: var(--color-ink);
         cursor: pointer;
-        line-height: 1.4;
-        white-space: nowrap;
-        transition: background 0.15s, border-color 0.15s;
     }
 
-    .btn-shopping-mode:hover { background: var(--bg-elevated); }
+    .menu-button:hover,
+    .menu-button[aria-expanded='true'] { background: var(--bg-elevated); }
 
-    .shared-notice-row {
+    .menu-panel {
+        position: absolute;
+        top: calc(100% + 0.35rem);
+        right: -0.6rem;
+        z-index: 60;
+        min-width: 15rem;
+        padding: 0.35rem;
+        background: var(--color-surface);
+        border: 1px solid var(--color-line);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-modal);
+        display: flex;
+        flex-direction: column;
+    }
+
+    .menu-item {
         display: flex;
         align-items: center;
-        gap: 0.75rem;
-        flex-wrap: wrap;
-    }
-
-    .shared-notice {
-        font-size: 0.85em;
-        color: var(--violet-text);
-        background: var(--violet-light);
+        justify-content: space-between;
+        gap: 1rem;
+        min-height: 44px;
+        padding: 0 0.75rem;
+        border: none;
         border-radius: var(--radius-md);
-        padding: 0.5rem 0.9rem;
-        margin: 0;
-    }
-
-    .btn-leave-list {
-        font-size: 0.82em;
-        padding: 0.35rem 0.75rem;
         background: none;
-        border: 1px solid var(--danger-text);
-        color: var(--danger-text);
-        border-radius: var(--radius-md);
-        cursor: pointer;
+        color: var(--color-ink);
+        font-size: 15px;
         font-weight: 500;
+        text-align: left;
+        cursor: pointer;
     }
 
-    .btn-leave-list:hover {
-        background: var(--danger-bg);
+    .menu-item:hover:not(:disabled) { background: var(--bg-elevated); }
+    .menu-item:disabled { opacity: 0.45; cursor: not-allowed; }
+    .menu-item--danger { color: var(--danger-text); }
+
+    .menu-state {
+        font-size: 13px;
+        color: var(--color-muted);
+    }
+
+    .menu-confirm {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        min-height: 44px;
+        padding: 0 0.75rem;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--danger-text);
+    }
+
+    .menu-confirm span { flex: 1; }
+
+    .btn-confirm-sm {
+        padding: 0.3rem 0.7rem;
+        border: none;
+        border-radius: var(--radius-sm);
+        font-size: 0.85em;
+        font-weight: 600;
+        cursor: pointer;
+        min-height: unset;
+    }
+
+    .btn-confirm-sm--danger { background: var(--danger-text); color: var(--color-surface); }
+    .btn-confirm-sm--danger:hover { background: var(--danger-text-hover); }
+
+    .list-top h1 {
+        margin: 0.25rem 0 0;
+        overflow-wrap: anywhere;
+    }
+
+    .shopping-mode .list-top h1 { font-size: 26px; }
+
+    .summary {
+        margin: 0;
+        font-size: 13px;
+        color: var(--color-muted);
+    }
+
+    .summary strong { color: var(--color-ink); font-weight: 600; }
+
+    .progress-block {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+        margin-top: 0.35rem;
+    }
+
+    .progress-text {
+        margin: 0;
+        font-size: 13px;
+        color: var(--color-muted);
     }
 
     .offline-badge {
@@ -788,353 +978,211 @@
         border: 1px solid var(--warning-border);
         border-radius: var(--radius-md);
         color: var(--warning-text);
-        font-size: 0.82em;
-        padding: 0.45rem 0.9rem;
+        font-size: 13px;
+        padding: 0.5rem 0.9rem;
         text-align: center;
     }
 
-    /* Store selector */
-    .store-selector {
-        display: flex;
-        align-items: center;
-        gap: 0.6rem;
-        font-size: 0.9em;
-    }
+    /* ── Lägg till ─────────────────────────────────────────────────────── */
 
-    .store-label {
-        color: var(--text-muted);
-        white-space: nowrap;
-        flex-shrink: 0;
-    }
-
-    .store-chips {
-        display: flex;
-        gap: 0.4rem;
-        overflow-x: auto;
-        padding-bottom: 2px;
-        scrollbar-width: none;
-    }
-
-    .store-chips::-webkit-scrollbar { display: none; }
-
-    .store-chip {
-        padding: 0.3rem 0.75rem;
-        border-radius: var(--radius-pill);
-        border: 1.5px solid var(--border-input);
-        background: var(--bg-surface);
-        color: var(--text-secondary);
-        font-size: 0.85em;
-        font-weight: 500;
-        cursor: pointer;
-        white-space: nowrap;
-        transition: background 0.12s, border-color 0.12s, color 0.12s;
-        min-height: unset;
-    }
-
-    .store-chip:hover { border-color: var(--color-primary); color: var(--color-primary); }
-
-    .store-chip.selected {
-        background: var(--color-primary);
-        border-color: var(--color-primary);
-        color: #fff;
-        font-weight: 600;
-    }
-
-    /* Progress indicator */
-    .progress-text {
-        margin: 0;
-        font-size: 0.82em;
-        color: var(--text-muted);
-    }
-
-    /* Fäst överst i handelsläget, där appskalet är borttaget. */
-    .shopping-topbar {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 6px;
-        background: var(--border);
-        z-index: 90;
-    }
-
-    .shopping-topbar-fill {
-        height: 100%;
-        background: linear-gradient(90deg, var(--color-primary), var(--color-accent));
-        transition: width 0.4s ease;
-    }
-
-    /* Nås med tummen; hamnar ovanför hemknappsområdet på telefoner. */
-    .btn-exit-shopping {
-        position: fixed;
-        left: 50%;
-        transform: translateX(-50%);
-        bottom: max(1rem, calc(env(safe-area-inset-bottom) + 0.5rem));
-        z-index: 95;
-        min-height: 44px;
-        padding: 0.6rem 1.5rem;
-        border: none;
-        border-radius: 999px;
-        background: var(--text-primary);
-        color: var(--bg-surface);
-        font-size: 0.9em;
-        font-weight: 600;
-        cursor: pointer;
-        box-shadow: 0 4px 16px rgba(0,0,0,0.22);
-    }
-
-    /* List actions */
-    .list-actions {
-        display: flex;
-        gap: 0.5rem;
-    }
-
-    .btn-clear-bought, .btn-clear-all {
-        padding: 0.3rem 0.75rem;
-        border-radius: var(--radius-sm);
-        cursor: pointer;
-        font-size: 0.85em;
-        border: 1px solid;
-        background: var(--bg-surface);
-    }
-
-    .btn-clear-bought { color: var(--warning-text); border-color: var(--warning-border); }
-    .btn-clear-bought:hover:not(:disabled) { background: var(--warning-bg); }
-
-    .btn-clear-all { color: var(--danger-text); border-color: var(--danger-border); }
-    .btn-clear-all:hover:not(:disabled) { background: var(--danger-bg); }
-
-    .btn-clear-bought:disabled, .btn-clear-all:disabled {
-        opacity: 0.4;
-        cursor: not-allowed;
-    }
-
-    .confirm-inline {
-        display: flex;
-        align-items: center;
-        gap: 0.35rem;
-        font-size: 0.82em;
-        color: var(--danger-text);
-        font-weight: 600;
-    }
-
-    .btn-confirm-sm {
-        padding: 0.2rem 0.55rem;
-        border: none;
-        border-radius: var(--radius-sm);
-        font-size: 0.85em;
-        font-weight: 600;
-        cursor: pointer;
-        min-height: unset;
-    }
-
-    .btn-confirm-sm--danger { background: var(--danger-text); color: #fff; }
-    .btn-confirm-sm--danger:hover { background: var(--danger-text-hover); }
-
-    /* Add item form */
     .add-card {
         display: flex;
         flex-direction: column;
         gap: 0.6rem;
+        padding: 1rem;
+        background: var(--color-surface);
+        border: 1px solid var(--color-line);
+        border-radius: var(--radius-lg);
     }
 
-    .add-card input {
-        padding: 0.6rem 0.8rem;
-        border: 1px solid var(--border-input);
+    .add-input {
+        padding: 0.7rem 0.85rem;
+        border: 1px solid var(--color-border);
         border-radius: var(--radius-md);
-        font-size: 0.95em;
+        font-size: 16px;
         outline: none;
         transition: border-color 0.15s;
-        background: var(--bg-surface);
-        color: var(--text-primary);
+        background: var(--color-surface);
+        color: var(--color-ink);
+        /* Hoppar man hit från bottenpanelen ska fältet inte hamna under det
+           fasta huvudet. */
+        scroll-margin-top: 14rem;
     }
 
-    .add-card input:focus { border-color: var(--color-primary); }
+    .add-input:focus { border-color: var(--color-green); }
 
-
-
-
-
-
-
-
-
-
-
-
-
-    .btn-add {
-        padding: 0.6rem;
-        background: var(--gradient-brand);
-        color: #fff;
-        border: none;
-        border-radius: var(--radius-md);
-        font-size: 0.95em;
-        font-weight: 600;
-        cursor: pointer;
-        transition: opacity 0.15s;
+    .add-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
     }
-
-    .btn-add:hover:not(:disabled) { opacity: 0.9; }
-    .btn-add:disabled { opacity: 0.6; cursor: not-allowed; }
 
     .btn-import-template {
+        min-height: 44px;
         padding: 0.5rem;
         background: none;
-        border: 1px dashed var(--border-input);
-        border-radius: var(--radius-md);
-        font-size: 0.88em;
-        color: var(--text-muted);
+        border: 1px dashed var(--color-border);
+        border-radius: var(--radius-lg);
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--color-muted);
         cursor: pointer;
         transition: border-color 0.15s, color 0.15s, background 0.15s;
     }
 
     .btn-import-template:hover {
-        border-color: var(--color-primary);
-        color: var(--color-primary);
-        background: var(--bg-elevated);
+        border-color: var(--color-ink);
+        color: var(--color-ink);
     }
 
-    /* Search */
+    /* ── Sök ───────────────────────────────────────────────────────────── */
+
     .search-row {
         position: relative;
         display: flex;
         align-items: center;
+        color: var(--color-muted);
+    }
+
+    .search-row > :global(svg:first-child) {
+        position: absolute;
+        left: 0.8rem;
+        pointer-events: none;
     }
 
     .search-input {
         width: 100%;
-        padding: 0.55rem 2.2rem 0.55rem 0.9rem;
-        border: 1px solid var(--border-input);
-        border-radius: var(--radius-md);
-        font-size: 0.9em;
+        padding: 0.65rem 2.6rem 0.65rem 2.5rem;
+        border: 1px solid var(--color-line);
+        border-radius: var(--radius-pill);
+        font-size: 16px;
         outline: none;
-        background: var(--bg-surface);
-        color: var(--text-primary);
+        background: var(--color-surface);
+        color: var(--color-ink);
         transition: border-color 0.15s;
     }
 
-    .search-input:focus { border-color: var(--color-primary); }
+    .search-input:focus { border-color: var(--color-green); }
 
     .btn-clear-search {
         position: absolute;
-        right: 0.5rem;
-        background: none;
+        right: 0.25rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        padding: 0;
         border: none;
-        font-size: 1.1em;
-        color: var(--text-faint);
+        border-radius: 50%;
+        background: none;
+        color: var(--color-muted);
         cursor: pointer;
-        min-height: unset;
-        padding: 0 0.25rem;
-        line-height: 1;
     }
 
-    .btn-clear-search:hover { color: var(--text-secondary); }
+    .btn-clear-search:hover { color: var(--color-ink); }
 
-    /* Items card */
-    .items-card {
-        padding: 0;
-        overflow: hidden;
-        border-radius: var(--radius-lg);
+    /* ── Varor ─────────────────────────────────────────────────────────── */
+
+    .items {
+        display: flex;
+        flex-direction: column;
     }
 
     .empty-list, .empty-search {
         text-align: center;
-        color: var(--text-faint);
-        font-size: 0.9em;
-        padding: 2rem 1rem;
+        color: var(--color-muted);
+        font-size: 15px;
+        padding: 2.5rem 1rem;
         margin: 0;
     }
 
-    /* History */
-    .history-card {
-        padding: 0;
-        overflow: hidden;
-    }
+    /* ── Historik ──────────────────────────────────────────────────────── */
+
+    .history { margin-top: 1rem; }
 
     .history-toggle {
         display: flex;
         align-items: center;
         justify-content: space-between;
         width: 100%;
+        min-height: 44px;
+        padding: 0;
         background: none;
         border: none;
-        padding: 0.85rem 1.25rem;
-        font-size: 0.9em;
-        font-weight: 600;
-        color: var(--text-muted);
+        border-bottom: 1px solid var(--color-line);
+        color: var(--color-muted);
         cursor: pointer;
         text-align: left;
-        min-height: unset;
     }
 
-    .history-toggle:hover { background: var(--bg-hover); color: var(--text-secondary); }
+    .history-toggle:hover { color: var(--color-ink); }
 
-    .history-arrow {
-        font-size: 0.65em;
-        color: var(--text-faint);
+    .history-chevron {
+        display: flex;
+        transform: rotate(-90deg);
+        transition: transform var(--dur-base) var(--ease-out);
     }
+
+    .history-chevron.open { transform: none; }
 
     .history-entries {
         display: flex;
         flex-direction: column;
-        gap: 0;
-        border-top: 1px solid var(--border-subtle);
     }
 
     .history-entry {
         display: flex;
         flex-direction: column;
         gap: 0.2rem;
-        padding: 0.75rem 1.25rem;
-        border-bottom: 1px solid var(--border-faint);
-        font-size: 0.85em;
+        padding: 0.75rem 0;
+        border-bottom: 1px dashed var(--color-line);
+        font-size: 14px;
     }
 
     .history-entry:last-child { border-bottom: none; }
 
     .history-date {
-        color: var(--text-faint);
-        font-size: 0.8em;
+        color: var(--color-muted);
+        font-size: 12px;
     }
 
     .history-items {
-        color: var(--text-secondary);
+        color: var(--color-ink);
         line-height: 1.5;
     }
 
-    @media (max-width: 500px) {
-        .list-header {
-            flex-wrap: wrap;
-            gap: 0.4rem;
-        }
-        .header-actions {
-            width: 100%;
-            justify-content: flex-end;
-        }
+    /* ── Bottenpanel ───────────────────────────────────────────────────── */
+
+    .bottom-bar {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 80;
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 12px max(1rem, calc((100% - 680px) / 2 + 1rem)) calc(12px + env(safe-area-inset-bottom));
+        background: var(--color-paper);
+        border-top: 1px solid var(--color-line);
     }
 
-    /* Shopping mode overrides */
-    .page.shopping-mode {
-        /* Plats för den fästa förloppsraden överst och avsluta-knappen nederst. */
-        padding: 1rem 0.5rem calc(4.5rem + env(safe-area-inset-bottom));
+    /* Huvudhandlingen tar resten av bredden. */
+    .bottom-bar > :global(.btn:last-child) { flex: 1; }
+
+    .remaining {
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--color-ink);
+        white-space: nowrap;
+        padding: 0 0.25rem;
     }
+
+    /* ── Handelsläge ───────────────────────────────────────────────────── */
 
     /* Hela skärmen tillhör listan här, så knapparna får full träffyta. */
     .page.shopping-mode :global(button) {
         min-height: 44px;
-    }
-
-    .page.shopping-mode .list-header h1 {
-        font-size: 1.25rem;
-    }
-
-    .page.shopping-mode .items-card {
-        border-radius: 16px;
-        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
-    }
-
-    .page.shopping-mode .store-selector {
-        font-size: 1em;
     }
 </style>
