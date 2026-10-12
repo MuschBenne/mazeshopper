@@ -23,7 +23,7 @@
 <style>
     .toast-container {
         position: fixed;
-        bottom: max(1.5rem, calc(env(safe-area-inset-bottom) + 0.5rem));
+        bottom: calc(max(1.5rem, calc(env(safe-area-inset-bottom) + 0.5rem)) + var(--bottom-bar-height));
         left: 50%;
         transform: translateX(-50%);
         display: flex;

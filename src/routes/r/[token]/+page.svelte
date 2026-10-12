@@ -266,7 +266,7 @@
     .btn-save-copy {
         align-self: flex-start;
         padding: 0.6rem 1.25rem;
-        background: linear-gradient(135deg, #f97316, #c026d3);
+        background: var(--color-green);
         color: #fff;
         border: none;
         border-radius: 8px;

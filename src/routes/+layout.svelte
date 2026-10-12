@@ -10,6 +10,17 @@
     import { themeContext } from '$lib/context/theme-context.svelte';
     import { goto } from '$app/navigation';
     import { page } from '$app/state';
+    // Typsnitten ligger i appen själv — CSP:n tillåter bara typsnitt från egen
+    // domän, så en Google Fonts-länk skulle blockeras. Bara latin-subsetet:
+    // det täcker åäö och håller nedladdningen liten.
+    import '@fontsource/schibsted-grotesk/latin-400.css';
+    import '@fontsource/schibsted-grotesk/latin-500.css';
+    import '@fontsource/schibsted-grotesk/latin-600.css';
+    import '@fontsource/schibsted-grotesk/latin-700.css';
+    import '@fontsource/schibsted-grotesk/latin-800.css';
+    import '@fontsource/ibm-plex-mono/latin-400.css';
+    import '@fontsource/ibm-plex-mono/latin-500.css';
+    import '@fontsource/ibm-plex-mono/latin-600.css';
     import "../app.css";
 
     let { data, children } = $props();
@@ -113,11 +124,10 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        background: var(--bg-surface);
-        border-bottom: 1px solid var(--border);
+        background: var(--color-paper);
+        border-bottom: 1px solid var(--color-line);
         padding: 0 1.25rem;
         height: 56px;
-        box-shadow: 0 1px 4px rgba(0,0,0,0.06);
         position: sticky;
         top: 0;
         z-index: 100;
@@ -126,11 +136,9 @@
     .brand {
         font-weight: 800;
         font-size: 1.15rem;
+        letter-spacing: -0.02em;
         text-decoration: none;
-        background: var(--gradient-brand);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
+        color: var(--color-ink);
         white-space: nowrap;
     }
 
@@ -147,7 +155,7 @@
         transition: color 0.15s;
     }
 
-    .username:hover { color: var(--color-primary); }
+    .username:hover { color: var(--color-ink); }
 
     .btn-logout {
         padding: 0.45rem 1rem;
@@ -211,7 +219,10 @@
             right: 0;
             bottom: 1px;
             width: 2.5rem;
-            background: linear-gradient(to right, transparent, var(--bg-surface));
+            /* Ingen toning: menyn klipps rakt, som en hyllkant. Kanten
+               visar att det finns mer att svepa till. */
+            border-left: 1px solid var(--color-line);
+            background: var(--color-paper);
             pointer-events: none;
         }
     }
@@ -219,8 +230,8 @@
     nav {
         display: flex;
         gap: 0;
-        background: var(--bg-surface);
-        border-bottom: 1px solid var(--border);
+        background: var(--color-paper);
+        border-bottom: 1px solid var(--color-line);
         padding: 0 1rem;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
@@ -247,8 +258,8 @@
     }
 
     nav a.active {
-        color: var(--color-primary);
-        border-bottom-color: var(--color-primary);
-        font-weight: 600;
+        color: var(--color-ink);
+        border-bottom-color: var(--color-green);
+        font-weight: 700;
     }
 </style>
