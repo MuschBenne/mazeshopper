@@ -2,7 +2,14 @@
     // Renders all items belonging to a single category, with collapse, edit, and shopping-mode support.
     import { shoppingContext } from '$lib/context/shopping-context.svelte';
     import AmountField from '$lib/components/AmountField.svelte';
-    import { formatQuantity, formatStepperAmount, parseQuantityInput } from '$lib/units';
+    import ItemRow from '$lib/components/ui/ItemRow.svelte';
+    import AisleMarker from '$lib/components/ui/AisleMarker.svelte';
+    import ChevronDown from '@lucide/svelte/icons/chevron-down';
+    import Minus from '@lucide/svelte/icons/minus';
+    import Plus from '@lucide/svelte/icons/plus';
+    import Pencil from '@lucide/svelte/icons/pencil';
+    import Trash2 from '@lucide/svelte/icons/trash-2';
+    import { formatAmount, formatQuantity, formatStepperAmount, parseQuantityInput } from '$lib/units';
     import { slide } from 'svelte/transition';
     import { flip } from 'svelte/animate';
 
@@ -13,10 +20,14 @@
      *   items: import('$lib/context/shopping-context.svelte').ShoppingItem[],
      *   shoppingMode: boolean,
      *   listId: string,
-     *   showAddedBy?: boolean
+     *   showAddedBy?: boolean,
+     *   stop?: number | null,
+     *   upcoming?: boolean
      * }}
      */
-    let { category, categories, items, shoppingMode, listId, showAddedBy = false } = $props();
+    // stop är avdelningens plats i det valda varuhusets rutt, null utan rutt.
+    // upcoming ritar stoppnumret som kontur: ett stopp man inte nått än.
+    let { category, categories, items, shoppingMode, listId, showAddedBy = false, stop = null, upcoming = false } = $props();
 
     // Spec-förslagen ligger i en <datalist> som listsidan renderar en gång —
     // en egen kopia per vara vore samma lista om och om igen.
@@ -35,6 +46,15 @@
 
     // Items are displayed in their original insertion order — no re-sorting on check-off.
     const displayItems = $derived(items);
+    const boughtCount = $derived(items.filter(i => i.bought).length);
+
+    // Mängden under namnet i handelsläget. En ensam etta skrivs inte ut — den
+    // säger inget som namnet inte redan säger (samma regel som historiken).
+    /** @param {import('$lib/context/shopping-context.svelte').ShoppingItem} item */
+    function shoppingAmount(item) {
+        const amount = formatAmount(item.quantity, item.unit);
+        return amount === '1' ? '' : amount;
+    }
 
     // Populates the inline edit form with the item's current values.
     /** @param {import('$lib/context/shopping-context.svelte').ShoppingItem} item */
@@ -69,22 +89,28 @@
     aria-expanded={!collapsed}
     aria-controls="category-items-{category.id}"
 >
-    <span class="category-dot" style:background={category.color}></span>
-    <span class="category-arrow">{collapsed ? '▶' : '▼'}</span>
-    {category.name}
-    <span class="category-count">({items.length})</span>
+    {#if stop !== null}
+        <AisleMarker value={stop} variant={upcoming ? 'outline' : 'solid'} />
+        <span class="sr-only">Stopp {stop}:</span>
+    {:else}
+        <span class="category-dot" style:background={category.color}></span>
+    {/if}
+    <span class="category-name section-label">{category.name}</span>
+    <span class="category-count mono" aria-label="{boughtCount} av {items.length} i korgen">{boughtCount}/{items.length}</span>
+    <span class="category-chevron" class:collapsed><ChevronDown size={18} aria-hidden="true" /></span>
 </button>
 
 {#if !collapsed}
     <ul id="category-items-{category.id}" transition:slide={{ duration: 180 }}>
         {#each displayItems as item (item.itemId)}
-            <li class:bought={item.bought} animate:flip={{ duration: 220 }} transition:slide={{ duration: 180 }}>
+            <li animate:flip={{ duration: 220 }} transition:slide={{ duration: 180 }}>
                 {#if editingItemId === item.itemId}
                     <div class="edit-form">
                         <input
                             class="edit-input"
                             bind:value={editName}
                             placeholder="Vara"
+                            aria-label="Varunamn"
                             onkeydown={(e) => { if (e.key === 'Enter') saveEdit(); else if (e.key === 'Escape') cancelEdit(); }}
                         />
                         <AmountField bind:amount={editAmount} bind:unit={editUnit} onEnter={saveEdit} />
@@ -92,6 +118,7 @@
                             class="edit-input"
                             bind:value={editSpec}
                             placeholder="Specifikation (valfritt)"
+                            aria-label="Specifikation"
                             list={SPEC_DATALIST}
                             onkeydown={(e) => { if (e.key === 'Enter') saveEdit(); else if (e.key === 'Escape') cancelEdit(); }}
                         />
@@ -113,43 +140,50 @@
                             <button class="btn-cancel" onclick={cancelEdit}>Avbryt</button>
                         </div>
                     </div>
+                {:else if shoppingMode}
+                    <ItemRow
+                        name={item.name}
+                        checked={item.bought}
+                        onToggle={() => shoppingContext.toggleBought(listId, item.itemId)}
+                        amount={shoppingAmount(item)}
+                        large
+                    >
+                        {#snippet meta()}
+                            {#if item.spec}<span>{item.spec}</span>{/if}
+                            {#if showAddedBy && item.addedBy}<span>av {item.addedBy}</span>{/if}
+                        {/snippet}
+                    </ItemRow>
                 {:else}
-                    <span class="item-name" style:text-decoration={item.bought ? 'line-through' : 'none'}>
-                        {item.name}
-                        {#if item.spec}<span class="item-spec">{item.spec}</span>{/if}
-                        {#if showAddedBy && item.addedBy}<span class="item-added-by">{item.addedBy}</span>{/if}
-                    </span>
-                    <div class="quantity-controls">
-                        {#if !shoppingMode}
+                    <ItemRow name={item.name} checked={item.bought}>
+                        {#snippet meta()}
+                            {#if item.spec}<span>{item.spec}</span>{/if}
+                            {#if showAddedBy && item.addedBy}<span>av {item.addedBy}</span>{/if}
+                        {/snippet}
+                        {#snippet trailing()}
                             <button
+                                class="icon-btn"
                                 aria-label="Minska mängden för {item.name}"
                                 onclick={() => shoppingContext.decreaseQuantity(listId, item.itemId)}
-                            >-</button>
-                        {/if}
-                        <!-- Tomt när ingen mängd är angiven: "salt" behöver inte
-                             stå som "1 salt" för att vara en fullgod rad. Rent
-                             tal, ingen ×-form: knapparna omkring säger redan
-                             vad talet är, och varor från tiden före enheter ska
-                             se ut som de alltid gjort. -->
-                        <span class="quantity">{formatStepperAmount(item.quantity, item.unit)}</span>
-                        {#if !shoppingMode}
+                            ><Minus size={16} aria-hidden="true" /></button>
+                            <!-- Tomt när ingen mängd är angiven: "salt" behöver inte
+                                 stå som "1 salt" för att vara en fullgod rad. Rent
+                                 tal, ingen ×-form: knapparna omkring säger redan
+                                 vad talet är, och varor från tiden före enheter ska
+                                 se ut som de alltid gjort. -->
+                            <span class="quantity mono">{formatStepperAmount(item.quantity, item.unit)}</span>
                             <button
+                                class="icon-btn"
                                 aria-label="Öka mängden för {item.name}"
                                 onclick={() => shoppingContext.increaseQuantity(listId, item.itemId)}
-                            >+</button>
-                        {/if}
-                        {#if shoppingMode}
-                            <button
-                                class="btn-bought"
-                                class:bought={item.bought}
-                                onclick={() => shoppingContext.toggleBought(listId, item.itemId)}
-                            >{item.bought ? '✓' : ''}</button>
-                        {/if}
-                        {#if !shoppingMode}
-                            <button class="btn-edit" aria-label="Redigera {item.name}" onclick={() => startEdit(item)}>✏️</button>
-                            <button aria-label="Ta bort {item.name}" onclick={() => shoppingContext.removeItem(listId, item.itemId)}>🗑️</button>
-                        {/if}
-                    </div>
+                            ><Plus size={16} aria-hidden="true" /></button>
+                            <button class="icon-btn" aria-label="Redigera {item.name}" onclick={() => startEdit(item)}>
+                                <Pencil size={16} aria-hidden="true" />
+                            </button>
+                            <button class="icon-btn" aria-label="Ta bort {item.name}" onclick={() => shoppingContext.removeItem(listId, item.itemId)}>
+                                <Trash2 size={16} aria-hidden="true" />
+                            </button>
+                        {/snippet}
+                    </ItemRow>
                 {/if}
             </li>
         {/each}
@@ -157,44 +191,52 @@
 {/if}
 
 <style>
+    /* Sektionshuvud: stoppnummer, avdelningens namn som en hyllskylt och hur
+       mycket som redan ligger i korgen. */
     .category-header {
         display: flex;
         align-items: center;
-        gap: 0.5rem;
+        gap: 0.65rem;
         width: 100%;
         background: none;
         border: none;
-        border-bottom: 1px solid var(--border-subtle);
-        padding: 0.7rem 1.25rem;
-        font-size: 0.95em;
-        font-weight: 600;
+        border-bottom: 1px solid var(--color-ink);
+        padding: 1.5rem 0 0.6rem;
         cursor: pointer;
         text-align: left;
-        color: var(--text-secondary);
-        min-height: unset;
+        color: var(--color-ink);
+        min-height: 44px;
     }
-
-    .category-header:hover { background: var(--bg-hover); }
 
     .category-dot {
-        width: 13px;
-        height: 13px;
-        border-radius: 50%;
+        width: 12px;
+        height: 12px;
+        border-radius: 3px;
         flex-shrink: 0;
-        border: 1px solid rgba(0,0,0,0.1);
+        box-shadow: inset 0 0 0 1px rgba(0,0,0,0.12);
     }
 
-    .category-arrow {
-        font-size: 0.65em;
-        color: var(--text-faint);
+    .category-name {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     .category-count {
-        font-weight: 400;
-        font-size: 0.85em;
-        color: var(--text-faint);
-        margin-left: auto;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--color-muted);
     }
+
+    .category-chevron {
+        display: flex;
+        color: var(--color-muted);
+        transition: transform var(--dur-base) var(--ease-out);
+    }
+
+    .category-chevron.collapsed { transform: rotate(-90deg); }
 
     ul {
         list-style: none;
@@ -202,160 +244,62 @@
         margin: 0;
     }
 
-    li {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.5rem;
-        padding: 0.65rem 1.25rem;
-        border-bottom: 1px solid var(--border-faint);
-        font-size: 0.95em;
-        flex-wrap: wrap;
-    }
-
-    li:last-child { border-bottom: none; }
-
-    .item-name {
-        color: var(--text-primary);
-        flex: 1;
-        min-width: 0;
-        word-break: break-word;
-    }
-
-    .item-spec {
-        display: block;
-        font-size: 0.82em;
-        color: var(--text-faint);
-        font-weight: 400;
-        margin-top: 0.1rem;
-    }
-
-    .item-added-by {
-        display: block;
-        font-size: 0.75em;
-        color: var(--violet-text);
-        font-weight: 400;
-        margin-top: 0.1rem;
-        opacity: 0.8;
-    }
-
-    li.bought .item-name { color: var(--text-faint); }
-
-    .quantity-controls {
-        display: flex;
-        align-items: center;
-        gap: 0.25rem;
-        flex-shrink: 0;
-    }
+    li:last-child :global(.item-row) { border-bottom: none; }
 
     .quantity {
         /* Rymmer "3,5 dl" utan att knapparna flyttar sig när mängden ändras. */
         min-width: 3.2rem;
         text-align: center;
-        font-size: 0.9em;
-        font-variant-numeric: tabular-nums;
+        font-size: 14px;
         white-space: nowrap;
+        color: var(--color-ink);
     }
 
-    .quantity-controls button {
-        border: 1px solid var(--border);
-        background: var(--bg-surface);
-        border-radius: var(--radius-sm);
-        padding: 0.2rem 0.5rem;
-        cursor: pointer;
-        font-size: 0.9em;
-        color: var(--text-secondary);
-        min-height: 36px;
-        min-width: 36px;
-    }
-
-    .quantity-controls button:hover { background: var(--bg-elevated); }
-
-    .btn-bought {
-        width: 36px;
-        height: 36px;
-        border-radius: 50%;
-        border: 2px solid var(--border-input);
-        background: var(--bg-surface);
-        cursor: pointer;
-        font-size: 1.1em;
-        color: var(--success-text);
-        font-weight: 700;
-        display: flex;
+    .icon-btn {
+        display: inline-flex;
         align-items: center;
         justify-content: center;
-        transition: background 0.08s, border-color 0.08s;
-        flex-shrink: 0;
-        min-height: unset;
-        min-width: unset;
+        width: 36px;
+        height: 36px;
+        min-height: 36px;
+        padding: 0;
+        border: 1px solid var(--color-line);
+        border-radius: var(--radius-md);
+        background: var(--color-surface);
+        color: var(--color-ink);
+        cursor: pointer;
     }
 
-    .btn-bought:hover { border-color: var(--success-text); background: var(--success-bg); }
-
-    .btn-bought.bought {
-        background: var(--success-text);
-        border-color: var(--success-text);
-        color: #fff;
-    }
-
-    .btn-bought.bought:hover { background: var(--success-text); border-color: var(--success-text); }
+    .icon-btn:hover { background: var(--bg-elevated); border-color: var(--color-border); }
 
     .edit-form {
         display: flex;
         flex-direction: column;
         gap: 0.4rem;
-        flex: 1;
-        padding: 0.25rem 0;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid var(--color-line);
     }
 
     .edit-input {
-        padding: 0.4rem 0.6rem;
-        border: 1px solid var(--border-input);
-        border-radius: var(--radius-sm);
-        font-size: 0.9em;
+        padding: 0.55rem 0.7rem;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-md);
+        font-size: 16px;
         outline: none;
         transition: border-color 0.15s;
-        background: var(--bg-surface);
-        color: var(--text-primary);
+        background: var(--color-surface);
+        color: var(--color-ink);
     }
 
-    .edit-input:focus { border-color: var(--color-primary); }
+    .edit-input:focus { border-color: var(--color-green); }
 
     .edit-actions {
         display: flex;
         gap: 0.4rem;
     }
 
-    .btn-edit {
-        font-size: 0.85em;
-        min-height: 36px;
-        min-width: 36px;
-    }
-
-
-
-
-
-    /* Shopping mode overrides */
-    :global(.shopping-mode) .category-header {
-        padding: 0.85rem 1.25rem;
-        font-size: 1em;
-        background: var(--bg-hover);
-    }
-
-    :global(.shopping-mode) li {
-        padding: 1rem 1.25rem;
-        font-size: 1.05em;
-        min-height: 56px;
-    }
-
-    :global(.shopping-mode) .btn-bought {
-        width: 44px;
-        height: 44px;
-        font-size: 1.3em;
-    }
-
     @media (max-width: 400px) {
-        li { padding: 0.65rem 0.75rem; }
+        .icon-btn { width: 32px; }
+        .quantity { min-width: 2.6rem; }
     }
 </style>

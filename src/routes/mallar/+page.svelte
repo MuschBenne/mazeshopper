@@ -666,11 +666,11 @@
     .btn-create:disabled { opacity: 0.5; cursor: not-allowed; }
 
     .kind-select {
-        padding: 0.55rem 0.8rem;
+        padding: 0.55rem 2rem 0.55rem 0.8rem;
         border: 1px solid var(--border-input);
         border-radius: var(--radius-md);
         font-size: 0.95em;
-        background: var(--bg-surface);
+        background-color: var(--bg-surface);
         color: var(--text-primary);
         outline: none;
         cursor: pointer;

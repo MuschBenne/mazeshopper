@@ -145,7 +145,7 @@
         font-weight: 800;
         letter-spacing: -0.5px;
         width: fit-content;
-        background: linear-gradient(90deg, var(--color-primary), var(--color-accent));
+        background: var(--color-green);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;

@@ -1,8 +1,36 @@
+/* Designtokens. Paletten bygger på butiken: kvittopapper, bläck, kassagrön och
+   den gula prislappen. Grönt betyder "framåt/klart" och används bara för
+   huvudhandlingen, avbockat och förlopp. Gult är reserverat för erbjudanden.
+
+   De äldre namnen längre ner (--bg-page, --text-muted, --color-primary …)
+   pekar om till paletten, så sidor som inte byggts om följer med ändå. */
 :root {
-    /* Brand */
-    --color-primary: #f97316;
-    --color-primary-hover: #ea6c0a;
-    --color-accent: #c026d3;
+    /* Palett */
+    --color-paper:      #F5F2EA;
+    --color-surface:    #FFFFFF;
+    --color-ink:        #17211B;
+    --color-muted:      #5E665F;
+    --color-done:       #8A9089;
+    --color-line:       #E3DED2;
+    --color-border:     #CFC9BB;
+    --color-checkbox:   #9AA198;
+    --color-green:      #0E5A3A;
+    --color-green-dark: #0A432B;
+    --color-green-tint: #E4EEE6;
+    /* Grönt som text. Samma som fyllnaden i ljust tema, men måste ljusas i
+       mörkt — den mörka fyllnaden har för låg kontrast mot mörk bakgrund. */
+    --color-green-text: #0E5A3A;
+    --color-tag:        #FFD43B;
+
+    /* Typsnitt. Mono för alla siffror som hör till handlandet: mängder,
+       räknare, stoppnummer, datum. */
+    --font-sans: 'Schibsted Grotesk', system-ui, sans-serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+    /* Brand — äldre namn, pekar om till paletten */
+    --color-primary: var(--color-green);
+    --color-primary-hover: var(--color-green-dark);
+    --color-accent: var(--color-green-dark);
 
     /* Radius */
     --radius-sm: 6px;
@@ -10,8 +38,10 @@
     --radius-lg: 12px;
     --radius-pill: 999px;
 
-    /* Varumärkesgradienten låg tidigare inskriven på 19 ställen i 13 filer. */
-    --gradient-brand: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+    /* Var tidigare den orange-lila varumärkesgradienten. Designen har inga
+       gradienter, så den är nu en ren fyllnad — namnet ligger kvar för att
+       inte behöva röra alla sidor som använder det. */
+    --gradient-brand: var(--color-green);
 
     /* Typskala i rem. Sidorna använde em, som kompounderar olika beroende på
        förälder — samma "liten text" hamnade därför på olika storlek per sida. */
@@ -28,150 +58,166 @@
     --dur-base:  0.2s;
     --dur-slow:  0.4s;
 
-    /* Shadows */
-    --shadow-card: 0 1px 4px rgba(0,0,0,0.05);
-    --shadow-modal: 0 4px 24px rgba(0,0,0,0.12);
+    /* Shadows. Kort ligger platt på papperet, med ram istället för skugga. */
+    --shadow-card: none;
+    --shadow-modal: 0 4px 24px rgba(23,33,27,0.12);
 
     /* Backgrounds */
-    --bg-page:     #f9fafb;
-    --bg-surface:  #ffffff;
-    --bg-elevated: #f3f4f6;
-    --bg-hover:    #fafafa;
+    --bg-page:     var(--color-paper);
+    --bg-surface:  var(--color-surface);
+    --bg-elevated: #EDE9DF;
+    --bg-hover:    #FAF8F2;
 
     /* Text */
-    --text-primary:   #111827;
-    --text-secondary: #374151;
-    --text-muted:     #6b7280;
-    --text-faint:     #9ca3af;
+    --text-primary:   var(--color-ink);
+    --text-secondary: #2F3A32;
+    --text-muted:     var(--color-muted);
+    --text-faint:     #646B62;
 
     /* Borders */
-    --border:        #e5e7eb;
-    --border-input:  #d1d5db;
-    --border-subtle: #f3f4f6;
-    --border-faint:  #f9fafb;
+    --border:        var(--color-line);
+    --border-input:  var(--color-border);
+    --border-subtle: #ECE8DE;
+    --border-faint:  #F0EDE5;
+
+    /* Pilen i en select. Måste vara en färdig data-URI per tema — en
+       background-image kan inte plocka upp currentColor. */
+    --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%235E665F' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
 
     /* Danger */
-    --danger-text:       #dc2626;
-    --danger-text-hover: #b91c1c;
-    --danger-bg:         #fef2f2;
-    --danger-border:     #fca5a5;
+    --danger-text:       #B42318;
+    --danger-text-hover: #912018;
+    --danger-bg:         #FBEDEA;
+    --danger-border:     #E8A79E;
 
     /* Success */
-    --success-text:       #16a34a;
-    --success-text-hover: #15803d;
-    --success-bg:         #f0fdf4;
-    --success-border:     #86efac;
+    --success-text:       var(--color-green-text);
+    --success-text-hover: var(--color-green-dark);
+    --success-bg:         var(--color-green-tint);
+    --success-border:     #A9C9B4;
 
-    /* Warning */
-    --warning-text:   #92400e;
-    --warning-bg:     #fef3c7;
-    --warning-border: #fcd34d;
+    /* Warning. Ockra, inte gult — gult hör till prislappen. */
+    --warning-text:   #7A4A12;
+    --warning-bg:     #F3E6D3;
+    --warning-border: #D9BF98;
 
     /* Violet (SharePanel, inbjudningar) */
-    --violet-text:       #7c3aed;
-    --violet-text-hover: #6d28d9;
-    --violet-bg:         #ede9fe;
-    --violet-border:     #c4b5fd;
-    --violet-light:      #f5f3ff;
+    --violet-text:       #6D3FC9;
+    --violet-text-hover: #5B2FB5;
+    --violet-bg:         #EEE8F8;
+    --violet-border:     #C7B6EA;
+    --violet-light:      #F5F1FB;
 
-    /* Verify-banner */
-    --verify-text:   #713f12;
-    --verify-bg:     #fefce8;
-    --verify-border: #fde047;
+    /* Verify-banner. Neutral, av samma skäl som warning. */
+    --verify-text:   var(--color-ink);
+    --verify-bg:     #EDE7D8;
+    --verify-border: var(--color-border);
+
+    /* Höjden på en fast bottenpanel, så att toasts kan lägga sig ovanför. */
+    --bottom-bar-height: 0px;
 
     /* Legacy aliases */
     --border-color: var(--border);
-    --color-muted:  var(--text-muted);
 }
 
+/* Mörkt tema: samma palett i natt. Papperet blir mörkt, bläcket ljust, och
+   den gröna fyllnaden ljusas så vit text på den fortfarande läses. */
 @media (prefers-color-scheme: dark) {
     :root:not(.theme-light) {
-        --shadow-card:  0 1px 4px rgba(0,0,0,0.25);
+        --color-paper:      #111612;
+        --color-surface:    #1A211C;
+        --color-ink:        #ECE8DE;
+        --color-muted:      #A4ABA3;
+        --color-done:       #737B73;
+        --color-line:       #2A322C;
+        --color-border:     #3A443D;
+        --color-checkbox:   #6E776F;
+        --color-green:      #1F8456;
+        --color-green-dark: #176B45;
+        --color-green-tint: #DDEFE3;
+        --color-green-text: #6CC79A;
+
         --shadow-modal: 0 4px 24px rgba(0,0,0,0.5);
 
-        --bg-page:     #0f172a;
-        --bg-surface:  #1e293b;
-        --bg-elevated: #2d3748;
-        --bg-hover:    #334155;
+        --bg-elevated: #242C26;
+        --bg-hover:    #1F2721;
 
-        --text-primary:   #f1f5f9;
-        --text-secondary: #cbd5e1;
-        --text-muted:     #94a3b8;
-        --text-faint:     #64748b;
+        --text-secondary: #CFCBC0;
+        --text-faint:     #8D948C;
 
-        --border:        #334155;
-        --border-input:  #475569;
-        --border-subtle: #1e293b;
-        --border-faint:  #0f172a;
+        --border-subtle: #1F2721;
+        --border-faint:  #181E1A;
 
-        --danger-text:       #f87171;
-        --danger-text-hover: #ef4444;
-        --danger-bg:         #1c0606;
-        --danger-border:     #7f1d1d;
+        --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23A4ABA3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
 
-        --success-text:       #4ade80;
-        --success-text-hover: #22c55e;
-        --success-bg:         #052e16;
-        --success-border:     #166534;
+        --danger-text:       #F28B7D;
+        --danger-text-hover: #F5A398;
+        --danger-bg:         #2A1412;
+        --danger-border:     #6E2A22;
 
-        --warning-text:   #fbbf24;
-        --warning-bg:     #1c0a00;
-        --warning-border: #78350f;
+        --success-border: #1F5A3A;
+        --success-bg:     #12261A;
 
-        --violet-text:       #a78bfa;
-        --violet-text-hover: #c4b5fd;
-        --violet-bg:         #1e1035;
-        --violet-border:     #4c1d95;
-        --violet-light:      #2e1065;
+        --warning-text:   #E0B27A;
+        --warning-bg:     #2A1F12;
+        --warning-border: #5C4322;
 
-        --verify-text:   #fde68a;
-        --verify-bg:     #1c1000;
-        --verify-border: #78350f;
+        --violet-text:       #B39CF0;
+        --violet-text-hover: #C8B7F5;
+        --violet-bg:         #221A36;
+        --violet-border:     #4A3880;
+        --violet-light:      #1D1730;
+
+        --verify-bg: #1F2620;
     }
 }
 
 html.theme-dark {
-    --shadow-card:  0 1px 4px rgba(0,0,0,0.25);
+    --color-paper:      #111612;
+    --color-surface:    #1A211C;
+    --color-ink:        #ECE8DE;
+    --color-muted:      #A4ABA3;
+    --color-done:       #737B73;
+    --color-line:       #2A322C;
+    --color-border:     #3A443D;
+    --color-checkbox:   #6E776F;
+    --color-green:      #1F8456;
+    --color-green-dark: #176B45;
+    --color-green-tint: #DDEFE3;
+    --color-green-text: #6CC79A;
+
     --shadow-modal: 0 4px 24px rgba(0,0,0,0.5);
 
-    --bg-page:     #0f172a;
-    --bg-surface:  #1e293b;
-    --bg-elevated: #2d3748;
-    --bg-hover:    #334155;
+    --bg-elevated: #242C26;
+    --bg-hover:    #1F2721;
 
-    --text-primary:   #f1f5f9;
-    --text-secondary: #cbd5e1;
-    --text-muted:     #94a3b8;
-    --text-faint:     #64748b;
+    --text-secondary: #CFCBC0;
+    --text-faint:     #8D948C;
 
-    --border:        #334155;
-    --border-input:  #475569;
-    --border-subtle: #1e293b;
-    --border-faint:  #0f172a;
+    --border-subtle: #1F2721;
+    --border-faint:  #181E1A;
 
-    --danger-text:       #f87171;
-    --danger-text-hover: #ef4444;
-    --danger-bg:         #1c0606;
-    --danger-border:     #7f1d1d;
+    --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23A4ABA3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
 
-    --success-text:       #4ade80;
-    --success-text-hover: #22c55e;
-    --success-bg:         #052e16;
-    --success-border:     #166534;
+    --danger-text:       #F28B7D;
+    --danger-text-hover: #F5A398;
+    --danger-bg:         #2A1412;
+    --danger-border:     #6E2A22;
 
-    --warning-text:   #fbbf24;
-    --warning-bg:     #1c0a00;
-    --warning-border: #78350f;
+    --success-border: #1F5A3A;
+    --success-bg:     #12261A;
 
-    --violet-text:       #a78bfa;
-    --violet-text-hover: #c4b5fd;
-    --violet-bg:         #1e1035;
-    --violet-border:     #4c1d95;
-    --violet-light:      #2e1065;
+    --warning-text:   #E0B27A;
+    --warning-bg:     #2A1F12;
+    --warning-border: #5C4322;
 
-    --verify-text:   #fde68a;
-    --verify-bg:     #1c1000;
-    --verify-border: #78350f;
+    --violet-text:       #B39CF0;
+    --violet-text-hover: #C8B7F5;
+    --violet-bg:         #221A36;
+    --violet-border:     #4A3880;
+    --violet-light:      #1D1730;
+
+    --verify-bg: #1F2620;
 }
 
 *, *::before, *::after {
@@ -184,17 +230,69 @@ html {
 
 body {
     margin: 0;
-    font-family: system-ui, -apple-system, sans-serif;
+    font-family: var(--font-sans);
     font-size: 16px;
     color: var(--text-primary);
-    background: var(--bg-page);
+    background: var(--color-paper);
     min-height: 100dvh;
+}
+
+/* Sidrubriker. Tät och tung, som en skylt över en avdelning. */
+h1 {
+    font-size: 34px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+}
+
+/* Siffror som hör till handlandet: mängder, räknare, stopp, datum. */
+.mono {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Sektionsetikett: små versaler med luft, som texten på en hyllkant. */
+.section-label {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+/* Text som bara skärmläsare ska höra. */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
 }
 
 /* Prevent iOS from zooming on input focus */
 input, select, textarea, button {
     font-size: 16px;
     font-family: inherit;
+}
+
+/* iOS ritar en select själv om den får behålla sitt systemutseende: en glansig,
+   halvgenomskinlig platta som struntar i vår bakgrundsfärg och förblir ljus även
+   i mörkt tema. `appearance: none` flyttar över ritandet till oss — och då måste
+   vi rita pilen själva, för den försvinner i samma veva.
+
+   Reglerna som stylar enskilda select:ar (`.group-select`, `.kind-select`) måste
+   sätta `background-color`, aldrig `background`-kortformen. Kortformen nollställer
+   background-image och äter upp pilen. */
+select {
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: var(--select-chevron);
+    background-repeat: no-repeat;
+    background-position: right 0.6rem center;
+    background-size: 0.75em;
 }
 
 /* Touch targets. 36px är medvetet under rekommenderade 44px: knapparna sitter
@@ -246,10 +344,11 @@ img, svg {
 .group-select {
     align-self: flex-start;
     max-width: 100%;
-    padding: 0.4rem 0.6rem;
+    /* Extra luft till höger — pilen ritas där. */
+    padding: 0.4rem 1.9rem 0.4rem 0.6rem;
     border: 1px solid var(--border-input);
     border-radius: var(--radius-sm);
-    background: var(--bg-surface);
+    background-color: var(--bg-surface);
     color: var(--text-secondary);
     font-size: 0.85em;
     cursor: pointer;
@@ -429,3 +528,9 @@ select:focus-visible {
 }
 .btn-cancel:hover { background: var(--bg-elevated); }
 .btn-cancel:disabled { opacity: 0.5; cursor: default; }
+
+/* En sida med fast bottenpanel (listsidan) lyfter toasts ovanför panelen:
+   52px knapp + 2 × 12px luft. */
+html:has(.bottom-bar) {
+    --bottom-bar-height: 76px;
+}
