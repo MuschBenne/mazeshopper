@@ -29,7 +29,7 @@ npm run build        # Produktionsbygge
 npm run preview      # Förhandsgranska produktionsbygge lokalt
 ```
 
-**Baseline:** `svelte-check` rapporterar 0 errors (1 a11y-warning i `ImportModal.svelte`).
+**Baseline:** `svelte-check` rapporterar 0 errors och 0 warnings.
 `npm test` är grön. Introducera inga nya errors och lämna inga röda tester.
 
 ## Miljövariabler
@@ -68,7 +68,8 @@ src/
 │   │   ├── ImportModal.svelte       # Välj varor ur mall/recept vid import
 │   │   ├── SharePanel.svelte        # UI för att bjuda in/ta bort delare
 │   │   ├── StoreEditor.svelte       # Drag-and-drop varuhusrutt
-│   │   └── Toast.svelte             # Toast-notifikationer
+│   │   ├── Toast.svelte             # Toast-notifikationer
+│   │   └── ui/                      # Designsystemets byggstenar: Button, Checkbox, ItemRow, AisleMarker, ProgressBar
 │   ├── context/                     # Globala Svelte 5-singletons (module-exports)
 │   │   ├── auth-context.svelte.js          # Inloggningsstatus + auth-anrop
 │   │   ├── category-context.svelte.js      # Kategoripaletten (CRUD + gruppfilter)
@@ -293,6 +294,16 @@ Mallar och recept delar `templates`-collection och skiljs åt av `kind`. Dokumen
 - Ett recept kan bära `instructions` (max 1500 tecken, ungefär 200 ord) och `sourceUrl` (endast http/https). Båda är valfria och visas aldrig i inköpslistan — de hör hemma i köket, inte i butiken.
 - `shareToken` (256 bitar, samma mönster som sessionstoken) ger en publik läsvy på `/r/{token}`. Den vyn är `noindex` och renderar tillagningen som ren text. Att sluta dela tar bort token, så spridda länkar slutar fungera direkt.
 - "Spara bland mina recept" kopierar dokumentet. Kategorier följer med som namn och visas via samma fallback som okända kategorier i delade listor.
+
+## Design
+
+Tokens ligger som CSS-variabler på `:root` i `src/app.css` (`--color-paper`, `--color-ink`, `--color-green` …, `--font-sans`, `--font-mono`). De äldre namnen (`--bg-page`, `--text-muted`, `--color-primary`) pekar om till paletten.
+
+- **Grönt** (`--color-green`) betyder framåt/klart: bara huvudhandlingen, avbockat och förlopp. **Gult** (`--color-tag`) är reserverat för erbjudanden, som appen inte har data för än.
+- Inga gradienter, glas/blur, färgade vänsterkanter på kort, emoji eller tunga skuggor.
+- Schibsted Grotesk för UI, IBM Plex Mono (`.mono`) för siffror som hör till handlandet. Typsnitten laddas via `@fontsource` i `+layout.svelte` — CSP:n (`font-src: self`) blockerar Google Fonts.
+- Ikoner från `@lucide/svelte`, importerade per ikon (`@lucide/svelte/icons/check`) och med `aria-hidden="true"`.
+- Stoppnumret i listan är avdelningens plats i varuhusets rutt (`categoryOrder`), inte ett riktigt gångnummer.
 
 ## Tema
 
