@@ -73,12 +73,14 @@
     }
 </script>
 
-<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-<div class="overlay" onclick={(e) => e.target === e.currentTarget && onClose()} transition:fade={{ duration: 180 }}>
-    <div class="modal" transition:fly={{ y: 32, duration: 220 }}>
+<!-- Escape är tangentbordets motsvarighet till klicket utanför rutan. -->
+<svelte:window onkeydown={(e) => e.key === 'Escape' && onClose()} />
+
+<div class="overlay" role="presentation" onclick={(e) => e.target === e.currentTarget && onClose()} transition:fade={{ duration: 180 }}>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="import-modal-title" transition:fly={{ y: 32, duration: 220 }}>
         <div class="modal-header">
-            <h2>{previewId ? 'Välj varor' : 'Välj mall'}</h2>
-            <button class="btn-close" onclick={onClose}>×</button>
+            <h2 id="import-modal-title">{previewId ? 'Välj varor' : 'Välj mall'}</h2>
+            <button class="btn-close" aria-label="Stäng" onclick={onClose}>×</button>
         </div>
 
         {#if !previewId}
