@@ -69,6 +69,7 @@
     let showHistory = $state(false);
     let sseConnected = $state(false);
     let sseHasConnected = $state(false);
+    let pageVisible = $state(true);
     let confirmDeleteList = $state(false);
     let confirmClearAll = $state(false);
     let confirmLeaveList = $state(false);
@@ -110,8 +111,19 @@
 
     // Connect to the SSE stream for this list so all collaborators see changes in real-time.
     // EventSource reconnects automatically on error; we just track connection state for the UI.
+    // En öppen ström håller en serverfunktion vid liv — och Vercel debiterar minnet för
+    // varje sekund den väntar. Släpp den när fliken döljs; vid återkomst skickar servern
+    // hela listan direkt, så inget som hänt under tiden går förlorat.
     $effect(() => {
-        if (!browser || !id) return;
+        if (!browser) return;
+        const onVisibilityChange = () => { pageVisible = document.visibilityState === 'visible'; };
+        onVisibilityChange();
+        document.addEventListener('visibilitychange', onVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+    });
+
+    $effect(() => {
+        if (!browser || !id || !pageVisible) return;
         const es = new EventSource(`/api/lists/${id}/stream`);
         es.onopen = () => { sseConnected = true; sseHasConnected = true; };
         es.onmessage = (e) => {
@@ -120,7 +132,8 @@
             shoppingContext.applyUpdate(data);
         };
         es.onerror = () => { sseConnected = false; };
-        return () => es.close();
+        // Avsiktlig stängning är inget avbrott — offline-varningen ska inte tändas av den.
+        return () => { es.close(); sseConnected = true; };
     });
 
     // Servern stänger strömmen med jämna mellanrum (funktioner har en maxlivslängd),
